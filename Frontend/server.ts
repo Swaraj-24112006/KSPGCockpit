@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import { createProxyMiddleware } from "http-proxy-middleware";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -752,6 +751,65 @@ let ppsrReports: any[] = [
       milieu: ["Elevated summer temperatures in the assembly shop (above 38°C)"],
       measurement: ["Relying strictly on visual gap estimations instead of standard feeler gauges"]
     },
+    causeLocalizationApproach: "both",
+    psqTreeData: {
+      projectStatement: "Component search method & swap analysis to isolate the Red X root cause for Rear Bumper Gap clearance deviation (>1.5mm).",
+      bigXTarget: "Station-14 Fixture Locating Pin Wear (0.45mm axial runout)",
+      ftqRejectionRate: "4.20%",
+      estimatedCost: "3200 €",
+      treeType: 'swap_analysis',
+      swapData: {
+        productName: "Rear Bumper Fascia & Mounting Sub-Assembly",
+        productNumber: "RBM-550-GT",
+        customerName: "Mahindra & Mahindra Ltd",
+        testResultSpecification: "Mating Gap Clearance: 0.3 - 0.8 mm (Spec max 1.0mm)",
+        activeStage: 2,
+        stage0: {
+          bobOriginal: "0.45 mm (Good)",
+          wowOriginal: "1.85 mm (Bad)",
+          bobRepeat1: "0.45 mm",
+          wowRepeat1: "1.82 mm",
+          bobRepeat2: "0.44 mm",
+          wowRepeat2: "1.86 mm",
+          bobRepeat3: "0.45 mm",
+          wowRepeat3: "1.84 mm",
+          measurementGood: true,
+          deltaMStatus: 'eliminated',
+          deltaPStatus: 'active',
+          notes: "Feeler gauge and optical tracker repeatability verified. Measurement is Good (ΔM eliminated)."
+        },
+        stage1: {
+          bobRepeat1: "0.45 mm",
+          wowRepeat1: "1.85 mm",
+          bobRepeat2: "0.44 mm",
+          wowRepeat2: "1.83 mm",
+          bobRepeat3: "0.45 mm",
+          wowRepeat3: "1.84 mm",
+          processGood: true,
+          assemblyProcessStatus: 'eliminated',
+          partsStatus: 'active',
+          notes: "Disassembly and re-assembly produced identical gap clearance. Process is Good (Assembly Process eliminated)."
+        },
+        stage2: {
+          childParts: [
+            { id: 'part-1', partName: "Polypropylene Bumper Fascia", wowInBobValue: "0.45 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "1.84 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+            { id: 'part-2', partName: "Station-14 Mating Locating Pin", wowInBobValue: "1.82 mm (WOW) 🚨", wowInBobResult: "WOW", bobInWowValue: "0.46 mm (BOB) ⭐", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Red X: Locating pin tip worn by 0.45mm preventing locking tab latching." },
+            { id: 'part-3', partName: "Retaining Snap Clip", wowInBobValue: "0.46 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "1.85 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+            { id: 'part-4', partName: "Side Bracket Guide", wowInBobValue: "0.44 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "1.83 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+            { id: 'part-5', partName: "Tailgate Interface Flange", wowInBobValue: "0.45 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "1.84 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
+          ],
+          contributingPartName: "Station-14 Mating Locating Pin",
+          notes: "Station-14 fixture locating pin worn out due to abrasive contact. Replaced with ultra-hardened carbide pin."
+        }
+      }
+    },
+    standardWorksheet: [
+      { id: "sw-1", processStep: "ST-10", subProcess: "Sub-assembly", parameter: "Polypropylene Bumper Fascia", category: "Part", specification: "0.3 - 0.8 mm gap", bobObs: "0.45 mm", wowObs: "0.45 mm", status: "eliminated", notes: "Fascia identical in BOB and WOW" },
+      { id: "sw-2", processStep: "ST-14", subProcess: "Mating & Clamping", parameter: "Station-14 Mating Locating Pin", category: "Tooling", specification: "Axial runout < 0.05 mm", bobObs: "0.02 mm", wowObs: "0.45 mm (Worn)", status: "target", notes: "Target Red X: Locating pin worn by 0.45mm" },
+      { id: "sw-3", processStep: "ST-14", subProcess: "Fastener Fixation", parameter: "Retaining Snap Clip", category: "Part", specification: "Insertion force 45N", bobObs: "46 N", wowObs: "44 N", status: "eliminated", notes: "Clip retention force within spec" },
+      { id: "sw-4", processStep: "ST-14", subProcess: "Guiding Jig", parameter: "Side Bracket Guide", category: "Tooling", specification: "Parallelism < 0.1 mm", bobObs: "0.04 mm", wowObs: "0.05 mm", status: "eliminated", notes: "Bracket guide alignment OK" },
+      { id: "sw-5", processStep: "ST-15", subProcess: "Final Marriage", parameter: "Tailgate Interface Flange", category: "Part", specification: "Flange straightness", bobObs: "Flat", wowObs: "Flat", status: "eliminated", notes: "No distortion on interface flange" }
+    ],
     fiveWhysList: {
       column1: ["Rear bumper-to-body gap exceeds 1.5mm limit", "Bumper clip tab does not snap into locking slot", "Assembly alignment pin is offset by 0.45mm", "Fixture locating pin is worn out", "PM check skipped fixture wear measurements"],
       column2: ["Pneumatic clamp didn't lock fully", "Air pressure dropped below 4.5 bar", "Main manifold leak left unaddressed", "Acoustic leak alarm deactivated", "Maintenance technician silencing alarm during lunch shift"],
@@ -763,12 +821,20 @@ let ppsrReports: any[] = [
       { no: 3, measure: "Re-train all shift operators on standardized bumper mating force techniques", responsible: "Sunita Rao", deadline: "2026-07-10", status: "completed" }
     ],
     effectivenessEvidence: "After carbide pin swap and daily laser tracker verification, the gap alignment error rate dropped from 5.4% to exactly 0%. The feeler gauge audit reports over the next 10 production days show consistent gap clearances at 0.4mm, which is well within standard specifications.",
+    evidenceType: "data",
+    defectTrendData: [
+      { date: "Day 1 (Initial)", defectsCount: 6.2, stage: "Initial Baseline" },
+      { date: "Day 2 (Manual)", defectsCount: 3.5, stage: "Manual Jig Adjustment" },
+      { date: "Day 3 (Fluid Revert)", defectsCount: 1.1, stage: "Fluid Revert" },
+      { date: "Day 4 (PLC Cycle)", defectsCount: 0.3, stage: "PLC Cycle" },
+      { date: "Day 5 (Current)", defectsCount: 0.1, stage: "Current Standardized" }
+    ],
     effectivenessChartData: [
-      { name: "Day 1 (Initial)", value: 5.4 },
-      { name: "Day 3 (Contain)", value: 2.1 },
-      { name: "Day 5 (Pin Swap)", value: 0.8 },
-      { name: "Day 7 (PLC Lock)", value: 0.1 },
-      { name: "Day 10 (Current)", value: 0.0 }
+      { name: "Day 1 (Initial)", value: 6.2 },
+      { name: "Day 2 (Manual)", value: 3.5 },
+      { name: "Day 3 (Fluid Revert)", value: 1.1 },
+      { name: "Day 4 (PLC Cycle)", value: 0.3 },
+      { name: "Day 5 (Current)", value: 0.1 }
     ],
     standardizationList: [
       { no: 1, measure: "Incorporate coordinate-measuring machine (CMM) fixture check in PMS ledger", responsible: "Vijay Deshmukh", date: "2026-07-11", status: "completed" },
@@ -1021,7 +1087,7 @@ app.get("/api/kaizens", (req, res) => {
 app.post("/api/kaizens", (req, res) => {
   try {
     const data = req.body;
-    
+
     const newKaizen: Kaizen = {
       id: `kz-${Date.now()}`,
       srNo: data.srNo || getNextSerialNo(),
@@ -1236,6 +1302,85 @@ Return strictly raw JSON format matching this schema without any markdown wrappe
   }
 });
 
+// API: AI Auto-Generate PSQ Elimination Strategy Tree
+app.post("/api/ppsr/ai-psq", async (req, res) => {
+  try {
+    const { title, problemDescription, area, line, station, partName, partNo, rejectionRate, scrapCost } = req.body;
+
+    if (!title && !problemDescription) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide problem title or description to generate PSQ Tree."
+      });
+    }
+
+    const ai = getGeminiClient();
+
+    const systemInstruction = `You are a world-class automotive quality & reliability engineering expert specializing in the PSQ (Problem Solving Questions / Progressive Sifting Questionnaire) Cause Localization and Elimination Strategy Tree methodology (such as used in Bosch, Toyota, and tier-1 automotive manufacturing).
+
+Analyze the manufacturing problem context and construct a high-precision, hierarchical Elimination Strategy Tree.
+The PSQ tree must logically funnel down from high-level categories to isolate the specific "Big X" (Root Cause).
+
+Funnel Structure:
+- Level 0: Problem Statement Definition ("Find and control the Big X for [Target NOK] found at [Station/Line] to reduce FTQ rejection [Rate]% & [Cost] € estimated.")
+- Level 1 (Nature of Problem): Categories such as Feature (CAD geometry), Property (material/metallurgy), Defect (visual/surface flaws), and Event (dynamic testing/assembly failure). Eliminate the non-applicable ones with a clear technical reason, and keep the active one open.
+- Level 2 (Failure Mode): Drilldown into the active category (e.g. Malfunction vs Destructive vs Leakage).
+- Level 3 (Location / Process Station): Isolate the specific station/jig/tooling where the defect is generated vs others.
+- Level 4 (Product / Component Variant): Isolate the affected part number, model variant, or sub-assembly.
+- Level 5 (Specific Parameter / Critical Mechanism): Isolate competing hypotheses and identify the exact "target" (Big X Root Cause) with realistic measured deviation vs eliminated ones.
+
+Return strictly raw JSON format matching this schema:
+{
+  "projectStatement": "string",
+  "bigXTarget": "string",
+  "ftqRejectionRate": "string",
+  "estimatedCost": "string",
+  "rootNodes": [
+    {
+      "id": "string",
+      "title": "string",
+      "label": "string",
+      "status": "active" | "eliminated" | "target",
+      "explanation": "string",
+      "children": [ ...recursive nodes ]
+    }
+  ]
+}`;
+
+    const userPrompt = `Manufacturing Defect Context:
+- Problem Title: ${title || "Component Defect"}
+- Problem Description: ${problemDescription || "Quality non-conformity detected on production line"}
+- Area / Plant: ${area || "Manufacturing Plant"}
+- Line: ${line || "Assembly Line"}
+- Station: ${station || "Inspection / Assembly Station"}
+- Part Name / No: ${partName || "Automotive Component"} (${partNo || "N/A"})
+- Rejection Rate: ${rejectionRate || "2.5%"}
+- Scrap / Rework Cost: ${scrapCost || "1800 €"}
+
+Generate a complete, technically authentic PSQ Elimination Tree structure tailored specifically to this problem. Do not use generic placeholders.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const aiText = response.text || "{}";
+    const resultObj = JSON.parse(aiText.trim());
+
+    res.json({
+      success: true,
+      data: resultObj
+    });
+  } catch (error: any) {
+    console.error("AI PSQ generation error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // API: Red Flags CRUD
 app.get("/api/redflags", (req, res) => {
   res.json({ success: true, data: redFlags });
@@ -1247,7 +1392,7 @@ app.post("/api/redflags", (req, res) => {
     const currentYear = new Date().getFullYear();
     const count = redFlags.length + 1;
     const formattedCount = String(count).padStart(3, '0');
-    
+
     const newRf = {
       id: `rf-${Date.now()}`,
       srNo: String(count),
@@ -1256,7 +1401,7 @@ app.post("/api/redflags", (req, res) => {
       lineAreaName: data.lineAreaName || "",
       modelName: data.modelName || "",
       stationName: data.stationName || "",
-      redFlagNo: data.redFlagNo || `RF-${(data.mfName || 'GEN').substring(0,2).toUpperCase()}-${formattedCount}`,
+      redFlagNo: data.redFlagNo || `RF-${(data.mfName || 'GEN').substring(0, 2).toUpperCase()}-${formattedCount}`,
       status: data.status || "Open",
       redFlagType: data.redFlagType || "Quality",
       redFlagSubType: data.redFlagSubType || "",
@@ -1392,7 +1537,7 @@ app.post("/api/ppsrreports", (req, res) => {
     const data = req.body;
     const count = ppsrReports.length + 1;
     const formattedCount = String(count).padStart(3, '0');
-    
+
     const newPpsr = {
       ppsrNo: data.ppsrNo || `PPSR-${new Date().getFullYear()}-${formattedCount}`,
       title: data.title || "Untitled Problem",
@@ -1471,21 +1616,6 @@ app.post("/api/ppsrmeetings", (req, res) => {
 
 // Setup Vite Dev Server / Production routing
 async function startServer() {
-  // Proxy all /api/v1/ traffic to the Django Backend
-  app.use(createProxyMiddleware({ 
-    target: 'http://127.0.0.1:8000', 
-    changeOrigin: true,
-    pathFilter: '/api/v1'
-  }));
-
-  // Proxy /media/ image traffic to Django Backend
-  app.use(createProxyMiddleware({
-    target: 'http://127.0.0.1:8000',
-    changeOrigin: true,
-    pathFilter: '/media'
-  }));
-
-
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

@@ -1,5 +1,17 @@
 // ─── PSQ / Shainin Component Search Types ────────────────────────────────────
 
+export interface StandardWorksheetRow {
+  id?: string;
+  category?: 'measurement' | 'assembly' | 'component' | 'parameter' | string;
+  operationName: string;
+  standardSpec?: string;
+  bobObserved?: string;
+  wowObserved?: string;
+  status?: 'active' | 'eliminated' | 'target' | 'pending';
+  notes?: string;
+  [key: string]: any;
+}
+
 export interface PsqChildPartSwapItem {
   id: string;
   partName: string;
@@ -29,8 +41,8 @@ export interface PsqComponentSearchData {
     bobRepeat3: string;
     wowRepeat3: string;
     measurementGood: boolean;
-    deltaMStatus: 'active' | 'eliminated';
-    deltaPStatus: 'active' | 'eliminated';
+    deltaMStatus: 'active' | 'eliminated' | 'target' | 'pending';
+    deltaPStatus: 'active' | 'eliminated' | 'target' | 'pending';
     notes?: string;
   };
 
@@ -42,8 +54,8 @@ export interface PsqComponentSearchData {
     bobRepeat3: string;
     wowRepeat3: string;
     processGood: boolean;
-    assemblyProcessStatus: 'active' | 'eliminated';
-    partsStatus: 'active' | 'eliminated';
+    assemblyProcessStatus: 'active' | 'eliminated' | 'target' | 'pending';
+    partsStatus: 'active' | 'eliminated' | 'target' | 'pending';
     notes?: string;
   };
 
@@ -60,6 +72,7 @@ export interface PsqTreeData {
   ftqRejectionRate?: string;
   estimatedCost?: string;
   treeType: 'swap_analysis';
+  rootNodes?: any[];
   swapData: PsqComponentSearchData;
 }
 
@@ -331,6 +344,7 @@ export interface PpsrReport {
 
   // Cause Localization approach & PSQ tree
   causeLocalizationApproach?: 'both' | 'fishbone' | 'psq';
+  standardWorksheet?: StandardWorksheetRow[];
   psqTreeData?: PsqTreeData;
 
   // Evidence type selector (e.g. 'graph' | 'photo')

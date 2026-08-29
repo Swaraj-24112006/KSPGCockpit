@@ -110,8 +110,8 @@ DATABASES = {
 # =============================================================================
 REDIS_HOST = config('REDIS_HOST', default='127.0.0.1')
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
-REDIS_USERNAME = config('REDIS_USERNAME', default='')
-REDIS_PASSWORD = config('REDIS_PASSWORD', default='')
+REDIS_USERNAME = config('REDIS_USERNAME', default='').strip()
+REDIS_PASSWORD = config('REDIS_PASSWORD', default='').strip()
 REDIS_DB = config('REDIS_DB', default=0, cast=int)
 
 _redis_user_pass = ''
@@ -128,6 +128,7 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'IGNORE_EXCEPTIONS': True,  # Ensures cache downtime does not crash app requests
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
             'RETRY_ON_TIMEOUT': True,

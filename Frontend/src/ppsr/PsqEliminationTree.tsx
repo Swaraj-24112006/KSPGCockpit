@@ -1,31 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import { PsqTreeData, PsqComponentSearchData, PsqChildPartSwapItem } from '../types';
-import { 
-  GitFork, 
-  Plus, 
-  Trash2, 
-  CheckCircle2, 
-  Target, 
-  Sparkles, 
-  RefreshCw, 
+import React, { useState } from 'react';
+import { PsqTreeData, PsqComponentSearchData, PsqChildPartSwapItem, StandardWorksheetRow } from '../types';
+import { StandardWorksheetEditor } from './StandardWorksheetEditor';
+import { PsqGraphicTree } from './PsqGraphicTree';
+import { PsqStageBranchModal } from './PsqStageBranchModal';
+import {
+  GitFork,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  Target,
+  Sparkles,
   Info,
-  Maximize2,
   FileText,
   Layers,
   ArrowRight,
+  ArrowLeft,
   Zap,
-  HelpCircle,
   Check,
   X,
-  Printer,
   ChevronDown,
-  ChevronUp,
-  AlertTriangle,
   Flame,
-  Search,
-  Sliders,
-  Share2
+  Table,
+  Eye,
+  Activity,
+  Printer,
+  RefreshCw,
+  SlidersHorizontal,
+  CheckCheck,
+  HelpCircle
 } from 'lucide-react';
+
+export const BLANK_PSQ_SWAP_DATA: PsqComponentSearchData = {
+  productName: "",
+  productNumber: "",
+  customerName: "",
+  testResultSpecification: "",
+  activeStage: 0,
+  stage0: {
+    bobOriginal: "",
+    wowOriginal: "",
+    bobRepeat1: "",
+    wowRepeat1: "",
+    bobRepeat2: "",
+    wowRepeat2: "",
+    bobRepeat3: "",
+    wowRepeat3: "",
+    measurementGood: false,
+    deltaMStatus: 'pending',
+    deltaPStatus: 'pending',
+    notes: ""
+  },
+  stage1: {
+    bobRepeat1: "",
+    wowRepeat1: "",
+    bobRepeat2: "",
+    wowRepeat2: "",
+    bobRepeat3: "",
+    wowRepeat3: "",
+    processGood: false,
+    assemblyProcessStatus: 'pending',
+    partsStatus: 'pending',
+    notes: ""
+  },
+  stage2: {
+    childParts: [],
+    contributingPartName: "",
+    notes: ""
+  }
+};
 
 export const DEFAULT_PSQ_SWAP_DATA: PsqComponentSearchData = {
   productName: "High Pressure Fuel Pump Sub-Assembly",
@@ -46,7 +88,7 @@ export const DEFAULT_PSQ_SWAP_DATA: PsqComponentSearchData = {
     measurementGood: true,
     deltaMStatus: 'eliminated',
     deltaPStatus: 'active',
-    notes: "BOB remains BOB (~215 bar) & WOW remains WOW (~142 bar). Measurement gauge repeatability is confirmed OK."
+    notes: "BOB remains BOB (~215 bar) & WOW remains WOW (~142 bar). Gauge repeatability confirmed OK."
   },
 
   stage1: {
@@ -64,198 +106,259 @@ export const DEFAULT_PSQ_SWAP_DATA: PsqComponentSearchData = {
 
   stage2: {
     childParts: [
-      {
-        id: 'part-1',
-        partName: "Plunger Spring",
-        wowInBobValue: "214 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "142 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "Swap caused no change. Defect stayed with WOW body."
-      },
-      {
-        id: 'part-2',
-        partName: "Delivery Check Valve",
-        wowInBobValue: "141 bar (WOW) 🚨",
-        wowInBobResult: "WOW",
-        bobInWowValue: "216 bar (BOB) ⭐",
-        bobInWowResult: "BOB",
-        isDefective: true,
-        status: 'target',
-        notes: "BIG X ISOLATED: Swapping WOW Check Valve into BOB made BOB drop to 141 bar (WOW). Swapping BOB Check Valve into WOW made WOW jump to 216 bar (BOB)!"
-      },
-      {
-        id: 'part-3',
-        partName: "Inlet Metering Solenoid",
-        wowInBobValue: "215 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "142 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "No change in test outcome."
-      },
-      {
-        id: 'part-4',
-        partName: "Piston Barrel Sleeve",
-        wowInBobValue: "214 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "143 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "No effect on pressure output."
-      },
-      {
-        id: 'part-5',
-        partName: "Drive Cam Roller",
-        wowInBobValue: "215 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "141 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "No variance contribution."
-      },
-      {
-        id: 'part-6',
-        partName: "High-Pressure Seal Ring",
-        wowInBobValue: "215 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "142 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "No sealing leakage detected."
-      },
-      {
-        id: 'part-7',
-        partName: "Pump Housing Body",
-        wowInBobValue: "216 bar (BOB)",
-        wowInBobResult: "BOB",
-        bobInWowValue: "140 bar (WOW)",
-        bobInWowResult: "WOW",
-        isDefective: false,
-        status: 'eliminated',
-        notes: "Housing tolerances within nominal drawing specs."
-      }
+      { id: '1', partName: "Plunger Assembly", wowInBobValue: "141 bar (WOW)", wowInBobResult: "WOW", bobInWowValue: "216 bar (BOB)", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Red X Root Cause: Plunger barrel clearance out of spec." },
+      { id: '2', partName: "Inlet Check Valve", wowInBobValue: "214 bar (BOB)", wowInBobResult: "BOB", bobInWowValue: "142 bar (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+      { id: '3', partName: "Discharge Valve", wowInBobValue: "215 bar (BOB)", wowInBobResult: "BOB", bobInWowValue: "140 bar (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+      { id: '4', partName: "Return Spring", wowInBobValue: "214 bar (BOB)", wowInBobResult: "BOB", bobInWowValue: "143 bar (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+      { id: '5', partName: "Drive Shaft", wowInBobValue: "215 bar (BOB)", wowInBobResult: "BOB", bobInWowValue: "141 bar (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
     ],
-    contributingPartName: "Delivery Check Valve",
-    notes: "Delivery Check Valve internal micro-burr causes seat leakage under high flow rate. Dimension & deburring drawing revision requested."
+    contributingPartName: "Plunger Assembly",
+    notes: "Swapping Plunger Assembly from WOW to BOB reproduced the 141 bar pressure drop defect."
   }
 };
 
-export const DEFAULT_PSQ_TREE_DATA: PsqTreeData = {
-  projectStatement: "Component search method & swap analysis to isolate the Red X root cause for high pressure pump failure.",
-  bigXTarget: "Delivery Check Valve (Seat leakage under pressure)",
-  ftqRejectionRate: "4.20%",
-  estimatedCost: "₹ 1,85,000 / month",
+export const BLANK_PSQ_TREE_DATA: PsqTreeData = {
+  projectStatement: "",
+  bigXTarget: "",
+  ftqRejectionRate: "",
+  estimatedCost: "",
   treeType: 'swap_analysis',
+  rootNodes: [],
+  swapData: BLANK_PSQ_SWAP_DATA
+};
+
+export const DEFAULT_PSQ_TREE_DATA: PsqTreeData = {
+  projectStatement: "High Pressure Fuel Pump Output Pressure Drop at 2000 RPM",
+  bigXTarget: "Plunger Assembly (Component Search Red X)",
+  ftqRejectionRate: "14.2%",
+  estimatedCost: "₹ 4,80,000 / month",
+  treeType: 'swap_analysis',
+  rootNodes: [],
   swapData: DEFAULT_PSQ_SWAP_DATA
 };
 
-// Preset examples for quick loading
-const PRESET_EXAMPLES: { name: string; desc: string; data: PsqComponentSearchData }[] = [
+export function generateEliminationTreeFromWorksheet(
+  worksheet: StandardWorksheetRow[],
+  contextInfo?: { title?: string; problemStatement?: string; productComponent?: string; bigXTarget?: string }
+): PsqTreeData {
+  if (!worksheet || worksheet.length === 0) {
+    return {
+      projectStatement: contextInfo?.problemStatement || contextInfo?.title || "Standard Worksheet Elimination Tree",
+      bigXTarget: "",
+      ftqRejectionRate: "",
+      estimatedCost: "",
+      treeType: 'swap_analysis',
+      rootNodes: [],
+      swapData: BLANK_PSQ_SWAP_DATA
+    };
+  }
+
+  // 1. Check for Gage/Measurement Repeatability (Stage 0)
+  const gageRows = worksheet.filter(r => r.category === 'measurement' || r.operationName.toLowerCase().includes('gage') || r.operationName.toLowerCase().includes('measur'));
+  let measurementGood = true;
+  let deltaMStatus: 'eliminated' | 'target' | 'pending' = 'eliminated';
+  let deltaPStatus: 'active' | 'eliminated' | 'pending' = 'active';
+  let stage0Bob = worksheet[0]?.bobObserved || "";
+  let stage0Wow = worksheet[0]?.wowObserved || "";
+  let stage0Notes = "Gage repeatability verified from standard worksheet.";
+
+  if (gageRows.length > 0) {
+    const hasTarget = gageRows.some(r => r.status === 'target');
+    if (hasTarget) {
+      measurementGood = false;
+      deltaMStatus = 'target';
+      deltaPStatus = 'eliminated';
+      stage0Notes = 'Measurement gage error isolated as root cause.';
+    }
+  }
+
+  // 2. Check for Process / Disassembly Repeatability (Stage 1)
+  const processRows = worksheet.filter(r => r.category === 'assembly' || r.operationName.toLowerCase().includes('process') || r.operationName.toLowerCase().includes('assembly'));
+  let processGood = true;
+  let assemblyProcessStatus: 'eliminated' | 'target' | 'pending' = 'eliminated';
+  let partsStatus: 'active' | 'eliminated' | 'pending' = 'active';
+  let stage1Notes = "Assembly torque and fixture confirmed OK.";
+
+  if (processRows.length > 0) {
+    const hasTarget = processRows.some(r => r.status === 'target');
+    if (hasTarget) {
+      processGood = false;
+      assemblyProcessStatus = 'target';
+      partsStatus = 'eliminated';
+      stage1Notes = 'Assembly torque / process sequence isolated as root cause.';
+    }
+  }
+
+  // 3. Child parts & Parameters (Stage 2)
+  const componentRows = worksheet.filter(r => r.category === 'component' || r.category === 'parameter');
+  const childParts: PsqChildPartSwapItem[] = componentRows.map((r, idx) => {
+    const isTarget = r.status === 'target';
+    const isElim = r.status === 'eliminated';
+
+    return {
+      id: r.id || `child-${idx + 1}`,
+      partName: r.operationName || `Component ${idx + 1}`,
+      wowInBobValue: isTarget ? `${r.wowObserved || 'Defect'} (WOW)` : `${r.bobObserved || 'Nominal'} (BOB)`,
+      wowInBobResult: isTarget ? 'WOW' : (isElim ? 'BOB' : ''),
+      bobInWowValue: isTarget ? `${r.bobObserved || 'Nominal'} (BOB)` : `${r.wowObserved || 'Defect'} (WOW)`,
+      bobInWowResult: isTarget ? 'BOB' : (isElim ? 'WOW' : ''),
+      isDefective: isTarget,
+      status: isTarget ? 'target' : (isElim ? 'eliminated' : 'pending'),
+      notes: r.notes || (isTarget ? `RED X ISOLATED: Swapping ${r.operationName} transfers defect pattern!` : 'Swap test showed no variance contribution.')
+    };
+  });
+
+  const targetPart = childParts.find(p => p.isDefective || p.status === 'target');
+  const targetWorksheetRow = worksheet.find(r => r.status === 'target');
+  const bigXName = targetPart ? targetPart.partName : (targetWorksheetRow ? targetWorksheetRow.operationName : '');
+
+  const swapData: PsqComponentSearchData = {
+    productName: contextInfo?.productComponent || "Assembly System",
+    productNumber: "",
+    customerName: "",
+    testResultSpecification: worksheet[0]?.standardSpec || "",
+    activeStage: targetPart ? 2 : (assemblyProcessStatus === 'eliminated' ? 2 : (deltaMStatus === 'eliminated' ? 1 : 0)),
+    stage0: {
+      bobOriginal: stage0Bob || (childParts[0]?.bobInWowValue || ""),
+      wowOriginal: stage0Wow || (childParts[0]?.wowInBobValue || ""),
+      bobRepeat1: stage0Bob,
+      wowRepeat1: stage0Wow,
+      bobRepeat2: stage0Bob,
+      wowRepeat2: stage0Wow,
+      bobRepeat3: stage0Bob,
+      wowRepeat3: stage0Wow,
+      measurementGood,
+      deltaMStatus,
+      deltaPStatus,
+      notes: stage0Notes
+    },
+    stage1: {
+      bobRepeat1: stage0Bob,
+      wowRepeat1: stage0Wow,
+      bobRepeat2: stage0Bob,
+      wowRepeat2: stage0Wow,
+      bobRepeat3: stage0Bob,
+      wowRepeat3: stage0Wow,
+      processGood,
+      assemblyProcessStatus,
+      partsStatus,
+      notes: stage1Notes
+    },
+    stage2: {
+      childParts,
+      contributingPartName: bigXName,
+      notes: targetPart ? `Big X Target: ${bigXName} isolated as contributing root cause.` : ""
+    }
+  };
+
+  return {
+    projectStatement: contextInfo?.problemStatement || contextInfo?.title || "Component search method & elimination tree generated from Standard Worksheet.",
+    bigXTarget: bigXName ? `${bigXName} (Red X Root Cause)` : "",
+    ftqRejectionRate: "",
+    estimatedCost: "",
+    treeType: 'swap_analysis',
+    rootNodes: [],
+    swapData
+  };
+}
+
+export const PRESET_EXAMPLES: { name: string; desc: string; data: PsqComponentSearchData }[] = [
   {
-    name: "HP Fuel Pump (Check Valve Failure)",
-    desc: "Stage 0 (Gauge OK) → Stage 1 (Assembly OK) → Stage 2 (Delivery Check Valve Isolated as Red X)",
+    name: "Fuel Pump (Pressure Drop)",
+    desc: "Stage 0 (OK) → Stage 1 (OK) → Stage 2 (Plunger Barrel Clearance)",
     data: DEFAULT_PSQ_SWAP_DATA
   },
   {
-    name: "Starter Motor (Solenoid Plunger Stick)",
-    desc: "Pinpoints high cranking current draw down to solenoid plunger armature friction.",
+    name: "Starter Motor (High Cranking Current)",
+    desc: "Stage 0 (OK) → Stage 1 (OK) → Stage 2 (Armature Commutator Runout)",
     data: {
       productName: "Starter Motor 12V 2.2kW",
-      productNumber: "STM-2200-B",
+      productNumber: "STR-9921-HD",
       customerName: "Tata Motors Commercial",
-      testResultSpecification: "Cranking Current: 140 - 180A (Spec Max 180A)",
+      testResultSpecification: "No-load Cranking Current < 160 A (Spec max 170A)",
       activeStage: 2,
       stage0: {
         bobOriginal: "155 A (Good)",
         wowOriginal: "245 A (Bad)",
-        bobRepeat1: "156 A",
+        bobRepeat1: "154 A",
         wowRepeat1: "242 A",
-        bobRepeat2: "154 A",
+        bobRepeat2: "155 A",
         wowRepeat2: "246 A",
-        bobRepeat3: "155 A",
+        bobRepeat3: "156 A",
         wowRepeat3: "244 A",
         measurementGood: true,
         deltaMStatus: 'eliminated',
         deltaPStatus: 'active',
-        notes: "Test bench current clamp repeatability verified. Measurement is Good."
+        notes: "Current clamp repeatability verified within ±2A."
       },
       stage1: {
         bobRepeat1: "155 A",
         wowRepeat1: "245 A",
-        bobRepeat2: "154 A",
-        wowRepeat2: "243 A",
-        bobRepeat3: "156 A",
-        wowRepeat3: "244 A",
+        bobRepeat2: "156 A",
+        wowRepeat2: "244 A",
+        bobRepeat3: "154 A",
+        wowRepeat3: "245 A",
         processGood: true,
         assemblyProcessStatus: 'eliminated',
         partsStatus: 'active',
-        notes: "Disassembly and re-assembly reproduced identical currents. Process is Good."
+        notes: "Motor housing bolt torque sequence confirmed OK."
       },
       stage2: {
         childParts: [
-          { id: 'p-1', partName: "Solenoid Plunger", wowInBobValue: "242 A (WOW)", wowInBobResult: "WOW", bobInWowValue: "158 A (BOB)", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Red X: Plunger guide diameter 0.08mm oversize." },
-          { id: 'p-2', partName: "Armature Rotor", wowInBobValue: "155 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "245 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-3', partName: "Carbon Brushes", wowInBobValue: "156 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "244 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-4', partName: "Planetary Gear", wowInBobValue: "154 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "245 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-5', partName: "Pinion Drive", wowInBobValue: "155 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "243 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
+          { id: '1', partName: "Armature Assembly", wowInBobValue: "242 A (WOW)", wowInBobResult: "WOW", bobInWowValue: "155 A (BOB)", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Armature commutator runout caused high brush resistance." },
+          { id: '2', partName: "Carbon Brush Set", wowInBobValue: "155 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "245 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+          { id: '3', partName: "Drive Pinion Clutch", wowInBobValue: "156 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "244 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+          { id: '4', partName: "Planetary Gear Set", wowInBobValue: "154 A (BOB)", wowInBobResult: "BOB", bobInWowValue: "245 A (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
         ],
-        contributingPartName: "Solenoid Plunger",
-        notes: "Plunger outer diameter ground out of tolerance at sub-supplier."
+        contributingPartName: "Armature Assembly",
+        notes: "Swapping Armature reproduced high cranking current defect."
       }
     }
   },
   {
-    name: "Steering Gearbox (Backlash)",
-    desc: "Stage 0 (OK) → Stage 1 (OK) → Stage 2 (Pinion Bearing Preload Shim)",
+    name: "Brake Booster (Vacuum Leakage)",
+    desc: "Stage 0 (OK) → Stage 1 (OK) → Stage 2 (Diaphragm Valve Seal)",
     data: {
-      productName: "Power Steering Gearbox Assembly",
-      productNumber: "STG-440-EPS",
-      customerName: "Maruti Suzuki India Ltd",
-      testResultSpecification: "Pinion Backlash: 0.05 - 0.12 mm (Spec max 0.15mm)",
+      productName: "Tandem Vacuum Brake Booster",
+      productNumber: "VBB-300-ABS",
+      customerName: "Maruti Suzuki India",
+      testResultSpecification: "Vacuum loss < 0.05 bar/min at -0.8 bar hold",
       activeStage: 2,
       stage0: {
-        bobOriginal: "0.08 mm (Good)",
-        wowOriginal: "0.28 mm (Bad)",
-        bobRepeat1: "0.08 mm",
-        wowRepeat1: "0.27 mm",
-        bobRepeat2: "0.07 mm",
-        wowRepeat2: "0.28 mm",
-        bobRepeat3: "0.08 mm",
-        wowRepeat3: "0.29 mm",
+        bobOriginal: "0.01 bar/min (Good)",
+        wowOriginal: "0.42 bar/min (Bad)",
+        bobRepeat1: "0.01 bar/min",
+        wowRepeat1: "0.41 bar/min",
+        bobRepeat2: "0.02 bar/min",
+        wowRepeat2: "0.43 bar/min",
+        bobRepeat3: "0.01 bar/min",
+        wowRepeat3: "0.42 bar/min",
         measurementGood: true,
         deltaMStatus: 'eliminated',
         deltaPStatus: 'active',
-        notes: "Dial indicator repeatability confirmed OK."
+        notes: "Digital differential pressure manometer gauge repeatability confirmed."
       },
       stage1: {
-        bobRepeat1: "0.08 mm",
-        wowRepeat1: "0.28 mm",
-        bobRepeat2: "0.08 mm",
-        wowRepeat2: "0.27 mm",
-        bobRepeat3: "0.07 mm",
-        wowRepeat3: "0.28 mm",
+        bobRepeat1: "0.01 bar/min",
+        wowRepeat1: "0.42 bar/min",
+        bobRepeat2: "0.02 bar/min",
+        wowRepeat2: "0.41 bar/min",
+        bobRepeat3: "0.01 bar/min",
+        wowRepeat3: "0.43 bar/min",
         processGood: true,
         assemblyProcessStatus: 'eliminated',
         partsStatus: 'active',
-        notes: "Disassembly and re-assembly showed no shift. Process is Good."
+        notes: "Shell crimping and guide pin alignment verified OK."
       },
       stage2: {
         childParts: [
-          { id: 'p-1', partName: "Rack Bar", wowInBobValue: "0.08 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.28 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-2', partName: "Pinion Shaft", wowInBobValue: "0.08 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.28 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-3', partName: "Preload Adjuster Shim", wowInBobValue: "0.27 mm (WOW)", wowInBobResult: "WOW", bobInWowValue: "0.09 mm (BOB)", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Red X: Shim thickness 1.20mm instead of 1.45mm." },
-          { id: 'p-4', partName: "Support Yoke", wowInBobValue: "0.07 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.28 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
-          { id: 'p-5', partName: "Housing Casting", wowInBobValue: "0.08 mm (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.27 mm (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
+          { id: '1', partName: "Diaphragm Valve Seal", wowInBobValue: "0.41 bar/min (WOW)", wowInBobResult: "WOW", bobInWowValue: "0.02 bar/min (BOB)", bobInWowResult: "BOB", isDefective: true, status: 'target', notes: "Diaphragm lip flash caused air seepage under negative pressure." },
+          { id: '2', partName: "Reaction Disc", wowInBobValue: "0.01 bar/min (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.42 bar/min (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+          { id: '3', partName: "Air Filter Element", wowInBobValue: "0.02 bar/min (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.41 bar/min (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' },
+          { id: '4', partName: "Return Spring", wowInBobValue: "0.01 bar/min (BOB)", wowInBobResult: "BOB", bobInWowValue: "0.43 bar/min (WOW)", bobInWowResult: "WOW", isDefective: false, status: 'eliminated' }
         ],
-        contributingPartName: "Preload Adjuster Shim",
-        notes: "Operator picked thinner shim from wrong bin. Poke-yoke color code added."
+        contributingPartName: "Diaphragm Valve Seal",
+        notes: "Swapping Diaphragm Seal reproduced the vacuum leak defect."
       }
     }
   }
@@ -263,13 +366,14 @@ const PRESET_EXAMPLES: { name: string; desc: string; data: PsqComponentSearchDat
 
 interface PsqEliminationTreeProps {
   data?: PsqTreeData;
-  onChange?: (updatedData: PsqTreeData) => void;
+  onChange?: (data: PsqTreeData) => void;
+  standardWorksheet?: StandardWorksheetRow[];
+  onStandardWorksheetChange?: (worksheet: StandardWorksheetRow[]) => void;
   isEditable?: boolean;
   compact?: boolean;
   contextInfo?: {
     title?: string;
     description?: string;
-    area?: string;
     line?: string;
     station?: string;
     partName?: string;
@@ -280,23 +384,32 @@ interface PsqEliminationTreeProps {
 }
 
 export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
-  data = DEFAULT_PSQ_TREE_DATA,
+  data = BLANK_PSQ_TREE_DATA,
   onChange,
+  standardWorksheet = [],
+  onStandardWorksheetChange,
   isEditable = false,
   compact = false,
   contextInfo
 }) => {
-  // Ensure swapData exists with fallback to DEFAULT_PSQ_SWAP_DATA
-  const swapData: PsqComponentSearchData = data.swapData || DEFAULT_PSQ_SWAP_DATA;
+  const swapData: PsqComponentSearchData = data.swapData || BLANK_PSQ_SWAP_DATA;
 
-  // View modes: 'worksheet' (the exact paper sheet layout) | 'tree_diagram' (graphic elimination tree) | 'split' (both side by side)
-  const [viewMode, setViewMode] = useState<'worksheet' | 'tree_diagram' | 'split'>('worksheet');
-  const [showHelpModal, setShowHelpModal] = useState(false);
+  // View modes: 'studio' (Interactive Swap Studio) | 'tree_diagram' (Pure White Tree) | 'split' (Studio + Tree) | 'standard_worksheet' (Spreadsheet)
+  const [viewMode, setViewMode] = useState<'studio' | 'tree_diagram' | 'split' | 'standard_worksheet'>('studio');
+
+  // Step navigation inside Swap Studio
+  const [activeStageStep, setActiveStageStep] = useState<number>(swapData.activeStage || 0);
+
+  // Auto-generate toast state
+  const [autoGenToast, setAutoGenToast] = useState(false);
+
+  // New child part input inline
+  const [newPartName, setNewPartName] = useState('');
 
   // Helper to trigger parent onChange
   const handleUpdateSwapData = (newSwapData: PsqComponentSearchData) => {
     if (!onChange) return;
-    
+
     // Auto-calculate Big X target from Stage 2 if identified
     const defectivePart = newSwapData.stage2.childParts.find(p => p.isDefective || p.status === 'target');
     const bigX = defectivePart ? `${defectivePart.partName} (Component Search Red X)` : (data.bigXTarget || '');
@@ -309,82 +422,93 @@ export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
     });
   };
 
+  // Auto-generate tree from standard worksheet
+  const handleAutoGenerateFromWorksheet = (rowsToUse?: StandardWorksheetRow[]) => {
+    const rows = rowsToUse || standardWorksheet;
+    const generatedTree = generateEliminationTreeFromWorksheet(rows, {
+      title: contextInfo?.title,
+      problemStatement: contextInfo?.description,
+      productComponent: contextInfo?.partName
+    });
+
+    if (onChange) {
+      onChange(generatedTree);
+    }
+    setAutoGenToast(true);
+    setTimeout(() => setAutoGenToast(false), 3000);
+  };
+
   // Stage 0 updates
-  const handleStage0Change = (field: keyof typeof swapData.stage0, value: any) => {
+  const handleStage0Toggle = (isGood: boolean) => {
     if (!isEditable) return;
-    const updated = {
+    const updated: PsqComponentSearchData = {
       ...swapData,
+      activeStage: (isGood ? Math.max(swapData.activeStage, 1) : 0) as 0 | 1 | 2,
       stage0: {
         ...swapData.stage0,
-        [field]: value
+        measurementGood: isGood,
+        deltaMStatus: isGood ? ('eliminated' as const) : ('target' as const),
+        deltaPStatus: isGood ? ('active' as const) : ('eliminated' as const),
+        notes: isGood ? "Measurement gauge is repeatable. ΔM is eliminated." : "Measurement gauge is unstable. ΔM isolated as root cause."
       }
     };
-
-    // If measurement good is toggled
-    if (field === 'measurementGood') {
-      updated.stage0.deltaMStatus = value ? 'eliminated' : 'active';
-      updated.stage0.deltaPStatus = value ? 'active' : 'eliminated';
-    }
-
     handleUpdateSwapData(updated);
   };
 
   // Stage 1 updates
-  const handleStage1Change = (field: keyof typeof swapData.stage1, value: any) => {
+  const handleStage1Toggle = (isGood: boolean) => {
     if (!isEditable) return;
-    const updated = {
+    const updated: PsqComponentSearchData = {
       ...swapData,
+      activeStage: (isGood ? Math.max(swapData.activeStage, 2) : 1) as 0 | 1 | 2,
       stage1: {
         ...swapData.stage1,
-        [field]: value
+        processGood: isGood,
+        assemblyProcessStatus: isGood ? ('eliminated' as const) : ('target' as const),
+        partsStatus: isGood ? ('active' as const) : ('eliminated' as const),
+        notes: isGood ? "Disassembly and re-assembly is repeatable. Assembly process is eliminated." : "Assembly torque / method defect found."
       }
     };
-
-    if (field === 'processGood') {
-      updated.stage1.assemblyProcessStatus = value ? 'eliminated' : 'active';
-      updated.stage1.partsStatus = value ? 'active' : 'eliminated';
-    }
-
     handleUpdateSwapData(updated);
   };
 
-  // Stage 2: Child part update
-  const handleUpdateChildPart = (index: number, updates: Partial<PsqChildPartSwapItem>) => {
+  // Stage 2: Child Part Swap Test Toggle
+  const handleTogglePartDefect = (index: number, isDefective: boolean) => {
     if (!isEditable) return;
-    const childParts = [...swapData.stage2.childParts];
-    const item = { ...childParts[index], ...updates };
+    const childParts: PsqChildPartSwapItem[] = swapData.stage2.childParts.map((p, i) => {
+      if (i === index) {
+        return {
+          ...p,
+          isDefective: isDefective,
+          status: isDefective ? ('target' as const) : ('eliminated' as const),
+          wowInBobResult: isDefective ? ('WOW' as const) : ('BOB' as const),
+          bobInWowResult: isDefective ? ('BOB' as const) : ('WOW' as const),
+          notes: isDefective ? `RED X ROOT CAUSE: Swapping ${p.partName} transferred the defect to BOB unit!` : 'Defect did not transfer. Eliminated.'
+        };
+      }
+      // If one is marked defective, other can be left or kept eliminated
+      return p;
+    });
 
-    // Auto calculate if defective: WOW in BOB is WOW AND BOB in WOW is BOB
-    if (updates.wowInBobResult !== undefined || updates.bobInWowResult !== undefined) {
-      const isDef = item.wowInBobResult === 'WOW' && item.bobInWowResult === 'BOB';
-      item.isDefective = isDef;
-      item.status = isDef ? 'target' : (item.wowInBobResult === 'BOB' ? 'eliminated' : 'pending');
-    }
-
-    childParts[index] = item;
-    
-    // Find contributing part
-    const def = childParts.find(p => p.isDefective);
-
-    const updated = {
+    const target = childParts.find(p => p.isDefective);
+    const updated: PsqComponentSearchData = {
       ...swapData,
       stage2: {
         ...swapData.stage2,
         childParts,
-        contributingPartName: def ? def.partName : swapData.stage2.contributingPartName
+        contributingPartName: target ? target.partName : '',
+        notes: target ? `Red X verified on ${target.partName}.` : ''
       }
     };
-
     handleUpdateSwapData(updated);
   };
 
   // Add Child Part
   const handleAddChildPart = () => {
-    if (!isEditable) return;
-    const nextIdx = swapData.stage2.childParts.length + 1;
+    if (!isEditable || !newPartName.trim()) return;
     const newPart: PsqChildPartSwapItem = {
       id: `part-${Date.now()}`,
-      partName: `Child Part ${nextIdx}`,
+      partName: newPartName.trim(),
       wowInBobValue: '',
       wowInBobResult: '',
       bobInWowValue: '',
@@ -402,6 +526,7 @@ export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
     };
 
     handleUpdateSwapData(updated);
+    setNewPartName('');
   };
 
   // Remove Child Part
@@ -418,1132 +543,687 @@ export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
     handleUpdateSwapData(updated);
   };
 
-  // Load Preset
-  const handleLoadPreset = (presetData: PsqComponentSearchData) => {
+  // Interactive Tree Node click handler
+  const handleTreeNodeClick = (nodeType: 'deltaM' | 'deltaP' | 'assembly' | 'parts' | 'childPart', index?: number) => {
     if (!isEditable) return;
-    handleUpdateSwapData(presetData);
+    if (nodeType === 'deltaM') {
+      const isCurrentlyElim = swapData.stage0.deltaMStatus === 'eliminated';
+      handleStage0Toggle(!isCurrentlyElim);
+    } else if (nodeType === 'assembly') {
+      const isCurrentlyElim = swapData.stage1.assemblyProcessStatus === 'eliminated';
+      handleStage1Toggle(!isCurrentlyElim);
+    } else if (nodeType === 'childPart' && index !== undefined) {
+      const part = swapData.stage2.childParts[index];
+      const isDef = part ? (part.isDefective || part.status === 'target') : false;
+      handleTogglePartDefect(index, !isDef);
+    }
   };
 
+  // Methodology conclusion calculation
+  const isGaugeGood = swapData.stage0.deltaMStatus === 'eliminated';
+  const isProcessGood = swapData.stage1.assemblyProcessStatus === 'eliminated';
+  const targetPart = swapData.stage2.childParts?.find(p => p.isDefective || p.status === 'target');
+
   return (
-    <div className="space-y-4 font-sans select-none text-slate-800" id="psq-swap-analysis-container">
-      {/* Top Toolbar / Mode Switcher */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-600 text-white flex items-center justify-center font-black shadow-xs">
-            <GitFork className="w-5 h-5" />
+    <div className="space-y-5 font-sans select-none text-slate-900" id="psq-swap-analysis-root">
+
+      {/* Toast Notification */}
+      {autoGenToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-emerald-300 border-2 border-emerald-500/50 px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2 text-xs font-mono font-bold animate-bounce">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>Auto-generated PSQ Elimination Tree from Standard Worksheet!</span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ULTRA-COMPACT TOP CONTROL BAR & VIEW MODES */}
+      {/* ========================================================================= */}
+      <div className="bg-slate-950 text-white rounded-2xl p-2.5 sm:p-3 shadow-md border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-2">
+        {/* Left: Compact Title & Status */}
+        <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 shrink-0">
+            <GitFork className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="bg-violet-100 text-violet-800 text-[10px] font-black uppercase font-mono px-2 py-0.5 rounded-md">
-                PSQ / Shainin Method
-              </span>
-              <span className="text-xs font-mono text-slate-400 font-bold">
-                Mone(Y) &rarr; &Delta;M &rarr; &Delta;P &rarr; Parts &rarr; Red X
-              </span>
-            </div>
-            <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
-              Component Search Method or Swap Analysis
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h3 className="text-xs sm:text-sm font-black uppercase tracking-tight text-white truncate">
+              PSQ Swap &amp; Elimination Studio
             </h3>
+            <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase font-mono px-1.5 py-0.5 rounded">
+              Shainin
+            </span>
+            {targetPart ? (
+              <span className="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black font-mono px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse">
+                <Target className="w-2.5 h-2.5" /> Red X: {targetPart.partName}
+              </span>
+            ) : isGaugeGood && isProcessGood ? (
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded">
+                ΔM &amp; ΔP OK
+              </span>
+            ) : (
+              <span className="bg-slate-800 text-slate-400 text-[9px] font-mono px-1.5 py-0.5 rounded">
+                Testing
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle */}
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center space-x-1 font-mono text-xs font-bold">
+        {/* Right: Compact View Switcher, Presets & Sync */}
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+          {/* View Switcher Pills */}
+          <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
             <button
               type="button"
-              onClick={() => setViewMode('worksheet')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 cursor-pointer ${
-                viewMode === 'worksheet'
-                  ? 'bg-white text-violet-700 shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              onClick={() => setViewMode('studio')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition flex items-center space-x-1 cursor-pointer ${viewMode === 'studio'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+                }`}
+              title="Step-by-step card bench"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>1. Standard Worksheet</span>
+              <Activity className="w-3 h-3" />
+              <span>Studio</span>
             </button>
+
             <button
               type="button"
               onClick={() => setViewMode('tree_diagram')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 cursor-pointer ${
-                viewMode === 'tree_diagram'
-                  ? 'bg-white text-violet-700 shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition flex items-center space-x-1 cursor-pointer ${viewMode === 'tree_diagram'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+                }`}
+              title="Interactive Graphic Tree"
             >
-              <GitFork className="w-3.5 h-3.5" />
-              <span>2. Elimination Tree</span>
+              <GitFork className="w-3 h-3" />
+              <span>Tree</span>
             </button>
+
             <button
               type="button"
               onClick={() => setViewMode('split')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 cursor-pointer ${
-                viewMode === 'split'
-                  ? 'bg-white text-violet-700 shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition hidden sm:flex items-center space-x-1 cursor-pointer ${viewMode === 'split'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+                }`}
+              title="Side-by-side cards and diagram"
             >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Split View</span>
+              <SlidersHorizontal className="w-3 h-3" />
+              <span>Split</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('standard_worksheet')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition flex items-center space-x-1 cursor-pointer ${viewMode === 'standard_worksheet'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-white'
+                }`}
+              title="Standard Worksheet Table"
+            >
+              <Table className="w-3 h-3" />
+              <span>Worksheet</span>
             </button>
           </div>
 
-          {/* Quick Preset Selector (if editable) */}
-          {isEditable && (
-            <div className="relative group">
+          {/* Quick Preset Mini-Buttons */}
+          <div className="hidden lg:flex items-center gap-1 bg-slate-900/80 px-1.5 py-1 rounded-xl border border-slate-800 text-[10px] font-mono">
+            <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+            {PRESET_EXAMPLES.map((preset) => (
               <button
+                key={preset.name}
                 type="button"
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold font-mono px-3 py-2 rounded-xl flex items-center space-x-1.5 transition cursor-pointer shadow-xs"
+                onClick={() => handleUpdateSwapData(preset.data)}
+                className="hover:bg-slate-800 text-slate-300 hover:text-white px-1.5 py-0.5 rounded transition cursor-pointer"
+                title={preset.desc}
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Load Sample Case</span>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
+                {preset.name.split(' ')[0]}
               </button>
+            ))}
+          </div>
 
-              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 hidden group-hover:block animate-fade-in">
-                <span className="text-[10px] font-bold text-slate-400 uppercase font-mono px-2 py-1 block">
-                  Industry Swap Case Presets
-                </span>
-                {PRESET_EXAMPLES.map((p, idx) => (
+          {standardWorksheet.length > 0 && (
+            <button
+              type="button"
+              onClick={() => handleAutoGenerateFromWorksheet()}
+              className="bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700 px-2 py-1 rounded-xl text-[10px] font-bold font-mono flex items-center space-x-1 transition cursor-pointer"
+              title="Sync from Standard Worksheet"
+            >
+              <RefreshCw className="w-2.5 h-2.5 text-emerald-400" />
+              <span>Sync</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* ULTRA-SLIM METHODOLOGY VERDICT RIBBON */}
+      {/* ========================================================================= */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs font-mono text-[11px] text-slate-700">
+        <div className="flex items-center space-x-2 flex-wrap">
+          <span className="font-bold text-slate-400 uppercase text-[9px] flex items-center gap-1">
+            <Target className="w-3 h-3 text-slate-500" /> Shainin Flow:
+          </span>
+          <span className={isGaugeGood ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+            {isGaugeGood ? '✅ ΔM Eliminated' : '⏳ ΔM Gauge'}
+          </span>
+          <span className="text-slate-300">&rarr;</span>
+          <span className={isProcessGood ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
+            {isProcessGood ? '✅ ΔP Eliminated' : '⏳ ΔP Assembly'}
+          </span>
+          <span className="text-slate-300">&rarr;</span>
+          {targetPart ? (
+            <span className="text-rose-700 font-black bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+              🎯 Red X: {targetPart.partName}
+            </span>
+          ) : (
+            <span className="text-slate-500">Child Parts Testing</span>
+          )}
+        </div>
+
+        {targetPart && (
+          <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
+            Stage 2 Complete
+          </span>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* VIEW MODE 1: INTERACTIVE SWAP STUDIO (CARDS BENCH) */}
+      {/* ========================================================================= */}
+      {(viewMode === 'studio' || viewMode === 'split') && (
+        <div className={`grid grid-cols-1 ${viewMode === 'split' ? 'lg:grid-cols-2' : ''} gap-5`}>
+
+          {/* Studio Steps Left Column */}
+          <div className="space-y-4">
+
+            {/* Step Navigation Tabs */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { step: 0, title: "Stage 0: Gauge (ΔM)", sub: isGaugeGood ? "✅ Repeatable" : "Test Repeatability" },
+                { step: 1, title: "Stage 1: Assembly (ΔP)", sub: isProcessGood ? "✅ Process OK" : "Test Disassembly" },
+                { step: 2, title: "Stage 2: Child Parts", sub: targetPart ? `🎯 ${targetPart.partName}` : "Component Swaps" }
+              ].map((s) => {
+                const isActive = activeStageStep === s.step;
+                return (
                   <button
-                    key={idx}
+                    key={s.step}
                     type="button"
-                    onClick={() => handleLoadPreset(p.data)}
-                    className="w-full text-left p-2 hover:bg-violet-50 rounded-xl transition group/btn flex flex-col space-y-0.5 cursor-pointer"
+                    onClick={() => setActiveStageStep(s.step)}
+                    className={`p-3 rounded-2xl text-left border-2 transition cursor-pointer font-mono ${isActive
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                      }`}
                   >
-                    <span className="text-xs font-bold text-slate-900 group-hover/btn:text-violet-700">
-                      {p.name}
+                    <span className={`block text-xs font-black ${isActive ? 'text-emerald-400' : 'text-slate-900'}`}>
+                      {s.title}
                     </span>
-                    <span className="text-[10px] text-slate-500 line-clamp-1">
-                      {p.desc}
+                    <span className={`block text-[10px] mt-0.5 ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
+                      {s.sub}
                     </span>
                   </button>
-                ))}
+                );
+              })}
+            </div>
+
+            {/* STAGE 0 CARD: GAUGE REPEATABILITY */}
+            {activeStageStep === 0 && (
+              <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-xs space-y-5 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <h4 className="text-sm font-black uppercase font-mono text-slate-900">
+                      🔬 Stage 0: Measurement Gauge Repeatability (&Delta;M)
+                    </h4>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Test BOB unit (Best of Best) vs WOW unit (Worst of Worst) 3 times with the exact same measurement gauge.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Baselines */}
+                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                  <div className="bg-emerald-50 border-2 border-emerald-300 p-3 rounded-2xl">
+                    <span className="text-[10px] font-black text-emerald-900 uppercase block">BOB Baseline (Good Unit):</span>
+                    <input
+                      type="text"
+                      disabled={!isEditable}
+                      value={swapData.stage0.bobOriginal || ''}
+                      onChange={(e) => {
+                        const updated = { ...swapData, stage0: { ...swapData.stage0, bobOriginal: e.target.value } };
+                        handleUpdateSwapData(updated);
+                      }}
+                      placeholder="e.g. 215 bar (Good)"
+                      className="bg-white border border-emerald-300 rounded-xl px-3 py-1.5 w-full font-bold text-slate-900 mt-1"
+                    />
+                  </div>
+
+                  <div className="bg-rose-50 border-2 border-rose-300 p-3 rounded-2xl">
+                    <span className="text-[10px] font-black text-rose-900 uppercase block">WOW Baseline (Defective Unit):</span>
+                    <input
+                      type="text"
+                      disabled={!isEditable}
+                      value={swapData.stage0.wowOriginal || ''}
+                      onChange={(e) => {
+                        const updated = { ...swapData, stage0: { ...swapData.stage0, wowOriginal: e.target.value } };
+                        handleUpdateSwapData(updated);
+                      }}
+                      placeholder="e.g. 142 bar (Bad)"
+                      className="bg-white border border-rose-300 rounded-xl px-3 py-1.5 w-full font-bold text-slate-900 mt-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Repeat Measurement Rows */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-700 font-mono block">3 Consecutive Repeat Readings:</span>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+                    {[
+                      { label: "Repeat 1", bob: swapData.stage0.bobRepeat1, wow: swapData.stage0.wowRepeat1, bKey: 'bobRepeat1', wKey: 'wowRepeat1' },
+                      { label: "Repeat 2", bob: swapData.stage0.bobRepeat2, wow: swapData.stage0.wowRepeat2, bKey: 'bobRepeat2', wKey: 'wowRepeat2' },
+                      { label: "Repeat 3", bob: swapData.stage0.bobRepeat3, wow: swapData.stage0.wowRepeat3, bKey: 'bobRepeat3', wKey: 'wowRepeat3' }
+                    ].map((rep, rIdx) => (
+                      <div key={rIdx} className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-600 block">{rep.label}</span>
+                        <input
+                          type="text"
+                          disabled={!isEditable}
+                          value={rep.bob || ''}
+                          onChange={(e) => {
+                            const updated = { ...swapData, stage0: { ...swapData.stage0, [rep.bKey]: e.target.value } };
+                            handleUpdateSwapData(updated);
+                          }}
+                          placeholder="BOB val"
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 w-full text-xs font-bold text-emerald-900"
+                        />
+                        <input
+                          type="text"
+                          disabled={!isEditable}
+                          value={rep.wow || ''}
+                          onChange={(e) => {
+                            const updated = { ...swapData, stage0: { ...swapData.stage0, [rep.wKey]: e.target.value } };
+                            handleUpdateSwapData(updated);
+                          }}
+                          placeholder="WOW val"
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 w-full text-xs font-bold text-rose-900"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Big Decision Switch */}
+                <div className="bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl space-y-2">
+                  <span className="text-xs font-black uppercase font-mono text-slate-800 block">
+                    Is the Measurement System Repeatable (BOB stays BOB, WOW stays WOW)?
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={!isEditable}
+                      onClick={() => handleStage0Toggle(true)}
+                      className={`p-3 rounded-xl border-2 font-mono text-xs font-black flex items-center justify-center space-x-2 transition cursor-pointer ${isGaugeGood
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-4 ring-emerald-200'
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-500'
+                        }`}
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>YES : Gauge OK (&Delta;M Eliminated)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!isEditable}
+                      onClick={() => handleStage0Toggle(false)}
+                      className={`p-3 rounded-xl border-2 font-mono text-xs font-black flex items-center justify-center space-x-2 transition cursor-pointer ${swapData.stage0.deltaMStatus === 'target'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-4 ring-rose-200'
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-rose-500'
+                        }`}
+                    >
+                      <X className="w-4 h-4" />
+                      <span>NO : Gauge Defective (&Delta;M Root Cause)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Next Step Footer */}
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStageStep(1)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>Proceed to Stage 1 (Assembly Process)</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* STAGE 1 CARD: ASSEMBLY PROCESS */}
+            {activeStageStep === 1 && (
+              <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-xs space-y-5 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <h4 className="text-sm font-black uppercase font-mono text-slate-900">
+                      ⚙️ Stage 1: Assembly Process &amp; Torque Repeatability (&Delta;P)
+                    </h4>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Disassemble BOB &amp; WOW completely and re-assemble with same original parts (no swapping).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Disassembly Repeat Measurements */}
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-slate-700 font-mono block">3 Consecutive Re-assembly Tests:</span>
+                  <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+                    {[
+                      { label: "Reassembly 1", bob: swapData.stage1.bobRepeat1, wow: swapData.stage1.wowRepeat1, bKey: 'bobRepeat1', wKey: 'wowRepeat1' },
+                      { label: "Reassembly 2", bob: swapData.stage1.bobRepeat2, wow: swapData.stage1.wowRepeat2, bKey: 'bobRepeat2', wKey: 'wowRepeat2' },
+                      { label: "Reassembly 3", bob: swapData.stage1.bobRepeat3, wow: swapData.stage1.wowRepeat3, bKey: 'bobRepeat3', wKey: 'wowRepeat3' }
+                    ].map((rep, rIdx) => (
+                      <div key={rIdx} className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-600 block">{rep.label}</span>
+                        <input
+                          type="text"
+                          disabled={!isEditable}
+                          value={rep.bob || ''}
+                          onChange={(e) => {
+                            const updated = { ...swapData, stage1: { ...swapData.stage1, [rep.bKey]: e.target.value } };
+                            handleUpdateSwapData(updated);
+                          }}
+                          placeholder="BOB reassembled"
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 w-full text-xs font-bold text-emerald-900"
+                        />
+                        <input
+                          type="text"
+                          disabled={!isEditable}
+                          value={rep.wow || ''}
+                          onChange={(e) => {
+                            const updated = { ...swapData, stage1: { ...swapData.stage1, [rep.wKey]: e.target.value } };
+                            handleUpdateSwapData(updated);
+                          }}
+                          placeholder="WOW reassembled"
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-1 w-full text-xs font-bold text-rose-900"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Big Decision Switch */}
+                <div className="bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl space-y-2">
+                  <span className="text-xs font-black uppercase font-mono text-slate-800 block">
+                    Does Re-assembly Preserve the Difference (Assembly Process is OK)?
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={!isEditable}
+                      onClick={() => handleStage1Toggle(true)}
+                      className={`p-3 rounded-xl border-2 font-mono text-xs font-black flex items-center justify-center space-x-2 transition cursor-pointer ${isProcessGood
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-4 ring-emerald-200'
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-500'
+                        }`}
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>YES : Assembly OK (Eliminates Process, Isolates Parts)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={!isEditable}
+                      onClick={() => handleStage1Toggle(false)}
+                      className={`p-3 rounded-xl border-2 font-mono text-xs font-black flex items-center justify-center space-x-2 transition cursor-pointer ${swapData.stage1.assemblyProcessStatus === 'target'
+                        ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-4 ring-rose-200'
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-rose-500'
+                        }`}
+                    >
+                      <X className="w-4 h-4" />
+                      <span>NO : Torque/Method Defect (Process Root Cause)</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Next Step Footer */}
+                <div className="flex justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStageStep(0)}
+                    className="text-slate-600 hover:text-slate-900 font-mono font-bold text-xs flex items-center space-x-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Stage 0</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveStageStep(2)}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>Proceed to Stage 2 (Child Parts Swapping)</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STAGE 2 CARD: CHILD PARTS SWAPPING MATRIX */}
+            {activeStageStep === 2 && (
+              <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-xs space-y-5 animate-fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 gap-2">
+                  <div>
+                    <h4 className="text-sm font-black uppercase font-mono text-slate-900">
+                      🧩 Stage 2: Child Part Swapping Matrix &amp; Red X Hunting
+                    </h4>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Swap one component from WOW unit into BOB unit. If BOB becomes WOW, the swapped part is the Red X root cause!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Add Child Part Form */}
+                {isEditable && (
+                  <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                    <input
+                      type="text"
+                      value={newPartName}
+                      onChange={(e) => setNewPartName(e.target.value)}
+                      placeholder="Add Child Part (e.g. Plunger Assembly, Check Valve)..."
+                      className="bg-white border-2 border-slate-300 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 flex-1 outline-none focus:border-indigo-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddChildPart}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-xs px-4 py-2 rounded-xl transition flex items-center space-x-1 cursor-pointer shadow-xs shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Part</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Child Parts Cards Grid */}
+                <div className="space-y-3">
+                  {swapData.stage2.childParts.length === 0 ? (
+                    <div className="bg-slate-50 border-2 border-dashed border-slate-200 p-8 rounded-2xl text-center text-slate-400 font-mono text-xs">
+                      No child parts added to this component search matrix yet. Click "Add Part" above or pick a preset.
+                    </div>
+                  ) : (
+                    swapData.stage2.childParts.map((part, pIdx) => {
+                      const isRedX = part.isDefective || part.status === 'target';
+                      const isElim = part.status === 'eliminated';
+
+                      return (
+                        <div
+                          key={part.id || pIdx}
+                          className={`p-4 rounded-2xl border-2 transition font-mono space-y-3 ${isRedX
+                            ? 'bg-amber-50 border-amber-500 shadow-md ring-4 ring-amber-300/40'
+                            : isElim
+                              ? 'bg-sky-50/60 border-sky-300'
+                              : 'bg-white border-slate-200'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <span className="bg-slate-900 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                                #{pIdx + 1}
+                              </span>
+                              <h5 className="text-sm font-black text-slate-900">{part.partName}</h5>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              {isRedX ? (
+                                <span className="bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-1 rounded-xl uppercase flex items-center gap-1 shadow-2xs">
+                                  <Flame className="w-3 h-3" /> RED X ROOT CAUSE
+                                </span>
+                              ) : isElim ? (
+                                <span className="bg-sky-100 text-sky-950 font-bold text-[10px] px-2 py-0.5 rounded-lg">
+                                  Eliminated 🚫
+                                </span>
+                              ) : (
+                                <span className="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-lg">
+                                  Testing...
+                                </span>
+                              )}
+
+                              {isEditable && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveChildPart(pIdx)}
+                                  className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                                  title="Delete Part"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Swap Test Trigger */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div className="bg-white/80 border border-slate-200 p-2.5 rounded-xl">
+                              <span className="text-[10px] text-slate-500 font-bold block">Swap: WOW Part placed in BOB Unit</span>
+                              <input
+                                type="text"
+                                disabled={!isEditable}
+                                value={part.wowInBobValue || ''}
+                                onChange={(e) => {
+                                  const childParts = [...swapData.stage2.childParts];
+                                  childParts[pIdx].wowInBobValue = e.target.value;
+                                  handleUpdateSwapData({ ...swapData, stage2: { ...swapData.stage2, childParts } });
+                                }}
+                                placeholder="e.g. 141 bar (Defect transferred)"
+                                className="bg-white border border-slate-300 rounded-lg px-2 py-1 w-full text-xs font-bold mt-1 text-slate-900"
+                              />
+                            </div>
+
+                            <div className="flex items-center space-x-2 pt-2 sm:pt-0">
+                              <button
+                                type="button"
+                                disabled={!isEditable}
+                                onClick={() => handleTogglePartDefect(pIdx, true)}
+                                className={`flex-1 py-2.5 px-3 rounded-xl border-2 text-xs font-black flex items-center justify-center space-x-1.5 transition cursor-pointer ${isRedX
+                                  ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-amber-400'
+                                  }`}
+                              >
+                                <Flame className="w-3.5 h-3.5 text-amber-950" />
+                                <span>Defect Transferred &rarr; RED X 🎯</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={!isEditable}
+                                onClick={() => handleTogglePartDefect(pIdx, false)}
+                                className={`py-2.5 px-3 rounded-xl border-2 text-xs font-bold transition cursor-pointer ${isElim && !isRedX
+                                  ? 'bg-sky-600 text-white border-sky-600'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-sky-400'
+                                  }`}
+                              >
+                                <span>Eliminate 🚫</span>
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStageStep(1)}
+                    className="text-slate-600 hover:text-slate-900 font-mono font-bold text-xs flex items-center space-x-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Stage 1</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('tree_diagram')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                  >
+                    <span>View Pure White Tree Canvas</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* Right Column in Split View: Live Tree */}
+          {viewMode === 'split' && (
+            <div className="sticky top-4">
+              <PsqGraphicTree
+                swapData={swapData}
+                isEditable={isEditable}
+                onToggleNode={handleTreeNodeClick}
+              />
             </div>
           )}
 
-          {/* Info Modal Button */}
-          <button
-            type="button"
-            onClick={() => setShowHelpModal(true)}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-            title="PSQ / Swap Analysis Method Guide"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* MAIN CONTAINER: Split or Single View */}
-      <div className={`grid gap-6 ${viewMode === 'split' ? 'grid-cols-1 xl:grid-cols-12' : 'grid-cols-1'}`}>
-        
-        {/* ========================================================================= */}
-        {/* SECTION 1: THE EXACT OFFICIAL WORKSHEET RECREATION */}
-        {/* ========================================================================= */}
-        {(viewMode === 'worksheet' || viewMode === 'split') && (
-          <div className={`${viewMode === 'split' ? 'xl:col-span-7' : 'w-full'} bg-white border-2 border-slate-300 rounded-3xl p-6 shadow-sm space-y-6 print:border-black print:p-2`}>
-            
-            {/* SHEET HEADER */}
-            <div className="border-b-2 border-slate-900 pb-4 space-y-3">
-              <div className="text-center space-y-1">
-                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-950 font-serif">
-                  Component search method or Swap Analysis
-                </h2>
-                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xs font-bold text-slate-700 font-mono">
-                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-md">
-                    BOB = Best OF Best Product (Good Assembly)
-                  </span>
-                  <span className="bg-rose-50 text-rose-800 border border-rose-300 px-2.5 py-0.5 rounded-md">
-                    WOW = Worst OF Worst Product (Bad Assembly)
-                  </span>
-                </div>
-              </div>
-
-              {/* Product Info Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 text-xs font-mono">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500">Product Name:</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      value={swapData.productName || ''}
-                      onChange={(e) => handleUpdateSwapData({ ...swapData, productName: e.target.value })}
-                      placeholder="e.g. Fuel Pump Sub-Assembly"
-                      className="w-full bg-slate-50 border-b-2 border-slate-300 focus:border-slate-900 px-2 py-1 font-bold text-slate-900 outline-hidden"
-                    />
-                  ) : (
-                    <span className="font-bold text-slate-900 border-b border-slate-300 block py-1">{swapData.productName || '—'}</span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500">Product Number:</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      value={swapData.productNumber || ''}
-                      onChange={(e) => handleUpdateSwapData({ ...swapData, productNumber: e.target.value })}
-                      placeholder="e.g. HPFP-8840-X2"
-                      className="w-full bg-slate-50 border-b-2 border-slate-300 focus:border-slate-900 px-2 py-1 font-bold text-slate-900 outline-hidden"
-                    />
-                  ) : (
-                    <span className="font-bold text-slate-900 border-b border-slate-300 block py-1">{swapData.productNumber || '—'}</span>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500">Customer Name:</label>
-                  {isEditable ? (
-                    <input
-                      type="text"
-                      value={swapData.customerName || ''}
-                      onChange={(e) => handleUpdateSwapData({ ...swapData, customerName: e.target.value })}
-                      placeholder="e.g. Mahindra & Mahindra"
-                      className="w-full bg-slate-50 border-b-2 border-slate-300 focus:border-slate-900 px-2 py-1 font-bold text-slate-900 outline-hidden"
-                    />
-                  ) : (
-                    <span className="font-bold text-slate-900 border-b border-slate-300 block py-1">{swapData.customerName || '—'}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Test Result Specification */}
-              <div className="text-xs font-mono pt-1">
-                <label className="block text-[10px] font-black uppercase text-slate-500">Test Result Specification:</label>
-                {isEditable ? (
-                  <input
-                    type="text"
-                    value={swapData.testResultSpecification || ''}
-                    onChange={(e) => handleUpdateSwapData({ ...swapData, testResultSpecification: e.target.value })}
-                    placeholder="e.g. Output pressure: 180 - 220 bar @ 2000 RPM (Spec min: 180 bar)"
-                    className="w-full bg-slate-50 border-b-2 border-slate-300 focus:border-slate-900 px-2 py-1 font-bold text-violet-900 outline-hidden"
-                  />
-                ) : (
-                  <span className="font-bold text-violet-900 border-b border-slate-300 block py-1">{swapData.testResultSpecification || '—'}</span>
-                )}
-              </div>
-            </div>
-
-            {/* ========================================================= */}
-            {/* STAGE 0: MEASUREMENT VALIDATION (Delta M vs Delta P) */}
-            {/* ========================================================= */}
-            <div className="border-2 border-slate-300 rounded-2xl p-4 space-y-4 bg-slate-50/40 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                <div className="flex items-center space-x-2">
-                  <span className="bg-slate-900 text-white text-xs font-black font-mono px-2.5 py-1 rounded-md uppercase">
-                    Stage 0
-                  </span>
-                  <span className="font-black text-sm uppercase font-mono text-slate-900">
-                    Measurement System Repeatability Test
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {isEditable && (
-                    <label className="flex items-center space-x-2 text-xs font-bold font-mono bg-white px-3 py-1 rounded-lg border border-slate-300 cursor-pointer shadow-3xs">
-                      <input
-                        type="checkbox"
-                        checked={swapData.stage0.measurementGood}
-                        onChange={(e) => handleStage0Change('measurementGood', e.target.checked)}
-                        className="rounded text-violet-600 focus:ring-violet-500"
-                      />
-                      <span>Measurement is Good (&Delta;M Eliminated &rarr; Next to Stage 1)</span>
-                    </label>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                {/* Left Table */}
-                <div className="md:col-span-8 overflow-x-auto">
-                  <table className="w-full text-xs font-mono border border-slate-300 rounded-xl overflow-hidden bg-white">
-                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
-                      <tr>
-                        <th className="p-2 text-left w-36">Test Cycle</th>
-                        <th className="p-2 text-center bg-emerald-50 text-emerald-950 font-black border-l border-r border-slate-300">
-                          BOB (Good Product)
-                        </th>
-                        <th className="p-2 text-center bg-rose-50 text-rose-950 font-black">
-                          WOW (Bad Product)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">Original value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.bobOriginal}
-                              onChange={(e) => handleStage0Change('bobOriginal', e.target.value)}
-                              placeholder="e.g. 215 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage0.bobOriginal || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.wowOriginal}
-                              onChange={(e) => handleStage0Change('wowOriginal', e.target.value)}
-                              placeholder="e.g. 142 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage0.wowOriginal || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">1st Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.bobRepeat1}
-                              onChange={(e) => handleStage0Change('bobRepeat1', e.target.value)}
-                              placeholder="e.g. 214 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage0.bobRepeat1 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.wowRepeat1}
-                              onChange={(e) => handleStage0Change('wowRepeat1', e.target.value)}
-                              placeholder="e.g. 140 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage0.wowRepeat1 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">2nd Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.bobRepeat2}
-                              onChange={(e) => handleStage0Change('bobRepeat2', e.target.value)}
-                              placeholder="e.g. 215 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage0.bobRepeat2 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.wowRepeat2}
-                              onChange={(e) => handleStage0Change('wowRepeat2', e.target.value)}
-                              placeholder="e.g. 143 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage0.wowRepeat2 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">3rd Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.bobRepeat3}
-                              onChange={(e) => handleStage0Change('bobRepeat3', e.target.value)}
-                              placeholder="e.g. 216 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage0.bobRepeat3 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage0.wowRepeat3}
-                              onChange={(e) => handleStage0Change('wowRepeat3', e.target.value)}
-                              placeholder="e.g. 141 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage0.wowRepeat3 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Stage 0 Mini Tree Graphic on Right */}
-                <div className="md:col-span-4 flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl text-center shadow-3xs">
-                  <span className="text-[10px] font-black uppercase text-slate-400 font-mono">Stage 0 Tree Branch</span>
-                  
-                  <div className="mt-2 space-y-2 w-full flex flex-col items-center">
-                    {/* Mone(Y) Root */}
-                    <div className="px-4 py-1.5 bg-slate-900 text-white font-black font-mono text-xs rounded-md shadow-xs border border-slate-700">
-                      Mone(Y)
-                    </div>
-                    
-                    {/* Connecting T */}
-                    <div className="w-28 h-4 relative">
-                      <div className="absolute left-1/2 -top-2 w-0.5 h-3 bg-slate-800 -translate-x-1/2"></div>
-                      <div className="absolute top-1 left-2 right-2 h-0.5 bg-slate-800"></div>
-                      <div className="absolute top-1 left-2 w-0.5 h-3 bg-slate-800"></div>
-                      <div className="absolute top-1 right-2 w-0.5 h-3 bg-slate-800"></div>
-                    </div>
-
-                    {/* Delta M and Delta P */}
-                    <div className="flex items-center justify-between w-full max-w-[200px] gap-2 pt-1">
-                      {/* Delta M (Diagonal Crossed Out) */}
-                      <div className={`relative px-3 py-1.5 rounded-md font-mono text-xs font-black border text-center flex-1 transition ${
-                        swapData.stage0.deltaMStatus === 'eliminated'
-                          ? 'bg-blue-100 text-slate-700 border-blue-400'
-                          : 'bg-rose-100 text-rose-900 border-rose-400'
-                      }`}>
-                        <span>&Delta;M</span>
-                        {swapData.stage0.deltaMStatus === 'eliminated' && (
-                          <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-blue-700 stroke-2">
-                            <line x1="0" y1="100%" x2="100%" y2="0" />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Delta P */}
-                      <div className={`px-3 py-1.5 rounded-md font-mono text-xs font-black border text-center flex-1 transition ${
-                        swapData.stage0.deltaPStatus === 'active'
-                          ? 'bg-white text-slate-950 border-slate-900 shadow-3xs ring-2 ring-violet-500/30'
-                          : 'bg-slate-100 text-slate-500 border-slate-300'
-                      }`}>
-                        <span>&Delta;P</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stage 0 Rule Text */}
-              <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-2.5 text-xs text-blue-950 font-mono font-medium flex items-center gap-2">
-                <Info className="w-4 h-4 text-blue-700 shrink-0" />
-                <span>
-                  <strong>Rule:</strong> (If BOB remains BOB &amp; WOW remains WOW, means <strong>measurement</strong> is Good, next go for <strong>Stage1</strong>)
-                </span>
-              </div>
-            </div>
-
-            {/* ========================================================= */}
-            {/* STAGE 1: DISASSEMBLY & RE-ASSEMBLY (Process vs Product) */}
-            {/* ========================================================= */}
-            <div className="border-2 border-slate-300 rounded-2xl p-4 space-y-4 bg-slate-50/40 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                <div className="flex items-center space-x-2">
-                  <span className="bg-slate-900 text-white text-xs font-black font-mono px-2.5 py-1 rounded-md uppercase">
-                    Stage 1
-                  </span>
-                  <span className="font-black text-sm uppercase font-mono text-slate-900">
-                    Dis-assembly &amp; Re-assembly Test (Process vs Product)
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {isEditable && (
-                    <label className="flex items-center space-x-2 text-xs font-bold font-mono bg-white px-3 py-1 rounded-lg border border-slate-300 cursor-pointer shadow-3xs">
-                      <input
-                        type="checkbox"
-                        checked={swapData.stage1.processGood}
-                        onChange={(e) => handleStage1Change('processGood', e.target.checked)}
-                        className="rounded text-violet-600 focus:ring-violet-500"
-                      />
-                      <span>Process is Good (Assembly Process Eliminated &rarr; Next to Stage 2)</span>
-                    </label>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-xs font-medium text-slate-600 font-mono italic">
-                Do the dis-assembly and again Re-assembly of BOB parts &amp; WOW parts &amp; record the values:
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                {/* Left Table */}
-                <div className="md:col-span-8 overflow-x-auto">
-                  <table className="w-full text-xs font-mono border border-slate-300 rounded-xl overflow-hidden bg-white">
-                    <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
-                      <tr>
-                        <th className="p-2 text-left w-36">Repeat Test (3 Times)</th>
-                        <th className="p-2 text-center bg-emerald-50 text-emerald-950 font-black border-l border-r border-slate-300">
-                          BOB Re-assembled
-                        </th>
-                        <th className="p-2 text-center bg-rose-50 text-rose-950 font-black">
-                          WOW Re-assembled
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">1st Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.bobRepeat1}
-                              onChange={(e) => handleStage1Change('bobRepeat1', e.target.value)}
-                              placeholder="e.g. 214 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage1.bobRepeat1 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.wowRepeat1}
-                              onChange={(e) => handleStage1Change('wowRepeat1', e.target.value)}
-                              placeholder="e.g. 142 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage1.wowRepeat1 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">2nd Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.bobRepeat2}
-                              onChange={(e) => handleStage1Change('bobRepeat2', e.target.value)}
-                              placeholder="e.g. 215 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage1.bobRepeat2 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.wowRepeat2}
-                              onChange={(e) => handleStage1Change('wowRepeat2', e.target.value)}
-                              placeholder="e.g. 140 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage1.wowRepeat2 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-
-                      <tr>
-                        <td className="p-2 font-bold bg-slate-50">3rd Repeat value</td>
-                        <td className="p-2 text-center border-l border-r border-slate-200">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.bobRepeat3}
-                              onChange={(e) => handleStage1Change('bobRepeat3', e.target.value)}
-                              placeholder="e.g. 215 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-emerald-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-emerald-700">{swapData.stage1.bobRepeat3 || '—'}</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {isEditable ? (
-                            <input
-                              type="text"
-                              value={swapData.stage1.wowRepeat3}
-                              onChange={(e) => handleStage1Change('wowRepeat3', e.target.value)}
-                              placeholder="e.g. 141 bar"
-                              className="w-full text-center bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 font-bold text-rose-700"
-                            />
-                          ) : (
-                            <span className="font-bold text-rose-700">{swapData.stage1.wowRepeat3 || '—'}</span>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Stage 1 Mini Tree Graphic on Right */}
-                <div className="md:col-span-4 flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl text-center shadow-3xs">
-                  <span className="text-[10px] font-black uppercase text-slate-400 font-mono">Stage 1 Tree Branch</span>
-                  
-                  <div className="mt-2 space-y-2 w-full flex flex-col items-center">
-                    {/* Delta P Root */}
-                    <div className="px-4 py-1.5 bg-slate-900 text-white font-black font-mono text-xs rounded-md shadow-xs border border-slate-700">
-                      &Delta;P
-                    </div>
-                    
-                    {/* Connecting T */}
-                    <div className="w-36 h-4 relative">
-                      <div className="absolute left-1/2 -top-2 w-0.5 h-3 bg-slate-800 -translate-x-1/2"></div>
-                      <div className="absolute top-1 left-2 right-2 h-0.5 bg-slate-800"></div>
-                      <div className="absolute top-1 left-2 w-0.5 h-3 bg-slate-800"></div>
-                      <div className="absolute top-1 right-2 w-0.5 h-3 bg-slate-800"></div>
-                    </div>
-
-                    {/* Parts and Assembly Process */}
-                    <div className="flex items-center justify-between w-full max-w-[240px] gap-2 pt-1">
-                      {/* Parts (Product) */}
-                      <div className={`px-2.5 py-1.5 rounded-md font-mono text-[11px] font-black border text-center flex-1 transition ${
-                        swapData.stage1.partsStatus === 'active'
-                          ? 'bg-white text-slate-950 border-slate-900 shadow-3xs ring-2 ring-violet-500/30'
-                          : 'bg-slate-100 text-slate-500 border-slate-300'
-                      }`}>
-                        <span>Parts</span>
-                      </div>
-
-                      {/* Assembly Process (Diagonal Crossed Out) */}
-                      <div className={`relative px-2 py-1.5 rounded-md font-mono text-[10px] font-black border text-center flex-1 transition ${
-                        swapData.stage1.assemblyProcessStatus === 'eliminated'
-                          ? 'bg-blue-100 text-slate-700 border-blue-400'
-                          : 'bg-rose-100 text-rose-900 border-rose-400'
-                      }`}>
-                        <span>Assembly process</span>
-                        {swapData.stage1.assemblyProcessStatus === 'eliminated' && (
-                          <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-blue-700 stroke-2">
-                            <line x1="0" y1="100%" x2="100%" y2="0" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stage 1 Rule Text */}
-              <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-2.5 text-xs text-blue-950 font-mono font-medium flex items-center gap-2">
-                <Info className="w-4 h-4 text-blue-700 shrink-0" />
-                <span>
-                  <strong>Rule:</strong> (If BOB remains BOB &amp; WOW remains WOW, means <strong>Process</strong> is Good, next go for <strong>Stage2</strong>)
-                </span>
-              </div>
-            </div>
-
-            {/* ========================================================= */}
-            {/* STAGE 2: SWAPPING INDIVIDUAL CHILD PARTS IN BOB & WOW */}
-            {/* ========================================================= */}
-            <div className="border-2 border-slate-300 rounded-2xl p-4 space-y-4 bg-slate-50/40 relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
-                <div className="flex items-center space-x-2">
-                  <span className="bg-slate-900 text-white text-xs font-black font-mono px-2.5 py-1 rounded-md uppercase">
-                    Stage 2
-                  </span>
-                  <span className="font-black text-sm uppercase font-mono text-slate-900">
-                    Swapping Individual Child Parts in the BOB &amp; WOW Product
-                  </span>
-                </div>
-                {isEditable && (
-                  <button
-                    type="button"
-                    onClick={handleAddChildPart}
-                    className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition cursor-pointer shadow-3xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Child Part Row</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Two Column Swap Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs font-mono border border-slate-300 rounded-xl overflow-hidden bg-white">
-                  <thead className="bg-slate-900 text-white text-[11px] font-black border-b border-slate-800">
-                    <tr>
-                      <th className="p-2.5 text-left border-r border-slate-800 w-1/2 bg-amber-950/90 text-amber-200">
-                        🔄 Swap: WOW product in BOB product
-                      </th>
-                      <th className="p-2.5 text-left w-1/2 bg-indigo-950/90 text-indigo-200">
-                        🔁 Swap: BOB product in WOW product (Confirmation)
-                      </th>
-                      {isEditable && <th className="p-2.5 text-center w-12 bg-slate-900">Act</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {swapData.stage2.childParts.map((item, idx) => (
-                      <tr key={item.id || idx} className={`hover:bg-slate-50/90 transition ${
-                        item.isDefective ? 'bg-amber-50/80 border-2 border-amber-500' : ''
-                      }`}>
-                        {/* Left Swap: WOW in BOB */}
-                        <td className="p-3 border-r border-slate-200 align-top">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-[10px] font-bold text-slate-400">Child Part #{idx + 1}:</span>
-                              {item.isDefective && (
-                                <span className="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1 shadow-3xs animate-pulse">
-                                  <Flame className="w-3 h-3" /> RED X ROOT CAUSE
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {isEditable ? (
-                                <input
-                                  type="text"
-                                  value={item.partName}
-                                  onChange={(e) => handleUpdateChildPart(idx, { partName: e.target.value })}
-                                  placeholder="Child Part Name..."
-                                  className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 font-bold text-slate-900 focus:bg-white"
-                                />
-                              ) : (
-                                <span className="font-bold text-slate-900 block">{item.partName}</span>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-12 gap-2 pt-1">
-                              <div className="col-span-8">
-                                <label className="block text-[9px] uppercase text-slate-400 font-bold">Result Value (WOW in BOB):</label>
-                                {isEditable ? (
-                                  <input
-                                    type="text"
-                                    value={item.wowInBobValue}
-                                    onChange={(e) => handleUpdateChildPart(idx, { wowInBobValue: e.target.value })}
-                                    placeholder="e.g. 141 bar (Drop)"
-                                    className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-800"
-                                  />
-                                ) : (
-                                  <span className="font-bold text-slate-800 text-xs">{item.wowInBobValue || '—'}</span>
-                                )}
-                              </div>
-                              <div className="col-span-4">
-                                <label className="block text-[9px] uppercase text-slate-400 font-bold">Result:</label>
-                                {isEditable ? (
-                                  <select
-                                    value={item.wowInBobResult}
-                                    onChange={(e) => handleUpdateChildPart(idx, { wowInBobResult: e.target.value as any })}
-                                    className={`w-full border rounded px-1.5 py-1 text-xs font-black ${
-                                      item.wowInBobResult === 'WOW' ? 'bg-red-100 text-red-900 border-red-400' :
-                                      item.wowInBobResult === 'BOB' ? 'bg-emerald-100 text-emerald-900 border-emerald-400' : 'bg-slate-50 border-slate-300'
-                                    }`}
-                                  >
-                                    <option value="">Select...</option>
-                                    <option value="BOB">BOB (No effect)</option>
-                                    <option value="WOW">WOW (Turned Bad 🚨)</option>
-                                  </select>
-                                ) : (
-                                  <span className={`px-2 py-0.5 rounded text-xs font-black inline-block ${
-                                    item.wowInBobResult === 'WOW' ? 'bg-red-100 text-red-900' :
-                                    item.wowInBobResult === 'BOB' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-100 text-slate-500'
-                                  }`}>
-                                    {item.wowInBobResult || '—'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Right Swap: BOB in WOW */}
-                        <td className="p-3 align-top">
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold text-slate-400 block">Confirmation Check with {item.partName || `Part #${idx+1}`}:</span>
-                            <div className="grid grid-cols-12 gap-2 pt-1">
-                              <div className="col-span-8">
-                                <label className="block text-[9px] uppercase text-slate-400 font-bold">Result Value (BOB in WOW):</label>
-                                {isEditable ? (
-                                  <input
-                                    type="text"
-                                    value={item.bobInWowValue}
-                                    onChange={(e) => handleUpdateChildPart(idx, { bobInWowValue: e.target.value })}
-                                    placeholder="e.g. 216 bar (Recovered)"
-                                    className="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-800"
-                                  />
-                                ) : (
-                                  <span className="font-bold text-slate-800 text-xs">{item.bobInWowValue || '—'}</span>
-                                )}
-                              </div>
-                              <div className="col-span-4">
-                                <label className="block text-[9px] uppercase text-slate-400 font-bold">Result:</label>
-                                {isEditable ? (
-                                  <select
-                                    value={item.bobInWowResult}
-                                    onChange={(e) => handleUpdateChildPart(idx, { bobInWowResult: e.target.value as any })}
-                                    className={`w-full border rounded px-1.5 py-1 text-xs font-black ${
-                                      item.bobInWowResult === 'BOB' ? 'bg-emerald-100 text-emerald-900 border-emerald-400' :
-                                      item.bobInWowResult === 'WOW' ? 'bg-red-100 text-red-900 border-red-400' : 'bg-slate-50 border-slate-300'
-                                    }`}
-                                  >
-                                    <option value="">Select...</option>
-                                    <option value="BOB">BOB (Recovered ⭐)</option>
-                                    <option value="WOW">WOW (Still Bad)</option>
-                                  </select>
-                                ) : (
-                                  <span className={`px-2 py-0.5 rounded text-xs font-black inline-block ${
-                                    item.bobInWowResult === 'BOB' ? 'bg-emerald-100 text-emerald-900' :
-                                    item.bobInWowResult === 'WOW' ? 'bg-red-100 text-red-900' : 'bg-slate-100 text-slate-500'
-                                  }`}>
-                                    {item.bobInWowResult || '—'}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Remove Action Button */}
-                        {isEditable && (
-                          <td className="p-2 text-center align-middle">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveChildPart(idx)}
-                              className="text-slate-400 hover:text-red-600 transition p-1"
-                              title="Delete row"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Stage 2 Decision Rules Box */}
-              <div className="space-y-2 pt-2">
-                <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-3 text-xs text-amber-950 font-mono space-y-1.5">
-                  <div className="flex items-start gap-2">
-                    <Target className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Root Cause Identification Rule:</strong> (If WOW product <span className="underline font-black text-red-700">{swapData.stage2.contributingPartName || 'Child Part'}</span> assembled in BOB product &amp; result comes <strong>WOW</strong>, means that child part contributes to problem. Kindly check that child dimensionally or as per drawing.)
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2 pt-1 border-t border-amber-200/60">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                    <div>
-                      <strong>Confirmation Rule:</strong> (For confirmation, If BOB product <span className="underline font-black text-emerald-700">{swapData.stage2.contributingPartName || 'Child Part'}</span> assembled in WOW product &amp; result comes <strong>BOB</strong>.)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* SECTION 2: THE AUTHENTIC GRAPHIC ELIMINATION TREE DIAGRAM */}
-        {/* ========================================================================= */}
-        {(viewMode === 'tree_diagram' || viewMode === 'split') && (
-          <div className={`${viewMode === 'split' ? 'xl:col-span-5' : 'w-full'} bg-slate-900 text-white border-2 border-slate-800 rounded-3xl p-6 shadow-xl space-y-6 flex flex-col justify-between`}>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                  <h3 className="text-sm font-black uppercase tracking-wider font-mono text-slate-200">
-                    PSQ Elimination Hierarchy Tree
-                  </h3>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400 font-bold">
-                  Graphic Representation
-                </span>
-              </div>
-
-              {/* VISUAL TREE SVG & BOXES CONTAINER */}
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-8 flex flex-col items-center overflow-x-auto min-w-[320px]">
-                
-                {/* 1. ROOT: Mone(Y) */}
-                <div className="flex flex-col items-center">
-                  <div className="px-6 py-2.5 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 text-white font-black font-mono text-sm rounded-xl border-2 border-slate-500 shadow-lg tracking-wider">
-                    Mone(Y)
-                  </div>
-                  <span className="text-[9px] font-mono text-slate-400 mt-1">Total Problem Variation (Y)</span>
-                  
-                  {/* Stem Down */}
-                  <div className="w-0.5 h-6 bg-slate-600"></div>
-                </div>
-
-                {/* 2. LEVEL 1: Delta M and Delta P */}
-                <div className="w-full max-w-md flex flex-col items-center">
-                  {/* Horizontal Bar */}
-                  <div className="w-48 h-0.5 bg-slate-600 relative">
-                    <div className="absolute left-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute right-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                  </div>
-
-                  <div className="flex items-start justify-between w-full max-w-[280px] pt-6 gap-6">
-                    
-                    {/* LEFT: Delta M (Measurement) */}
-                    <div className="flex flex-col items-center flex-1">
-                      <div className={`relative px-4 py-2 rounded-xl font-mono text-xs font-black border-2 text-center w-full transition ${
-                        swapData.stage0.deltaMStatus === 'eliminated'
-                          ? 'bg-blue-900/40 text-blue-200 border-blue-500/80 shadow-inner'
-                          : 'bg-rose-950 text-rose-200 border-rose-500'
-                      }`}>
-                        <span>&Delta;M</span>
-                        <span className="block text-[8px] font-medium opacity-80">(Measurement)</span>
-
-                        {/* Diagonal Slash if eliminated */}
-                        {swapData.stage0.deltaMStatus === 'eliminated' && (
-                          <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-blue-400 stroke-2">
-                            <line x1="0" y1="100%" x2="100%" y2="0" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-[8px] font-mono text-blue-400 mt-1 font-bold">
-                        {swapData.stage0.deltaMStatus === 'eliminated' ? 'Eliminated in Stage 0' : 'Measurement Defect'}
-                      </span>
-                    </div>
-
-                    {/* RIGHT: Delta P (Process & Product) */}
-                    <div className="flex flex-col items-center flex-1">
-                      <div className={`px-4 py-2 rounded-xl font-mono text-xs font-black border-2 text-center w-full transition ${
-                        swapData.stage0.deltaPStatus === 'active'
-                          ? 'bg-slate-800 text-white border-violet-400 shadow-md ring-2 ring-violet-500/40'
-                          : 'bg-slate-900 text-slate-500 border-slate-700'
-                      }`}>
-                        <span>&Delta;P</span>
-                        <span className="block text-[8px] font-medium opacity-80">(Process &amp; Product)</span>
-                      </div>
-                      <span className="text-[8px] font-mono text-emerald-400 mt-1 font-bold">
-                        Active Branch &rarr;
-                      </span>
-
-                      {/* Stem Down from Delta P to Stage 1 */}
-                      <div className="w-0.5 h-6 bg-slate-600 mt-2"></div>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* 3. LEVEL 2: Under Delta P -> Parts vs Assembly process */}
-                <div className="w-full max-w-md flex flex-col items-center -mt-2">
-                  {/* Horizontal Bar */}
-                  <div className="w-56 h-0.5 bg-slate-600 relative">
-                    <div className="absolute left-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute right-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                  </div>
-
-                  <div className="flex items-start justify-between w-full max-w-[320px] pt-6 gap-6">
-                    
-                    {/* LEFT: Parts (Product) */}
-                    <div className="flex flex-col items-center flex-1">
-                      <div className={`px-3 py-2 rounded-xl font-mono text-xs font-black border-2 text-center w-full transition ${
-                        swapData.stage1.partsStatus === 'active'
-                          ? 'bg-slate-800 text-white border-emerald-400 shadow-md ring-2 ring-emerald-500/40'
-                          : 'bg-slate-900 text-slate-500 border-slate-700'
-                      }`}>
-                        <span>Parts</span>
-                        <span className="block text-[8px] font-medium opacity-80">(Product Child Parts)</span>
-                      </div>
-                      <span className="text-[8px] font-mono text-emerald-400 mt-1 font-bold">
-                        Active to Stage 2 &rarr;
-                      </span>
-
-                      {/* Stem Down to Child Parts */}
-                      <div className="w-0.5 h-6 bg-slate-600 mt-2"></div>
-                    </div>
-
-                    {/* RIGHT: Assembly process (Eliminated) */}
-                    <div className="flex flex-col items-center flex-1">
-                      <div className={`relative px-3 py-2 rounded-xl font-mono text-[11px] font-black border-2 text-center w-full transition ${
-                        swapData.stage1.assemblyProcessStatus === 'eliminated'
-                          ? 'bg-blue-900/40 text-blue-200 border-blue-500/80 shadow-inner'
-                          : 'bg-rose-950 text-rose-200 border-rose-500'
-                      }`}>
-                        <span>Assembly process</span>
-                        <span className="block text-[8px] font-medium opacity-80">(Torque / Seating)</span>
-
-                        {/* Diagonal Slash if eliminated */}
-                        {swapData.stage1.assemblyProcessStatus === 'eliminated' && (
-                          <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-blue-400 stroke-2">
-                            <line x1="0" y1="100%" x2="100%" y2="0" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-[8px] font-mono text-blue-400 mt-1 font-bold">
-                        {swapData.stage1.assemblyProcessStatus === 'eliminated' ? 'Eliminated in Stage 1' : 'Assembly Defect'}
-                      </span>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* 4. LEVEL 3: Under Parts -> Individual Child Parts Branches */}
-                <div className="w-full flex flex-col items-center -mt-2">
-                  {/* Wide Horizontal Line connecting all child parts */}
-                  <div className="w-full max-w-sm h-0.5 bg-slate-600 relative">
-                    <div className="absolute left-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute right-0 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute left-1/4 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute left-1/2 top-0 w-0.5 h-6 bg-slate-600"></div>
-                    <div className="absolute left-3/4 top-0 w-0.5 h-6 bg-slate-600"></div>
-                  </div>
-
-                  {/* Child Parts Boxes Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-6 w-full max-w-xl">
-                    {swapData.stage2.childParts.map((part, pIdx) => {
-                      const isRedX = part.isDefective || part.status === 'target';
-                      const isElim = part.status === 'eliminated' || (part.wowInBobResult === 'BOB' && !isRedX);
-
-                      return (
-                        <div key={part.id || pIdx} className="flex flex-col items-center">
-                          <div className={`relative px-2.5 py-2 rounded-xl font-mono text-[10px] font-black border-2 text-center w-full transition ${
-                            isRedX
-                              ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-xl ring-4 ring-amber-500/50 scale-105 z-10'
-                              : isElim
-                              ? 'bg-blue-900/40 text-blue-200 border-blue-500/80 shadow-inner'
-                              : 'bg-slate-800 text-slate-300 border-slate-700'
-                          }`}>
-                            <span className="block truncate font-bold" title={part.partName}>
-                              {part.partName || `Part #${pIdx + 1}`}
-                            </span>
-                            <span className="block text-[8px] opacity-75 mt-0.5">
-                              {isRedX ? '🎯 RED X' : isElim ? 'Eliminated' : 'Testing'}
-                            </span>
-
-                            {/* Diagonal Slash for eliminated parts */}
-                            {isElim && !isRedX && (
-                              <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-blue-400 stroke-2">
-                                <line x1="0" y1="100%" x2="100%" y2="0" />
-                              </svg>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Big X Target Card */}
-              {swapData.stage2.contributingPartName && (
-                <div className="bg-amber-950/80 border-2 border-amber-500 rounded-2xl p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0">
-                      <Target className="w-6 h-6 animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-amber-400 uppercase font-mono block">
-                        Isolate &amp; Verified Root Cause (Red X)
-                      </span>
-                      <h4 className="text-base font-black text-amber-100 font-mono">
-                        {swapData.stage2.contributingPartName}
-                      </h4>
-                    </div>
-                  </div>
-                  <span className="bg-amber-500 text-slate-950 text-xs font-black font-mono px-3 py-1.5 rounded-xl uppercase tracking-wider">
-                    BIG X Identified
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Tree Summary Footer Note */}
-            <div className="border-t border-slate-800 pt-3 text-[11px] font-mono text-slate-400 flex items-center justify-between">
-              <span>Method: Mone(Y) &rarr; &Delta;M &rarr; &Delta;P &rarr; Parts</span>
-              <span className="text-amber-400 font-bold">Standard PSQ Strategy</span>
-            </div>
-
-          </div>
-        )}
-
-      </div>
-
-      {/* ========================================================================= */}
-      {/* HELP / METHODOLOGY EXPLANATION MODAL */}
-      {/* ========================================================================= */}
-      {showHelpModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center space-x-2">
-                <GitFork className="w-5 h-5 text-violet-400" />
-                <span className="font-mono text-xs font-black uppercase tracking-wider">
-                  PSQ &amp; Component Search / Swap Analysis Guide
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowHelpModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 overflow-y-auto text-xs text-slate-700 leading-relaxed font-sans">
-              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-2">
-                <h4 className="font-black text-sm text-violet-900 uppercase font-mono">
-                  Why Use Component Search (Swap Analysis)?
-                </h4>
-                <p>
-                  Component search eliminates guesswork by methodically isolating whether a defect comes from the <strong>Measurement System (&Delta;M)</strong>, the <strong>Assembly Process</strong>, or a specific <strong>Child Part</strong>.
-                </p>
-              </div>
-
-              <div className="space-y-3 font-mono">
-                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
-                  <span className="font-black text-slate-900 text-xs block uppercase">1. Start with Mone(Y)</span>
-                  <p className="text-[11px] text-slate-600">
-                    The total observed variance / defect symptom in the finished product is designated as Mone(Y).
-                  </p>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
-                  <span className="font-black text-slate-900 text-xs block uppercase">2. Stage 0: Evaluate &Delta;M (Measurement)</span>
-                  <p className="text-[11px] text-slate-600">
-                    Test BOB and WOW 3 times without disassembly. If BOB stays BOB and WOW stays WOW, &Delta;M is crossed out (eliminated) and we move down &Delta;P.
-                  </p>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
-                  <span className="font-black text-slate-900 text-xs block uppercase">3. Stage 1: Evaluate &Delta;P &rarr; Assembly Process vs Parts</span>
-                  <p className="text-[11px] text-slate-600">
-                    Disassemble and re-assemble BOB with BOB parts, and WOW with WOW parts. If BOB stays BOB and WOW stays WOW, the <strong>Assembly Process</strong> is eliminated, proving the root cause lies in one of the <strong>Child Parts</strong>.
-                  </p>
-                </div>
-
-                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
-                  <span className="font-black text-slate-900 text-xs block uppercase">4. Stage 2: Swap Child Parts &amp; Confirm Red X</span>
-                  <p className="text-[11px] text-slate-600">
-                    Swap one child part at a time. The true defective part (Red X) will turn BOB into WOW when inserted into BOB, and will turn WOW into BOB when the good part is inserted into WOW.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setShowHelpModal(false)}
-                className="bg-slate-900 hover:bg-slate-800 text-white font-mono font-bold text-xs px-5 py-2 rounded-xl transition"
-              >
-                Close Guide
-              </button>
-            </div>
-          </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* VIEW MODE 2: PURE WHITE FULL GRAPHIC TREE CANVAS */}
+      {/* ========================================================================= */}
+      {viewMode === 'tree_diagram' && (
+        <div className="space-y-4 animate-fade-in">
+          <PsqGraphicTree
+            swapData={swapData}
+            isEditable={isEditable}
+            onOpenStage={(stage) => {
+              setActiveStageStep(stage);
+              setViewMode('studio');
+            }}
+            onToggleNode={handleTreeNodeClick}
+          />
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VIEW MODE 3: STANDARD WORKSHEET (EXCEL-STYLE SPREADSHEET) */}
+      {/* ========================================================================= */}
+      {viewMode === 'standard_worksheet' && (
+        <div className="space-y-4 animate-fade-in">
+          <StandardWorksheetEditor
+            rows={standardWorksheet}
+            onChange={(newRows) => {
+              if (onStandardWorksheetChange) {
+                onStandardWorksheetChange(newRows);
+              }
+              handleAutoGenerateFromWorksheet(newRows);
+            }}
+            isEditable={isEditable}
+          />
+        </div>
+      )}
+
     </div>
   );
 };
-
-export default PsqEliminationTree;

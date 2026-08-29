@@ -785,6 +785,7 @@ export default function PpsrPresentationMode({
                   <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 overflow-x-auto">
                     <PsqEliminationTree
                       data={report.psqTreeData || DEFAULT_PSQ_TREE_DATA}
+                      standardWorksheet={report.standardWorksheet || []}
                       isEditable={false}
                     />
                   </div>

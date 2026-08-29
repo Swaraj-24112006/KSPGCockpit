@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { PpsrReport, Kaizen } from '../types';
+import { PpsrReport, Kaizen, PsqTreeData, StandardWorksheetRow } from '../types';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import IshikawaFishbone from './IshikawaFishbone';
-import { PsqEliminationTree, DEFAULT_PSQ_TREE_DATA } from './PsqEliminationTree';
-import { PsqTreeData } from '../types';
+import { PsqEliminationTree, BLANK_PSQ_TREE_DATA, DEFAULT_PSQ_TREE_DATA } from './PsqEliminationTree';
 import PpsrPresentationMode from './PpsrPresentationMode';
-import CftMonthlyAwards from '../cft/CftMonthlyAwards';
+import PpsrMonthlyAwards from './PPSRMonthlyAwards';
+import PpsrReviewBoard from './PpsrReviewBoard';
 import {
   Compass,
   Plus,
@@ -41,7 +41,10 @@ import {
   MessageSquare,
   Tv,
   Camera,
-  Upload
+  Upload,
+  PlusCircle,
+  ClipboardList,
+  Trophy
 } from 'lucide-react';
 import { PpsrMeetingLog } from '../types';
 
@@ -51,6 +54,8 @@ interface PpsrSystemProps {
   onAddReport: (data: Partial<PpsrReport>) => void;
   onUpdateReport: (id: string, data: Partial<PpsrReport>) => void;
   onUpdateKaizen?: (id: string, data: Partial<Kaizen>) => void;
+  activePpsrTab?: PpsrSubTab;
+  setActivePpsrTab?: (tab: PpsrSubTab) => void;
   initialAction?: string | null;
   onClearInitialAction?: () => void;
   onInspectReport?: (report: PpsrReport) => void;
@@ -58,7 +63,7 @@ interface PpsrSystemProps {
   onAddMeeting?: (data: Partial<PpsrMeetingLog>) => void;
 }
 
-type PpsrSubTab = 'board' | 'register' | 'meeting' | 'initiate' | 'cft-awards';
+type PpsrSubTab = 'initiate' | 'meeting' | 'cft-awards' | 'register';
 
 export default function PpsrSystem({
   reports,
@@ -66,6 +71,8 @@ export default function PpsrSystem({
   onAddReport,
   onUpdateReport,
   onUpdateKaizen,
+  activePpsrTab,
+  setActivePpsrTab,
   initialAction,
   onClearInitialAction,
   onInspectReport,
@@ -73,14 +80,35 @@ export default function PpsrSystem({
   onAddMeeting
 }: PpsrSystemProps) {
 
-  const [activeTab, setActiveTab] = useState<PpsrSubTab>('board');
+  const [internalTab, setInternalTab] = useState<PpsrSubTab>('initiate');
+  const currentTab = activePpsrTab || internalTab;
+
+  const handleSetTab = (tab: PpsrSubTab) => {
+    setInternalTab(tab);
+    if (setActivePpsrTab) setActivePpsrTab(tab);
+  };
+
   const [selectedReport, setSelectedReport] = useState<PpsrReport | null>(null);
   const [presentingReport, setPresentingReport] = useState<PpsrReport | null>(null);
 
-  // Trigger from global dashboard link
+  // Trigger from sidebar menu navigation or global dashboard links
   useEffect(() => {
-    if (initialAction === 'initiate-ppsr') {
-      setActiveTab('initiate');
+    if (!initialAction) return;
+
+    if (initialAction === 'initiate-ppsr' || initialAction === 'initiate') {
+      handleSetTab('initiate');
+      if (onClearInitialAction) onClearInitialAction();
+    } else if (initialAction === 'meeting' || initialAction === 'committee') {
+      handleSetTab('meeting');
+      if (onClearInitialAction) onClearInitialAction();
+    } else if (initialAction === 'register') {
+      handleSetTab('register');
+      if (onClearInitialAction) onClearInitialAction();
+    } else if (initialAction === 'board') {
+      handleSetTab('register');
+      if (onClearInitialAction) onClearInitialAction();
+    } else if (initialAction === 'cft-awards') {
+      handleSetTab('cft-awards');
       if (onClearInitialAction) onClearInitialAction();
     }
   }, [initialAction]);
@@ -351,9 +379,10 @@ export default function PpsrSystem({
     setContainmentActions(prev => [...prev, { action: '', responsible: '', date: new Date().toISOString().split('T')[0], status: 'implemented' }]);
   };
 
-  // Step 4a: Cause Localization (Fishbone and/or PSQ Elimination Tree)
+  // Step 4a: Cause Localization (Fishbone, Standard Worksheet & PSQ Elimination Tree)
   const [causeLocalizationApproach, setCauseLocalizationApproach] = useState<'fishbone' | 'psq' | 'both'>('both');
-  const [psqTreeData, setPsqTreeData] = useState<PsqTreeData>(DEFAULT_PSQ_TREE_DATA);
+  const [standardWorksheet, setStandardWorksheet] = useState<StandardWorksheetRow[]>([]);
+  const [psqTreeData, setPsqTreeData] = useState<PsqTreeData>(BLANK_PSQ_TREE_DATA);
 
   // Ishikawa state
   const [ishikawaMan, setIshikawaMan] = useState('');
@@ -498,6 +527,7 @@ export default function PpsrSystem({
       },
 
       causeLocalizationApproach,
+      standardWorksheet,
       psqTreeData,
 
       fiveWhysList: {
@@ -534,7 +564,7 @@ export default function PpsrSystem({
     };
 
     onAddReport(ppsrPayload);
-    alert('SUCCESS: Full BE Practical Problem Solving Report (PPSR) initiated and logged to server!');
+    alert('SUCCESS: Practical Problem Solving Report (PPSR) initiated and logged to server!');
 
     // Clear states
     setTitle('');
@@ -549,476 +579,101 @@ export default function PpsrSystem({
     setIshikawaMan(''); setIshikawaMachine(''); setIshikawaMaterial('');
     setIshikawaMethods(''); setIshikawaMilieu(''); setIshikawaMeasurement('');
     setWhy1_col1(''); setWhy2_col1(''); setWhy3_col1(''); setWhy4_col1(''); setWhy5_col1('');
+    setStandardWorksheet([]);
+    setPsqTreeData(BLANK_PSQ_TREE_DATA);
     setEffectivenessEvidence('');
     setLeadOwner('');
     setFormStep(1);
 
-    setActiveTab('board');
-  };
-
-  const handleUpdateStatus = (status: 'Open' | 'In-Progress' | 'Closed') => {
-    if (!selectedReport) return;
-    onUpdateReport(selectedReport.id, { status });
-    setSelectedReport(prev => prev ? { ...prev, status } : null);
-    alert(`Status updated to ${status} for report: ${selectedReport.ppsrNo}`);
+    handleSetTab('register');
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6" id="ppsr-system-hub">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-2 space-y-3.5" id="ppsr-system-hub">
 
-      {/* 1. Module Title Block */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="p-3 bg-violet-50 text-violet-600 rounded-2xl">
-            <Compass className="w-8 h-8 animate-spin-slow" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Practical Problem Solving Report (PPSR)</h2>
-            <p className="text-xs text-slate-400 font-medium mt-1">
-              BE / 8D Problem Solving Methodology. Conduct structured Facts (IS/IS NOT) analysis, Ishikawa localizations, 5-Why chains, and read-across standardization.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {/* PPSR Workflow Sub-Tabs Navigation */}
+      <div className="bg-white border border-slate-200/80 rounded-xl p-1 shadow-2xs flex items-center justify-between gap-1 overflow-x-auto select-none">
+        <div className="flex items-center gap-1 min-w-max">
+          {/* 1. Initiate PPSR */}
           <button
-            onClick={() => setPresentingReport(selectedReport || reports[0] || null)}
-            className="flex items-center space-x-1.5 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md shadow-indigo-100 cursor-pointer"
-            title="Launch step-by-step committee review presentation mode"
-          >
-            <Compass className="w-4 h-4" />
-            <span>🎬 Presentation Mode</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('initiate')}
-            className={`flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${activeTab === 'initiate'
-                ? 'bg-violet-600 text-white shadow-md shadow-violet-200'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+            id="tab-ppsr-initiate"
+            onClick={() => handleSetTab('initiate')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'initiate'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
           >
-            <Plus className="w-4 h-4" />
-            <span>Initiate BE PPSR</span>
+            <PlusCircle className="w-3.5 h-3.5 shrink-0 text-violet-300" />
+            <span>1. Initiate PPSR</span>
           </button>
+
+          {/* 2. Committee Review */}
+          <button
+            id="tab-ppsr-meeting"
+            onClick={() => handleSetTab('meeting')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'meeting'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+          >
+            <Users className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
+            <span>2. Committee Review</span>
+            {meetings && meetings.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'meeting' ? 'bg-emerald-800 text-emerald-100' : 'bg-slate-200 text-slate-700'
+                }`}>
+                {meetings.length}
+              </span>
+            )}
+          </button>
+
+          {/* 3. Monthly Awards */}
+          <button
+            id="tab-ppsr-awards"
+            onClick={() => handleSetTab('cft-awards')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'cft-awards'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+          >
+            <Trophy className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+            <span>3. Monthly Awards</span>
+          </button>
+
+          {/* 4. PPSR Register */}
+          <button
+            id="tab-ppsr-register"
+            onClick={() => handleSetTab('register')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'register'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+          >
+            <ClipboardList className="w-3.5 h-3.5 shrink-0 text-blue-300" />
+            <span>4. PPSR Register</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'register' ? 'bg-blue-800 text-blue-100' : 'bg-slate-200 text-slate-700'
+              }`}>
+              {reports.length}
+            </span>
+          </button>
+        </div>
+
+        <div className="hidden lg:flex items-center space-x-2 px-3 text-[11px] font-mono text-slate-400">
+          <Compass className="w-3.5 h-3.5 text-violet-500" />
+          <span>8D Problem Solving Lifecycle</span>
         </div>
       </div>
 
-      {/* 2. Submenu Switcher tabs */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-1 flex space-x-1 max-w-2xl shadow-2xs">
-        <button
-          onClick={() => setActiveTab('board')}
-          className={`flex-1 py-2.5 px-3 text-center rounded-xl text-[11px] font-black uppercase tracking-wider transition ${activeTab === 'board'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          📊 BE Solver Board
-        </button>
-        <button
-          onClick={() => setActiveTab('register')}
-          className={`flex-1 py-2.5 px-3 text-center rounded-xl text-[11px] font-black uppercase tracking-wider transition ${activeTab === 'register'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          📋 PPSR Register
-        </button>
-        <button
-          onClick={() => setActiveTab('meeting')}
-          className={`flex-1 py-2.5 px-3 text-center rounded-xl text-[11px] font-black uppercase tracking-wider transition ${activeTab === 'meeting'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          🤝 Meeting Review Log
-        </button>
-        <button
-          onClick={() => setActiveTab('initiate')}
-          className={`flex-1 py-2.5 px-3 text-center rounded-xl text-[11px] font-black uppercase tracking-wider transition ${activeTab === 'initiate'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          🧠 Log BE Form
-        </button>
-        <button
-          onClick={() => setActiveTab('cft-awards')}
-          className={`flex-1 py-2.5 px-3 text-center rounded-xl text-[11px] font-black uppercase tracking-wider transition ${activeTab === 'cft-awards'
-              ? 'bg-amber-500 text-slate-950 shadow-sm'
-              : 'text-amber-600 hover:text-amber-800 hover:bg-amber-50'
-            }`}
-        >
-          🏆 CFT Best Awards
-        </button>
-      </div>
+      {/* 2. Render Active Tab */}
 
-      {/* 3. Render Active Tab */}
-
-      {activeTab === 'cft-awards' && (
-        <CftMonthlyAwards
-          kaizens={kaizens}
+      {currentTab === 'cft-awards' && (
+        <PpsrMonthlyAwards
           ppsrReports={reports}
-          onUpdateKaizen={onUpdateKaizen}
           onUpdatePpsrReport={onUpdateReport}
         />
       )}
 
-      {/* SUB-TAB 1: SOLVER BOARD */}
-      {activeTab === 'board' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-          {/* Left Side: Kanban Column / List of reports */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 lg:col-span-4 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between border-b pb-2">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800 font-mono">Select Problem Ticket</span>
-              <span className="text-[10px] font-bold font-mono bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{reports.length} Logs</span>
-            </div>
-
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-              {reports.length === 0 ? (
-                <p className="text-xs text-slate-400 font-mono py-8 text-center">No reports compiled yet.</p>
-              ) : (
-                reports.map(r => (
-                  <div
-                    key={r.id}
-                    onClick={() => setSelectedReport(r)}
-                    className={`p-4 border rounded-2xl cursor-pointer text-left transition space-y-2.5 ${selectedReport?.id === r.id
-                        ? 'border-violet-600 bg-violet-50/20 shadow-xs'
-                        : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black font-mono text-slate-400">{r.ppsrNo}</span>
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-black font-mono uppercase ${r.status === 'Open' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                          r.status === 'In-Progress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                            'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                        }`}>
-                        {r.status}
-                      </span>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight line-clamp-1">{r.title}</h4>
-                      <p className="text-[10px] text-slate-500 font-medium line-clamp-2 mt-0.5">{r.problemStatement}</p>
-                    </div>
-                    <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono border-t pt-2">
-                      <span>Owner: {r.leadOwner || 'TBD'}</span>
-                      <span>📅 {r.targetDate}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Right Side: Detailed Live Steps Checklist View */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 lg:col-span-8 space-y-6 shadow-2xs">
-            {selectedReport ? (
-              <div className="space-y-6">
-
-                {/* Board Ticket Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
-                  <div>
-                    <span className="text-[10px] font-black font-mono text-violet-500 uppercase">{selectedReport.ppsrNo} • IN-PROCESS STATE</span>
-                    <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{selectedReport.title}</h3>
-                    <p className="text-[11px] text-slate-400 font-mono font-medium mt-0.5">
-                      Plant Zone: {selectedReport.plant || 'Pune Complex'} • Operator Lead: {selectedReport.leadOwner}
-                    </p>
-                  </div>
-
-                  {/* Print, Presentation and Status actions */}
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <button
-                      onClick={() => setPresentingReport(selectedReport)}
-                      className="flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-700 hover:to-violet-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition shadow-md shadow-indigo-100 cursor-pointer"
-                      title="Launch step-by-step presentation mode for Steering Committee review"
-                    >
-                      <Compass className="w-4 h-4" />
-                      <span>🎬 Presentation Mode</span>
-                    </button>
-
-                    <button
-                      onClick={() => onInspectReport && onInspectReport(selectedReport)}
-                      className="flex items-center space-x-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-                      title="Inspect paper sheet style layout and print to PDF"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Print BE Sheet</span>
-                    </button>
-
-                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
-                      {(['Open', 'In-Progress', 'Closed'] as const).map(s => (
-                        <button
-                          key={s}
-                          onClick={() => handleUpdateStatus(s)}
-                          className={`px-2 py-1 rounded-lg text-[9px] font-black font-mono uppercase transition-all cursor-pointer ${selectedReport.status === s
-                              ? 'bg-white text-slate-800 shadow-xs'
-                              : 'text-slate-400 hover:text-slate-600'
-                            }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* COMMITTEE FEEDBACK & REVISION REQUIRED BANNER */}
-                {((selectedReport.presentationFeedback && selectedReport.presentationFeedback.length > 0) || selectedReport.committeeDecision === 'Re-work Needed') && (
-                  <div className={`p-4 rounded-2xl border transition space-y-3 ${selectedReport.committeeDecision === 'Re-work Needed'
-                      ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
-                      : 'bg-indigo-50 border-indigo-200 text-indigo-900'
-                    }`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2">
-                      <div className="flex items-center space-x-2">
-                        <MessageSquare className="w-5 h-5 text-amber-600 shrink-0" />
-                        <div>
-                          <h4 className="text-xs font-black uppercase tracking-wider font-mono flex items-center space-x-2">
-                            <span>Steering Committee Review Feedback</span>
-                            <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
-                              {selectedReport.presentationFeedback?.length || 0} Notes
-                            </span>
-                          </h4>
-                          {selectedReport.committeeDecision === 'Re-work Needed' && (
-                            <p className="text-[11px] text-red-700 font-bold font-mono mt-0.5 animate-pulse">
-                              ⚠️ Committee Decision: Re-work / Revisions Needed on PPSR
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleStartEditingReport(selectedReport)}
-                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold font-mono transition cursor-pointer flex items-center space-x-1 shrink-0 self-start sm:self-auto"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>✏️ Make Necessary Changes</span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {(selectedReport.presentationFeedback || []).map((item) => (
-                        <div key={item.id} className="bg-white/90 p-3 rounded-xl border border-amber-200 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-bold text-amber-950 font-mono text-[10px] bg-amber-100 px-1.5 py-0.5 rounded">
-                                Step {item.stepNumber}: {item.stepTitle}
-                              </span>
-                              <span className="text-slate-500 font-mono text-[10px]">Reviewer: {item.reviewerName}</span>
-                            </div>
-                            <p className="text-slate-800 font-medium text-xs leading-relaxed">{item.comment}</p>
-                          </div>
-
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-bold font-mono uppercase shrink-0 ${item.resolved ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-red-100 text-red-800 border border-red-300'
-                            }`}>
-                            {item.resolved ? '✓ Resolved' : 'Fix Needed'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Steps Visual Progress Tracker */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider font-mono">BE Problem Solving Progression Checklist</h4>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                    {/* Step 1 & 2 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">Steps 1 & 2: Definition & Comparison</span>
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-normal">
-                        <strong>Problem Statement:</strong> {selectedReport.problemStatement}
-                      </p>
-                      {selectedReport.factsAnalysis?.whatIs && (
-                        <div className="text-[10px] bg-white p-2 rounded-lg border text-slate-600 font-mono">
-                          <span className="font-bold text-[9px] uppercase text-slate-400 block border-b pb-0.5 mb-1">FACTS CHECK</span>
-                          <span><strong>IS:</strong> {selectedReport.factsAnalysis.whatIs}</span>
-                          <span className="block mt-1"><strong>IS NOT:</strong> {selectedReport.factsAnalysis.whatIsNot}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">Step 3: Containment Actions</span>
-                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-normal">
-                        <strong>Primary Containment Action:</strong> {selectedReport.containmentAction}
-                      </p>
-                      {selectedReport.containmentActionsList && selectedReport.containmentActionsList.length > 0 && (
-                        <span className="text-[9px] font-mono font-bold text-emerald-600 block">
-                          ✓ {selectedReport.containmentActionsList.length} containment measures deployed and audited.
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Step 4 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-4 col-span-1 md:col-span-2">
-                      <div className="flex items-center justify-between border-b pb-1">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">
-                          Step 4a & 4b: Cause Localization (Ishikawa & PSQ Elimination Tree) & 5-Whys
-                        </span>
-                        <div className="flex items-center space-x-1.5">
-                          {selectedReport.causeLocalizationApproach === 'psq' && (
-                            <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              🌳 PSQ TREE
-                            </span>
-                          )}
-                          {selectedReport.causeLocalizationApproach === 'fishbone' && (
-                            <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-300">
-                              🐟 ISHIKAWA
-                            </span>
-                          )}
-                          {(selectedReport.causeLocalizationApproach === 'both' || (!selectedReport.causeLocalizationApproach && selectedReport.psqTreeData)) && (
-                            <span className="text-[9px] font-bold font-mono px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-300">
-                              🔄 DUAL APPROACH
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Live Graphical Fishbone Diagram */}
-                      {(!selectedReport.causeLocalizationApproach || selectedReport.causeLocalizationApproach === 'fishbone' || selectedReport.causeLocalizationApproach === 'both') && (
-                        <div className="bg-white rounded-3xl p-1 shadow-sm border border-slate-200 overflow-hidden">
-                          <IshikawaFishbone ishikawa={selectedReport.ishikawa} problemTitle={selectedReport.title} />
-                        </div>
-                      )}
-
-                      {/* PSQ Elimination Tree in Preview */}
-                      {(selectedReport.causeLocalizationApproach === 'psq' || selectedReport.causeLocalizationApproach === 'both' || selectedReport.psqTreeData) && (
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-black uppercase text-emerald-800 font-mono block">
-                            🌳 PSQ Project Definition & Elimination Strategy Tree:
-                          </span>
-                          <PsqEliminationTree
-                            data={selectedReport.psqTreeData || DEFAULT_PSQ_TREE_DATA}
-                            isEditable={false}
-                            compact={true}
-                          />
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] pt-1">
-                        <div>
-                          <strong className="block text-[10px] uppercase text-slate-500 font-mono mb-1">Ishikawa Categories:</strong>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedReport.ishikawa?.man?.length ? <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-[9px] font-mono font-bold">Man</span> : null}
-                            {selectedReport.ishikawa?.machine?.length ? <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[9px] font-mono font-bold">Machine</span> : null}
-                            {selectedReport.ishikawa?.material?.length ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-[9px] font-mono font-bold">Material</span> : null}
-                            {selectedReport.ishikawa?.methods?.length ? <span className="px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-[9px] font-mono font-bold">Methods</span> : null}
-                            {selectedReport.ishikawa?.milieu?.length ? <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded text-[9px] font-mono font-bold">Milieu</span> : null}
-                            {selectedReport.ishikawa?.measurement?.length ? <span className="px-1.5 py-0.5 bg-cyan-50 text-cyan-700 rounded text-[9px] font-mono font-bold">Measurement</span> : null}
-                          </div>
-                        </div>
-                        <div>
-                          <strong className="block text-[10px] uppercase text-slate-500 font-mono mb-1">Primary 5-Why Chain:</strong>
-                          <div className="bg-slate-50 text-slate-800 border border-slate-200 p-3 rounded-xl font-mono text-[11px] whitespace-pre-wrap max-h-28 overflow-y-auto font-semibold">
-                            {selectedReport.rootCauseAnalysis}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Step 5 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">Step 5: Permanent Corrective Action</span>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-mono text-[8px] font-bold uppercase">VALIDATED</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-normal">
-                        <strong>Measure:</strong> {selectedReport.permanentCorrectiveAction}
-                      </p>
-                    </div>
-
-                    {/* Step 6 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-3 col-span-1">
-                      <div className="flex items-center justify-between border-b pb-1">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">Step 6: Effectiveness Trend Graph</span>
-                        <span className="text-[9px] font-bold font-mono text-emerald-600">✓ MONITORED</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 leading-normal mb-1">
-                        <strong>Evidence:</strong> {selectedReport.effectivenessEvidence || selectedReport.validationCheck || 'Rework defect rate trended automatically.'}
-                      </p>
-
-                      {/* Recharts trend graph shown automatically */}
-                      <div className="h-28 bg-white p-2 rounded-xl border border-slate-100">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={selectedReport.effectivenessChartData || [
-                            { name: 'Initial', value: 8 },
-                            { name: 'Contain', value: 4.5 },
-                            { name: 'Fix', value: 1 },
-                            { name: 'Current', value: 0.2 }
-                          ]} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="name" tick={{ fontSize: 7, fill: '#64748b' }} />
-                            <YAxis tick={{ fontSize: 7, fill: '#64748b' }} />
-                            <Tooltip contentStyle={{ fontSize: '8px', padding: '2px 4px' }} />
-                            <Line type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={2.5} activeDot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-
-                    {/* Steps 7 & 8 */}
-                    <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/40 space-y-2 col-span-1 md:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-violet-600 uppercase font-mono">Steps 7 & 8: Standardization & Read Across</span>
-                        <span className="text-[9px] font-bold font-mono text-emerald-600">✓ 8D COMPLIANT</span>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] text-slate-500">
-                        <div>
-                          <p className="leading-normal">
-                            <strong>Standardization:</strong> {selectedReport.standardizationList?.length || 0} protection measures successfully registered in FMEA files.
-                          </p>
-                        </div>
-                        <div>
-                          <p className="leading-normal">
-                            <strong>Read Across:</strong> Lessons learned proposals shared with global quality desks and read-across teams.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Print CTA Box */}
-                  <div className="bg-gradient-to-r from-violet-600 to-indigo-700 text-white p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-md mt-6">
-                    <div>
-                      <h4 className="text-sm font-black uppercase tracking-tight">Need the final paper copy?</h4>
-                      <p className="text-xs text-indigo-100 mt-1">Export this complete Practical Problem Solving sheet with dynamic fishbone drawings and root cause trees to a PDF conforming directly to the standard corporate template.</p>
-                    </div>
-                    <button
-                      onClick={() => onInspectReport && onInspectReport(selectedReport)}
-                      className="bg-white hover:bg-slate-100 text-indigo-900 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider font-mono shadow-xs shrink-0 cursor-pointer self-start sm:self-center"
-                    >
-                      Inspect Sheet & Print
-                    </button>
-                  </div>
-
-                </div>
-
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <Compass className="w-12 h-12 text-slate-300 animate-pulse" />
-                <div>
-                  <h4 className="text-xs font-black text-slate-700 uppercase font-mono">No Active PPSR Ticket Selected</h4>
-                  <p className="text-xs text-slate-400 max-w-xs mt-1">Please select an ongoing quality problem investigation from the left sidebar panel to review steps progress or export to corporate print PDF.</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
       {/* SUB-TAB 2: REGISTER SPREADSHEET */}
-      {activeTab === 'register' && (
+      {currentTab === 'register' && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-6">
 
           {/* Filtering row */}
@@ -1143,30 +798,32 @@ export default function PpsrSystem({
       )}
 
       {/* SUB-TAB 3: LOG NEW BE FORM */}
-      {activeTab === 'initiate' && (
-        <form onSubmit={handleFormSubmit} className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-xs space-y-6 max-w-4xl mx-auto text-left" id="ppsr-initiate-form-wizard">
+      {currentTab === 'initiate' && (
+        <form onSubmit={handleFormSubmit} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4 max-w-4xl mx-auto text-left" id="ppsr-initiate-form-wizard">
 
           {/* Form Header */}
-          <div className="border-b pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                <span>🧠 Initiate Practical Problem Solving Report (PPSR)</span>
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">Step-by-step BE problem solving wizard. Complete all steps to compile the final paper standard.</p>
+          <div className="border-b pb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-black text-slate-800 uppercase tracking-tight">
+                🧠 Initiate PPSR Report
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
+                8D Problem Solving Wizard
+              </span>
             </div>
-            <div className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-[10px] font-black uppercase font-mono tracking-wider shrink-0">
-              Progress: Step {formStep} of 5
+            <div className="bg-violet-50 text-violet-700 border border-violet-200 px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono tracking-wider shrink-0">
+              Step {formStep} / 5
             </div>
           </div>
 
           {/* Stepper Progress Bar */}
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between gap-4 overflow-x-auto select-none">
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 flex items-center justify-between gap-2 overflow-x-auto select-none">
             {[
-              { num: 1, title: "1. Problem & Facts", desc: "Symptoms & IS/IS-NOT" },
-              { num: 2, title: "2. Containment", desc: "Short-term protection" },
-              { num: 3, title: "3. Root Causes", desc: "Ishikawa & 5-Whys" },
-              { num: 4, title: "4. Corrective Plans", desc: "Fixes & Evidence" },
-              { num: 5, title: "5. Standardization", desc: "Control plans & Sign-off" }
+              { num: 1, title: "1. Problem & Facts", desc: "Symptoms & IS/NOT" },
+              { num: 2, title: "2. Containment", desc: "Short-term" },
+              { num: 3, title: "3. Root Causes", desc: "Ishikawa & PSQ" },
+              { num: 4, title: "4. Action Plan", desc: "Fixes & Evidence" },
+              { num: 5, title: "5. Standardization", desc: "Control & Sign-off" }
             ].map((step) => {
               const isPassed = formStep > step.num;
               const isActive = formStep === step.num;
@@ -1174,10 +831,10 @@ export default function PpsrSystem({
                 <div
                   key={step.num}
                   onClick={() => setFormStep(step.num)}
-                  className="flex items-center space-x-2 min-w-[145px] shrink-0 cursor-pointer hover:opacity-95"
+                  className="flex items-center space-x-1.5 min-w-[120px] shrink-0 cursor-pointer hover:opacity-95"
                 >
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all ${isPassed ? 'bg-emerald-600 text-white' :
-                      isActive ? 'bg-violet-600 text-white shadow-md shadow-violet-200 ring-2 ring-violet-100' :
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${isPassed ? 'bg-emerald-600 text-white' :
+                      isActive ? 'bg-violet-600 text-white shadow-xs ring-2 ring-violet-200' :
                         'bg-slate-200 text-slate-500'
                     }`}>
                     {isPassed ? "✓" : step.num}
@@ -1187,7 +844,6 @@ export default function PpsrSystem({
                       }`}>
                       {step.title}
                     </div>
-                    <div className="text-[8px] font-mono text-slate-400 mt-0.5 leading-none">{step.desc}</div>
                   </div>
                 </div>
               );
@@ -1733,19 +1389,12 @@ export default function PpsrSystem({
 
                 {/* PSQ Tree Editor */}
                 {(causeLocalizationApproach === 'psq' || causeLocalizationApproach === 'both') && (
-                  <div className="pt-2">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h5 className="text-[11px] font-black uppercase tracking-wider text-emerald-800 font-mono flex items-center gap-2">
-                        <span>🌳 PSQ Project Definition & Elimination Strategy Tree (Interactive Editor)</span>
-                      </h5>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        Click on node status badges to cycle [Active → Eliminated ❌ → Target Big X 🎯]
-                      </span>
-                    </div>
-
+                  <div className="pt-1">
                     <PsqEliminationTree
                       data={psqTreeData}
                       onChange={setPsqTreeData}
+                      standardWorksheet={standardWorksheet}
+                      onStandardWorksheetChange={setStandardWorksheet}
                       isEditable={true}
                       contextInfo={{
                         title,
@@ -2409,7 +2058,7 @@ export default function PpsrSystem({
                 if (formStep > 1) {
                   setFormStep(formStep - 1);
                 } else {
-                  setActiveTab('board');
+                  handleSetTab('register');
                 }
               }}
               className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-xs font-black uppercase font-mono tracking-wider transition"
@@ -2453,316 +2102,14 @@ export default function PpsrSystem({
         </form>
       )}
 
-      {activeTab === 'meeting' && (
-        <div className="space-y-6 animate-fadeIn select-none">
-          {/* Header Summary */}
-          <div className="bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
-            <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-12 -translate-y-6 scale-150">
-              <Users className="w-96 h-96" />
-            </div>
-            <div className="max-w-3xl space-y-2 relative z-10">
-              <span className="bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-[10px] font-black uppercase font-mono tracking-widest">
-                Meeting Review Board & Daily Log
-              </span>
-              <h3 className="text-2xl font-black uppercase tracking-tight">BE PPSR Review Meeting Minutes & Spreadsheet</h3>
-              <p className="text-slate-300 text-xs leading-relaxed">
-                Review outstanding BE Method PPSR records in team meetings to ensure rapid resolution. Focus of the meeting is to drive open problem solving to completed states <span className="text-yellow-300 font-bold">ASAP</span>, update active spreadsheet metrics, and audit cost savings.
-              </p>
-            </div>
-
-            {/* Quick Stats Bento Box */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800/80">
-              <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase font-mono tracking-wider">Active Open PPSRs</span>
-                <div className="flex items-baseline space-x-1 mt-1">
-                  <span className="text-2xl font-black text-amber-400">
-                    {reports.filter(r => r.status !== 'Closed').length}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">records</span>
-                </div>
-                <p className="text-[9px] text-slate-500 mt-1">Focusing meeting discussion</p>
-              </div>
-
-              <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase font-mono tracking-wider">Target Resolution</span>
-                <div className="flex items-baseline space-x-1 mt-1">
-                  <span className="text-2xl font-black text-emerald-400">ASAP</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">{"< 15d"}</span>
-                </div>
-                <p className="text-[9px] text-emerald-500/80 mt-1">Lead times audited weekly</p>
-              </div>
-
-              <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase font-mono tracking-wider">Monthly Rejection Savings</span>
-                <div className="flex items-baseline space-x-1 mt-1">
-                  <span className="text-xl font-black text-emerald-400">
-                    ₹{reports.reduce((acc, r) => acc + (Number(r.costSavePerMonth) || 0), 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <p className="text-[9px] text-slate-500 mt-1">Sum of closed & open savings</p>
-              </div>
-
-              <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-2xl">
-                <span className="block text-[10px] font-bold text-slate-400 uppercase font-mono tracking-wider">Annualized Impact</span>
-                <div className="flex items-baseline space-x-1 mt-1">
-                  <span className="text-xl font-black text-violet-400">
-                    ₹{reports.reduce((acc, r) => acc + (Number(r.costSavePerAnnum) || 0), 0).toLocaleString('en-IN')}
-                  </span>
-                </div>
-                <p className="text-[9px] text-slate-500 mt-1">Total business impact</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Dual Panel Grid: Left Timeline, Right Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-            {/* Timeline Panel */}
-            <div className="lg:col-span-8 bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <div>
-                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide font-mono flex items-center gap-1.5">
-                    <span>🤝 Meeting Review Timeline & Logs</span>
-                  </h4>
-                  <p className="text-[11px] text-slate-400 font-medium">Historical register of PPSR daily and weekly status meetings.</p>
-                </div>
-                <button
-                  onClick={() => setShowAddMeeting(true)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-black uppercase tracking-wider font-mono py-2 px-4 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Log Meeting Minutes
-                </button>
-              </div>
-
-              {/* List of Meetings */}
-              <div className="space-y-4 max-h-[360px] overflow-y-auto pr-2">
-                {(meetings || []).length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl">
-                    <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-slate-400 uppercase font-mono">No meeting logs recorded yet</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Click the button above to log your first meeting.</p>
-                  </div>
-                ) : (
-                  (meetings || []).map((mtg, idx) => (
-                    <div key={mtg.id} className="bg-slate-50 border border-slate-200 p-5 rounded-2xl relative overflow-hidden hover:border-slate-300 transition">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3 mb-3">
-                        <div className="flex items-center space-x-2">
-                          <span className="bg-slate-200 text-slate-700 text-[10px] font-black px-2.5 py-1 rounded-md font-mono uppercase">
-                            Session #{(meetings || []).length - idx}
-                          </span>
-                          <span className="text-xs font-mono font-bold text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {mtg.meetingDate}
-                          </span>
-                        </div>
-                        <div className="text-[10px] font-mono text-slate-400 font-bold uppercase">
-                          Next Session: {mtg.nextReviewDate || 'TBD'}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <div className="md:col-span-4 space-y-1">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Chairperson / Lead</span>
-                          <span className="text-xs font-black text-slate-700 block">{mtg.chairperson}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block pt-1">Attendees</span>
-                          <span className="text-[10px] font-bold text-slate-500 block leading-tight">{mtg.attendees}</span>
-                        </div>
-
-                        <div className="md:col-span-8 space-y-2 border-t md:border-t-0 md:border-l border-slate-200/80 md:pl-4">
-                          <div>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Key Decisions & Action Log</span>
-                            <p className="text-xs text-slate-600 leading-relaxed font-medium mt-0.5">{mtg.keyDiscussionPoints}</p>
-                          </div>
-
-                          {mtg.discussedPpsrIds && mtg.discussedPpsrIds.length > 0 && (
-                            <div className="pt-1">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block mb-1">Reviewed PPSRs</span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {mtg.discussedPpsrIds.map(pid => {
-                                  const r = reports.find(report => report.id === pid);
-                                  return r ? (
-                                    <span key={pid} className="bg-violet-50 text-violet-700 border border-violet-100 text-[10px] font-black px-2 py-0.5 rounded-md font-mono">
-                                      {r.ppsrNo}
-                                    </span>
-                                  ) : null;
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Guide Info Panel */}
-            <div className="lg:col-span-4 bg-violet-950 text-violet-100 rounded-3xl p-6 shadow-md border border-violet-900 flex flex-col justify-between relative overflow-hidden">
-              <div className="absolute right-0 bottom-0 opacity-10 pointer-events-none transform translate-y-6 scale-125">
-                <Zap className="w-64 h-64" />
-              </div>
-              <div className="space-y-4 relative z-10">
-                <div className="bg-violet-900/80 w-12 h-12 rounded-2xl flex items-center justify-center text-yellow-300">
-                  <Zap className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-black uppercase tracking-wide font-mono text-white">How Meeting Reviews Work</h4>
-                  <p className="text-xs text-violet-200 mt-2 leading-relaxed font-medium">
-                    Pune and Chennai complexes operate strict daily PPSR sprints. In the meeting, CFT coaches and project leaders use the spreadsheet table below to edit and record immediate facts:
-                  </p>
-                </div>
-                <ul className="space-y-2.5 text-xs text-violet-200/90 font-medium">
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-400 font-bold">1.</span>
-                    <span>Identify open status lines on the board.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-400 font-bold">2.</span>
-                    <span>Update weekly Production vs. Rejection metrics directly.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-400 font-bold">3.</span>
-                    <span>Validate cost efficiency and monthly/annual savings.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-yellow-400 font-bold">4.</span>
-                    <span>Standardize (MF) and define the yellow highlighted <strong>PPSR End Date</strong>.</span>
-                  </li>
-                </ul>
-              </div>
-              <div className="pt-6 border-t border-violet-900/60 mt-6 text-[10px] text-violet-300 font-mono uppercase tracking-widest text-center font-bold relative z-10">
-                CFT COLLABORATION • SECURE LOCK
-              </div>
-            </div>
-
-          </div>
-
-          {/* THE GRAND REGISTER SPREADSHEET TABLE */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide font-mono flex items-center gap-1.5">
-                  <span>📊 BE Method PPSR Excel Matrix Register</span>
-                </h4>
-                <p className="text-[11px] text-slate-400 font-medium">Replication of the plant master spreadsheet template. Click the edit button to update calculations.</p>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-slate-500 font-mono">
-                  Showing {reports.length} standard records
-                </span>
-              </div>
-            </div>
-
-            {/* Horizontal Scroll Table */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-left border-collapse table-auto min-w-[2400px]">
-                <thead>
-                  <tr className="bg-slate-900 text-slate-200 uppercase tracking-wider font-mono text-[10px] font-black border-b border-slate-800">
-                    <th className="py-4 px-3 sticky left-0 bg-slate-900 text-center border-r border-slate-800 z-10 w-24">Actions</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center w-16">Sr. No</th>
-                    <th className="py-4 px-4 border-r border-slate-800">PPSR NO</th>
-                    <th className="py-4 px-4 border-r border-slate-800">JIRA Number</th>
-                    <th className="py-4 px-4 border-r border-slate-800 text-center">PPSR Raised Date</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center">Week</th>
-                    <th className="py-4 px-4 border-r border-slate-800">Coach</th>
-                    <th className="py-4 px-4 border-r border-slate-800">Dept</th>
-                    <th className="py-4 px-4 border-r border-slate-800">Project Leader</th>
-                    <th className="py-4 px-4 border-r border-slate-800">CFT</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center">Std Status (MF)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center">Std Date</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center">Eff. (Days for Std.)</th>
-                    <th className="py-4 px-4 border-r border-slate-800">Responsibility</th>
-                    <th className="py-4 px-4 border-r border-slate-800 text-center bg-yellow-900 text-yellow-100">PPSR End Date (Yellow Column)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center">Eff. (Days for Close PPSR)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Prod Qty (Before)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Rejected Qty (Before)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center bg-amber-950 text-amber-200">% Before Action</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Prod Qty (After)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Rejected Qty (After)</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-center bg-emerald-950 text-emerald-200">% After Action</th>
-                    <th className="py-4 px-5 border-r border-slate-800">Effectivity / Results</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Cust Demand Qty / Month</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Cust Demand Qty / Annum</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Qty/Month Rej Before</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Qty/Month Rej After</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Qty/Month Saved</th>
-                    <th className="py-4 px-3 border-r border-slate-800 text-right">Per Set Rejection Cost</th>
-                    <th className="py-4 px-4 border-r border-slate-800 text-right bg-emerald-900 text-emerald-100">Cost Save / Month (INR)</th>
-                    <th className="py-4 px-4 border-r border-slate-800 text-right bg-violet-900 text-violet-100">Cost Save / Annum (INR)</th>
-                    <th className="py-4 px-6">Remarks</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 font-medium text-slate-700 text-xs">
-                  {reports.map((r, index) => {
-                    const raisedDate = r.createdAt ? r.createdAt.split('T')[0] : r.discoveredOn || '-';
-                    return (
-                      <tr key={r.id} className="hover:bg-slate-50 transition border-r border-slate-200">
-                        {/* Sticky Action Button */}
-                        <td className="py-3 px-3 sticky left-0 bg-white border-r border-slate-200 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] text-center">
-                          <button
-                            onClick={() => handleStartEditingReport(r)}
-                            className="bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-700 text-[10px] font-black uppercase font-mono tracking-wider py-1.5 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition mx-auto cursor-pointer"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Edit Review</span>
-                          </button>
-                        </td>
-                        <td className="py-3 px-3 border-r text-center font-mono font-bold text-slate-400 bg-slate-50/50">{index + 1}</td>
-                        <td className="py-3 px-4 border-r font-mono font-bold text-slate-900">{r.ppsrNo}</td>
-                        <td className="py-3 px-4 border-r font-mono font-bold text-violet-600">{r.jiraNumber || '-'}</td>
-                        <td className="py-3 px-4 border-r text-center font-mono">{raisedDate}</td>
-                        <td className="py-3 px-3 border-r text-center font-mono font-bold text-emerald-600">{r.week || '-'}</td>
-                        <td className="py-3 px-4 border-r text-slate-950 font-bold">{r.coach || '-'}</td>
-                        <td className="py-3 px-4 border-r text-[11px] text-slate-500">{r.plant || '-'}</td>
-                        <td className="py-3 px-4 border-r text-slate-950 font-bold">{r.projectLeader || '-'}</td>
-                        <td className="py-3 px-4 border-r text-[11px] text-slate-500">{r.cft || '-'}</td>
-                        <td className="py-3 px-3 border-r text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase font-mono ${r.stdStatusMF === 'Completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
-                            }`}>
-                            {r.stdStatusMF || 'Pending'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 border-r text-center font-mono">{r.stdDate || '-'}</td>
-                        <td className="py-3 px-3 border-r text-center font-mono">{r.effDaysStd || 0} d</td>
-                        <td className="py-3 px-4 border-r text-slate-950 font-bold">{r.responsibility || '-'}</td>
-
-                        {/* YELLOW COLUMN FOR PPSR END DATE */}
-                        <td className="py-3 px-4 border-r text-center font-mono font-black text-amber-950 bg-yellow-100 border-l-2 border-yellow-500">
-                          {r.ppsrEndDate || 'TBD'}
-                        </td>
-
-                        <td className="py-3 px-3 border-r text-center font-mono">{r.effDaysClosePpsr || 0} d</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.prodQtyBefore?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono text-red-600">{r.rejectedQtyBefore?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-center font-mono font-black text-red-700 bg-red-50">{r.pctBefore || 0}%</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.prodQtyAfter?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono text-emerald-600">{r.rejectedQtyAfter?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-center font-mono font-black text-emerald-700 bg-emerald-50">{r.pctAfter || 0}%</td>
-                        <td className="py-3 px-5 border-r text-[11px] leading-tight text-slate-500 max-w-xs truncate" title={r.effectivityText}>{r.effectivityText || '-'}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.custDemandQtyMonth?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.custDemandQtyAnnum?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.qtyMonthBeforeRejPct?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">{r.qtyMonthAfterRejPct?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono text-emerald-600 font-bold">{r.qtyMonthSavedRejPct?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-3 border-r text-right font-mono">₹{r.perSetRejectionCost?.toLocaleString() || 0}</td>
-                        <td className="py-3 px-4 border-r text-right font-mono font-bold text-emerald-600 bg-emerald-50/50">
-                          ₹{r.costSavePerMonth?.toLocaleString('en-IN') || 0}
-                        </td>
-                        <td className="py-3 px-4 border-r text-right font-mono font-black text-violet-700 bg-violet-50">
-                          ₹{r.costSavePerAnnum?.toLocaleString('en-IN') || 0}
-                        </td>
-                        <td className="py-3 px-6 text-[11px] leading-tight text-slate-500 max-w-sm truncate" title={r.remarks}>{r.remarks || '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      {currentTab === 'meeting' && (
+        <PpsrReviewBoard
+          reports={reports}
+          onUpdateReport={onUpdateReport}
+          onInspectReport={onInspectReport}
+          meetings={meetings}
+          onAddMeeting={onAddMeeting}
+        />
       )}
 
       {/* MODAL 1: ADD REVIEW MEETING MINUTES */}
@@ -2804,7 +2151,7 @@ export default function PpsrSystem({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Amit Mehta (Kaizen & Quality Head)"
+                  placeholder="e.g. Amit Mehta (Plant Quality Head)"
                   value={mtgChairperson}
                   onChange={(e) => setMtgChairperson(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium text-slate-800 focus:outline-hidden focus:border-slate-900"
