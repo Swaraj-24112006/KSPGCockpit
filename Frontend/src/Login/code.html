@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" style="">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>KSPG Cockpit - Login</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap"
+        rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#b3c5ff",
+                        "error-container": "#93000a",
+                        "surface-dim": "#111319",
+                        "on-tertiary-container": "#002f32",
+                        "secondary-fixed": "#d8e2ff",
+                        "on-primary-fixed-variant": "#003ea6",
+                        "surface-container-low": "#191c21",
+                        "surface-container": "#1d2025",
+                        "on-surface": "#e1e2ea",
+                        "surface-bright": "#37393f",
+                        "inverse-primary": "#0e54d4",
+                        "inverse-on-surface": "#2e3037",
+                        "secondary": "#bbc6e6",
+                        "primary-container": "#608bff",
+                        "on-primary": "#002a76",
+                        "tertiary-fixed": "#74f5ff",
+                        "background": "#111319",
+                        "inverse-surface": "#e1e2ea",
+                        "tertiary-fixed-dim": "#00dbe7",
+                        "on-tertiary-fixed": "#002022",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#00174a",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#a9b5d4",
+                        "on-secondary": "#253049",
+                        "on-secondary-fixed-variant": "#3b4761",
+                        "surface-container-lowest": "#0c0e14",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "on-background": "#e1e2ea",
+                        "on-surface-variant": "#c3c6d7",
+                        "surface-container-highest": "#32353b",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary": "#00363a",
+                        "outline-variant": "#434654",
+                        "tertiary": "#00dbe7",
+                        "secondary-fixed-dim": "#bbc6e6",
+                        "on-error": "#690005",
+                        "outline": "#8d90a0",
+                        "tertiary-container": "#00a0a9",
+                        "on-tertiary-fixed-variant": "#004f54",
+                        "on-secondary-fixed": "#0f1b33",
+                        "surface": "#111319",
+                        "surface-container-high": "#272a30",
+                        "on-primary-container": "#002468",
+                        "surface-variant": "#32353b",
+                        "surface-tint": "#b3c5ff",
+                        "secondary-container": "#3b4761"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "margin-desktop": "48px",
+                        "unit": "4px",
+                        "container-max": "1440px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-mono-xs": ["JetBrains Mono"],
+                        "label-mono-sm": ["JetBrains Mono"],
+                        "body-md": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["56px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "label-mono-xs": ["10px", { "lineHeight": "1.2", "letterSpacing": "0.15em", "fontWeight": "500" }],
+                        "label-mono-sm": ["12px", { "lineHeight": "1.4", "letterSpacing": "0.1em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "headline-lg": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["32px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .liquid-glass {
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        .corner-bracket {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-color: rgba(76, 127, 255, 0.8);
+            border-style: solid;
+        }
+
+        .bracket-tl {
+            top: 24px;
+            left: 24px;
+            border-width: 2px 0 0 2px;
+        }
+
+        .bracket-tr {
+            top: 24px;
+            right: 24px;
+            border-width: 2px 2px 0 0;
+        }
+
+        .bracket-bl {
+            bottom: 24px;
+            left: 24px;
+            border-width: 0 0 2px 2px;
+        }
+
+        .bracket-br {
+            bottom: 24px;
+            right: 24px;
+            border-width: 0 2px 2px 0;
+        }
+
+        .orbit-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px dashed rgba(10, 17, 40, 0.1);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .ring-1 {
+            width: 600px;
+            height: 600px;
+        }
+
+        .ring-2 {
+            width: 800px;
+            height: 800px;
+        }
+
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+            position: absolute;
+            width: 100%;
+            opacity: 0.05;
+            font-family: 'Hanken Grotesk', sans-serif;
+            font-weight: 800;
+            font-size: 8rem;
+            color: transparent;
+            -webkit-text-stroke: 1px #0a1128;
+            pointer-events: none;
+        }
+
+        .marquee-1 {
+            top: 10%;
+            animation: scroll-left 60s linear infinite;
+        }
+
+        .marquee-2 {
+            top: 40%;
+            animation: scroll-right 70s linear infinite;
+        }
+
+        .marquee-3 {
+            top: 70%;
+            animation: scroll-left 65s linear infinite;
+        }
+
+        @keyframes scroll-left {
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        @keyframes scroll-right {
+            0% {
+                transform: translateX(-50%);
+            }
+
+            100% {
+                transform: translateX(0);
+            }
+        }
+
+        .btn-glow:hover {
+            box-shadow: 0 0 15px rgba(76, 127, 255, 0.4);
+        }
+
+        .input-focus-bracket:focus-within::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 6px;
+            height: 6px;
+            border-bottom: 2px solid #4C7FFF;
+            border-right: 2px solid #4C7FFF;
+        }
+
+        /* Ambient background gradient */
+        body {
+            background: #ffffff;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body class="text-[#0a1128] overflow-hidden relative font-body-md"
+    style="background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuAs9oxr-9KGLKZpV4zN8cRNI4U1jaqebc034STW_P4jUhu70xRNJeRzOX-WBRTH3W3lvHYUVwXWLBFRn-jPoU_-DEEuPL5KmRZwORBPmWSIPT5VoQue-bAdLJ8ZEVG4bmv0TwWP9Vhd54at-_inyJTSmkfsfs1OgCNTWhNpKGCSc35qEampon1Lvfz_ofS5--zzMx6-ah_iTYhY1UgBHCP7GKf1XQ2OwLiV9jrPEj221Q58zt3jALsMxxIE_YO_e02M4g&quot;); background-size: cover; background-position: center center; background-attachment: fixed;">
+    <!-- Global Corner Brackets -->
+    <!-- Orbit Rings -->
+    <div class="orbit-ring ring-1"></div>
+    <div class="orbit-ring ring-2"></div>
+    <!-- Background Marquee -->
+    <div class="marquee-container marquee-1">
+        KAIZEN // 5S // RED FLAG // PPSR // 5M // KSPG COCKPIT // KAIZEN // 5S // RED FLAG // PPSR // 5M // KSPG COCKPIT
+    </div>
+    <div class="marquee-container marquee-2">
+        KSPG COCKPIT // 5M // PPSR // RED FLAG // 5S // KAIZEN // KSPG COCKPIT // 5M // PPSR // RED FLAG // 5S // KAIZEN
+    </div>
+    <div class="marquee-container marquee-3">
+        RED FLAG // KAIZEN // KSPG COCKPIT // 5M // PPSR // 5S // RED FLAG // KAIZEN // KSPG COCKPIT // 5M // PPSR // 5S
+    </div>
+    <!-- Main Content Container -->
+    <div class="relative z-10 flex flex-col min-h-screen justify-center items-center px-4">
+        <!-- Liquid Glass Login Card -->
+        <div class="rounded-lg w-full max-w-md p-8 relative flex flex-col gap-8 backdrop-blur-sm"
+            style="background: rgba(255, 255, 255, 0.85); border-radius: 2rem; box-shadow: 20px 20px 60px rgba(0, 0, 0, 0.1); border: none;">
+            <!-- Card Header -->
+            <div class="flex flex-col items-center gap-2 border-b border-dashed border-gray-300 pb-6">
+                <div class="font-label-mono-sm text-label-mono-sm tracking-widest text-[#4C7FFF]">KSPG COCKPIT // LIVE
+                </div>
+                <h1 class="font-headline-md text-headline-md text-[#0a1128]">System Access</h1>
+            </div>
+            <!-- Login Form -->
+            <form class="flex flex-col gap-6 w-full">
+                <!-- Email Field -->
+                <div class="relative group input-focus-bracket">
+                    <input
+                        class="w-full bg-transparent border-0 border-gray-300 focus:ring-0 focus:border-[#4C7FFF] text-[#0a1128] font-body-md peer pb-2 pt-4 px-0 transition-colors"
+                        id="email" placeholder=" OPERATOR_ID / EMAIL" required="true"
+                        style="background: #ffffff; border-radius: 1rem; box-shadow: inset 6px 6px 12px #d9d9d9, inset -6px -6px 12px #ffffff; border: none; padding: 1rem 1.5rem;"
+                        type="email">
+                    <label
+                        class="absolute left-0 top-4 text-gray-500 font-label-mono-sm text-label-mono-sm transition-all peer-focus:-top-2 peer-focus:text-[#4C7FFF] peer-focus:text-xs peer-not-placeholder-shown:-top-2 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:text-[#4C7FFF] pointer-events-none px-4"
+                        for="email">
+                        OPERATOR_ID / EMAIL
+                    </label>
+                </div>
+                <!-- Password Field -->
+                <div class="relative group input-focus-bracket">
+                    <input
+                        class="w-full bg-transparent border-0 border-gray-300 focus:ring-0 focus:border-[#4C7FFF] text-[#0a1128] font-body-md peer pb-2 pt-4 px-0 transition-colors pr-10"
+                        id="password" placeholder=" " required="true"
+                        style="background: #ffffff; border-radius: 1rem; box-shadow: inset 6px 6px 12px #d9d9d9, inset -6px -6px 12px #ffffff; border: none; padding: 1rem 3rem 1rem 1.5rem;"
+                        type="password">
+                    <label
+                        class="absolute left-0 top-4 text-gray-500 font-label-mono-sm text-label-mono-sm transition-all peer-focus:-top-2 peer-focus:text-[#4C7FFF] peer-focus:text-xs peer-not-placeholder-shown:-top-2 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:text-[#4C7FFF] pointer-events-none px-4"
+                        for="password">
+                        PASSWORD
+                    </label>
+                    <button
+                        class="absolute bottom-2 text-gray-400 hover:text-[#4C7FFF] transition-colors focus:outline-none right-4"
+                        onclick="togglePassword()" type="button">
+                        <span class="material-symbols-outlined" id="visibility-icon"
+                            style="font-variation-settings: 'FILL' 0;">visibility</span>
+                    </button>
+                </div>
+                <!-- Actions Row -->
+                <div class="flex justify-between items-center mt-2">
+                    <label class="flex items-center gap-2 cursor-pointer group">
+                        <div
+                            class="relative flex items-center justify-center w-4 h-4 border border-gray-300 rounded-sm group-hover:border-[#4C7FFF] transition-colors">
+                            <input class="opacity-0 absolute inset-0 cursor-pointer peer" type="checkbox">
+                        </div>
+                    </label>
+                    <a class="font-label-mono-sm text-label-mono-sm text-[#4C7FFF] hover:opacity-80 transition-opacity"
+                        href="#">FORGOT PASSWORD</a>
+                </div>
+                <!-- Submit Button -->
+                <button
+                    class="w-full bg-[#4C7FFF] text-white font-label-mono-sm text-label-mono-sm py-4 mt-4 rounded btn-glow transition-all flex justify-center items-center gap-2"
+                    style="border-radius: 1rem; box-shadow: 6px 6px 12px rgba(76, 127, 255, 0.2), -6px -6px 12px #ffffff;"
+                    type="submit">
+                    INITIATE SEQUENCE
+                    <span class="material-symbols-outlined text-sm"
+                        style="font-variation-settings: 'FILL' 1;">terminal</span>
+                </button>
+            </form>
+            <!-- Decorative Image overlay placeholder, styled to fit the HUD theme -->
+            <div class="absolute inset-0 z-[-1] opacity-5 mix-blend-overlay pointer-events-none rounded-lg overflow-hidden"
+                style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCDHwyiDj-v1NqKcam-Zfg5xIQlfrmbEhfTXY8v4F-nXBWbKOK40dD9HOMZ9xeFoapkfTOi_muM6aYIK4pPytZMC9UEqzUoaEduU3r1G6Wg3kYyPpYZoPTbXbdJfKY6FguPVTIKzCN7HCdGBsxLe-XyDO0sQC9s4Lxr53ZFPJmloN1EoCm0Jqxef52dp4Fs5cwE24tw6I1PhU2SNhOrYvA7OzLbON5Kae1b1gQz4Wg_MTktRvUW2ARZBqz5VRJeGZIG9w'); background-size: cover; background-position: center;">
+            </div>
+        </div>
+    </div>
+    <!-- Footer -->
+    <div
+        class="fixed bottom-0 w-full z-50 flex justify-between items-center px-margin-desktop py-unit border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+        <span class="font-label-mono-xs text-label-mono-xs text-gray-500">© 2026 KSPG OPERATIONS // KAIZEN
+            PROTOCOL</span>
+        <div class="flex gap-4">
+            <span class="font-label-mono-xs text-label-mono-xs text-gray-500">CONFIDENTIAL - INTERNAL OPERATIONS
+                REVIEW</span>
+            <span class="font-label-mono-xs text-label-mono-xs text-[#4C7FFF]">SYSTEM STATUS: NOMINAL</span>
+        </div>
+    </div>
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const visibilityIcon = document.getElementById('visibility-icon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                visibilityIcon.textContent = 'visibility_off';
+            } else {
+                passwordInput.type = 'password';
+                visibilityIcon.textContent = 'visibility';
+            }
+        }
+    </script>
+
+
+
+
+
+
+
+
+</body>
+
+</html>

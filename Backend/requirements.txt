@@ -1,0 +1,37 @@
+# Django Core
+Django==5.1.9
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+django-filter==25.1
+
+# Authentication & Security
+djangorestframework-simplejwt==5.5.0
+django-ratelimit==4.1.0
+
+# Redis — Session Store & Cache
+django-redis==5.4.0
+redis==5.2.1
+
+# Async Tasks
+celery==5.6.3
+
+# Database
+psycopg2-binary==2.9.10
+
+# Environment Configuration
+python-decouple==3.8
+
+# Image Handling
+Pillow==11.2.1
+
+# Export Libraries
+openpyxl==3.1.5
+reportlab==4.4.0
+
+# Production Server
+gunicorn==23.0.0
+
+# Object Storage (MinIO / S3) — currently unused, ready for production
+boto3
+django-storages
+minio

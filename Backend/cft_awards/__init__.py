@@ -1,0 +1,1 @@
+"""CFT Awards app package."""

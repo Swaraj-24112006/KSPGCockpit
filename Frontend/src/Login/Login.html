@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0" name="viewport">
+    <meta name="theme-color" content="#101240">
+    <meta name="description" content="KSPG Cockpit - Mission Control Industrial Authentication Portal">
+    <title>KSPG Cockpit - Login</title>
+
+    <!-- Tailwind Play CDN with container queries & forms plugin -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+    <!-- Google Fonts: Manrope (Headlines), Hanken Grotesk (Body), JetBrains Mono (Tech Labels) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Google Material Symbols Outlined -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind Theme Configuration -->
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#bac3ff",
+                        "primary-container": "#798ae9",
+                        "primary-fixed": "#dee0ff",
+                        "primary-fixed-dim": "#bac3ff",
+                        "on-primary": "#0f2482",
+                        "on-primary-container": "#021c7c",
+                        "on-primary-fixed": "#00105a",
+                        "on-primary-fixed-variant": "#2c3e99",
+                        "inverse-primary": "#4557b2",
+                        "secondary": "#46f6a5",
+                        "secondary-container": "#04d98b",
+                        "secondary-fixed": "#52ffad",
+                        "secondary-fixed-dim": "#23e293",
+                        "on-secondary": "#003921",
+                        "on-secondary-container": "#005936",
+                        "on-secondary-fixed": "#002111",
+                        "on-secondary-fixed-variant": "#005231",
+                        "tertiary": "#c0c2fa",
+                        "tertiary-container": "#8a8cc1",
+                        "tertiary-fixed": "#e1e0ff",
+                        "tertiary-fixed-dim": "#c0c2fa",
+                        "on-tertiary": "#292c5a",
+                        "on-tertiary-container": "#222552",
+                        "on-tertiary-fixed": "#141644",
+                        "on-tertiary-fixed-variant": "#404272",
+                        "surface": "#111415",
+                        "surface-dim": "#111415",
+                        "surface-bright": "#373a3b",
+                        "surface-variant": "#333536",
+                        "surface-tint": "#bac3ff",
+                        "surface-container": "#1d2021",
+                        "surface-container-lowest": "#0c0f10",
+                        "surface-container-low": "#191c1d",
+                        "surface-container-high": "#282a2b",
+                        "surface-container-highest": "#333536",
+                        "on-surface": "#e1e3e4",
+                        "on-surface-variant": "#c5c5d4",
+                        "inverse-surface": "#e1e3e4",
+                        "inverse-on-surface": "#2e3132",
+                        "background": "#111415",
+                        "on-background": "#e1e3e4",
+                        "outline": "#8f909d",
+                        "outline-variant": "#454652",
+                        "error": "#ffb4ab",
+                        "error-container": "#93000a",
+                        "on-error": "#690005",
+                        "on-error-container": "#ffdad6"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.375rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope", "sans-serif"],
+                        "body": ["Hanken Grotesk", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                    screens: {
+                        "xs": "380px",
+                        "sm": "640px",
+                        "md": "768px",
+                        "lg": "1024px",
+                        "xl": "1280px",
+                        "2xl": "1536px"
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #0b0d2c;
+            background-image:
+                radial-gradient(at 15% 15%, rgba(106, 123, 217, 0.18) 0px, transparent 50%),
+                radial-gradient(at 85% 85%, rgba(4, 217, 139, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(16, 18, 64, 0.8) 0px, transparent 100%);
+            color: #e1e3e4;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            font-family: 'Hanken Grotesk', sans-serif;
+        }
+
+        /* Ambient Glass Card with dynamic hardware-accelerated blur */
+        .bg-level-1 {
+            background-color: rgba(20, 26, 60, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        /* Top accent border */
+        .card-accent-top {
+            border-top: 4px solid #6A7BD9;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 25px rgba(106, 123, 217, 0.15);
+        }
+
+        /* High-tech Mission Control Input */
+        .input-mission-control {
+            background-color: rgba(12, 15, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #f1f3f5;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-mission-control:focus {
+            border-color: #6A7BD9;
+            box-shadow: 0 0 0 3px rgba(106, 123, 217, 0.25), inset 0 0 8px rgba(106, 123, 217, 0.2);
+            outline: none;
+            background-color: rgba(16, 20, 56, 0.95);
+        }
+
+        .input-mission-control::placeholder {
+            color: rgba(197, 197, 212, 0.45);
+        }
+
+        /* Primary action button */
+        .btn-primary {
+            background: linear-gradient(135deg, #6A7BD9 0%, #5263c9 100%);
+            color: #ffffff;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7b8be3 0%, #5d6ed4 100%);
+            box-shadow: 0 0 20px rgba(106, 123, 217, 0.45);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98) translateY(0);
+            box-shadow: 0 0 10px rgba(106, 123, 217, 0.3);
+        }
+
+        /* Status indicator pulse animation */
+        @keyframes subtle-pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.65;
+                transform: scale(1.08);
+            }
+        }
+
+        .pulse-status {
+            animation: subtle-pulse 2.4s ease-in-out infinite;
+        }
+
+        /* High-tech Blueprint Grid */
+        .tech-grid {
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        @media (min-width: 768px) {
+            .tech-grid {
+                background-size: 40px 40px;
+            }
+        }
+    </style>
+</head>
+
+<body class="antialiased relative flex flex-col justify-between selection:bg-primary-container selection:text-white">
+
+    <!-- Abstract Cockpit Environment Background Elements (Device Independent) -->
+    <div class="fixed inset-0 pointer-events-none z-[-1] overflow-hidden" aria-hidden="true">
+        <!-- Top Left Ambient Light -->
+        <div
+            class="absolute -top-[10%] -left-[10%] w-[350px] sm:w-[500px] lg:w-[650px] h-[350px] sm:h-[500px] lg:h-[650px] rounded-full bg-primary-container/10 blur-[90px] sm:blur-[140px]">
+        </div>
+
+        <!-- Bottom Right Ambient Light -->
+        <div
+            class="absolute -bottom-[10%] -right-[10%] w-[350px] sm:w-[550px] lg:w-[700px] h-[350px] sm:h-[550px] lg:h-[700px] rounded-full bg-secondary-container/10 blur-[100px] sm:blur-[160px]">
+        </div>
+
+        <!-- Technical HUD Grid Overlay -->
+        <div class="absolute inset-0 tech-grid opacity-30 sm:opacity-25"></div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TOP NAVIGATION BAR (Responsive on Mobile, Tablet & Desktop)               -->
+    <!-- ========================================================================= -->
+    <header class="w-full top-0 bg-[#0e1136]/80 backdrop-blur-md border-b border-white/10 shadow-sm z-50 sticky">
+        <div
+            class="flex justify-between items-center px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 w-full max-w-[1280px] mx-auto">
+
+            <!-- Brand Logo & Cockpit Identity -->
+            <a href="#"
+                class="flex items-center gap-2.5 group focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-lg p-1 transition">
+                <div
+                    class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary group-hover:bg-primary/20 group-hover:scale-105 transition-all duration-300 shadow-inner">
+                    <span class="material-symbols-outlined text-xl sm:text-2xl"
+                        style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+                </div>
+                <div class="flex flex-col">
+                    <span
+                        class="font-headline text-base sm:text-lg md:text-xl font-extrabold text-white tracking-tight leading-tight flex items-center gap-1.5">
+                        KSPG <span class="text-primary font-bold">Cockpit</span>
+                    </span>
+                    <span
+                        class="font-mono text-[9px] sm:text-[10px] text-on-surface-variant/70 uppercase tracking-widest leading-none hidden xs:block">
+                        Shop Floor Management
+                    </span>
+                </div>
+            </a>
+
+
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN CONTENT CANVAS (Adaptive Layout for All Viewports)                  -->
+    <!-- ========================================================================= -->
+    <main class="flex-grow flex items-center justify-center p-3.5 sm:p-6 md:p-8 lg:p-12 w-full my-auto">
+
+        <!-- Adaptive Login Mission Card -->
+        <div
+            class="bg-level-1 card-accent-top rounded-2xl w-full max-w-[94vw] xs:max-w-[420px] sm:max-w-[440px] md:max-w-[470px] p-6 xs:p-7 sm:p-9 md:p-10 shadow-2xl relative overflow-hidden mx-auto transition-all duration-300">
+
+            <!-- Tech Ambient Card Accent Overlay -->
+            <div class="absolute top-0 right-0 w-36 h-36 bg-primary/10 rounded-bl-full pointer-events-none blur-[24px]">
+            </div>
+            <div
+                class="absolute -bottom-8 -left-8 w-28 h-28 bg-secondary/10 rounded-tr-full pointer-events-none blur-[20px]">
+            </div>
+
+            <!-- Card Header & Badge -->
+            <div class="text-center mb-7 sm:mb-9 relative z-10">
+                <div
+                    class="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#0c0f2e] border border-white/15 mb-4 sm:mb-5 shadow-inner group">
+                    <span
+                        class="material-symbols-outlined text-[#04D98B] text-2xl sm:text-3xl pulse-status">lock_person</span>
+                </div>
+
+                <h1
+                    class="font-headline text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight mb-1.5">
+                    SYSTEM LOGIN
+                </h1>
+                <p
+                    class="font-mono text-[10px] sm:text-xs text-on-surface-variant uppercase tracking-widest font-medium">
+                    Mission Control Authentication
+                </p>
+            </div>
+
+            <!-- Authentication Form -->
+            <form id="loginForm" class="space-y-4 sm:space-y-5 relative z-10" onsubmit="handleLogin(event)">
+
+                <!-- Identification / Username Field -->
+                <div class="space-y-1.5">
+                    <label
+                        class="block font-mono text-[11px] sm:text-xs text-on-surface-variant uppercase tracking-wider font-semibold"
+                        for="username">
+                        Username
+                    </label>
+                    <div class="relative">
+                        <span
+                            class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-lg transition-colors pointer-events-none"
+                            id="userIcon">
+                            person
+                        </span>
+                        <input
+                            class="input-mission-control w-full rounded-xl py-2.5 sm:py-3 pl-10 pr-4 font-body text-sm sm:text-base focus:ring-0"
+                            id="username" name="username" placeholder="Enter operator ID or username" type="text"
+                            required autocomplete="username" aria-label="Username or Operator ID">
+                    </div>
+                </div>
+
+                <!-- Passcode / Password Field -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <label
+                            class="block font-mono text-[11px] sm:text-xs text-on-surface-variant uppercase tracking-wider font-semibold"
+                            for="password">
+                            Passcode
+                        </label>
+
+                    </div>
+                    <div class="relative">
+                        <span
+                            class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-lg transition-colors pointer-events-none"
+                            id="passIcon">
+                            key
+                        </span>
+                        <input
+                            class="input-mission-control w-full rounded-xl py-2.5 sm:py-3 pl-10 pr-11 font-body text-sm sm:text-base focus:ring-0"
+                            id="password" name="password" placeholder="••••••••••••" type="password" required
+                            autocomplete="current-password" aria-label="Password or Passcode">
+
+                        <!-- Toggle Password Visibility Button -->
+                        <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()"
+                            class="absolute color-black right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-white p-1 rounded-lg focus:outline-none transition cursor-pointer"
+                            title="Toggle passcode visibility" aria-label="Toggle password visibility">
+                            <span class="material-symbols-outlined text-lg sm:text-xl block"
+                                id="eyeIcon">visibility</span>
+                        </button>
+                    </div>
+                </div>
+
+
+
+                <!-- Action Button -->
+                <div class="pt-3 sm:pt-4">
+                    <button id="submitBtn"
+                        class="btn-primary w-full rounded-xl py-3 sm:py-3.5 font-headline font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 cursor-pointer shadow-lg"
+                        type="submit">
+                        <span id="btnText">Initialize Sequence</span>
+                        <span
+                            class="material-symbols-outlined text-base sm:text-lg transition-transform group-hover:translate-x-1"
+                            id="btnIcon">arrow_forward</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Card Footer: Clearance Request -->
+
+        </div>
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- FOOTER (Fully Responsive on Mobile, Tablet & Desktop)                    -->
+    <!-- ========================================================================= -->
+    <footer class="w-full bg-[#0a0c28]/60 border-t border-white/5 backdrop-blur-sm">
+        <div
+            class="flex flex-col md:flex-row justify-between items-center px-4 sm:px-6 lg:px-8 py-5 sm:py-6 w-full max-w-[1280px] mx-auto gap-4 sm:gap-6 text-center md:text-left">
+
+            <!-- Copyright & Division -->
+            <div class="font-mono text-[11px] sm:text-xs text-on-surface-variant/80 tracking-wider">
+                © 2026 KSPG Cockpit. Mission Control Systems & Shopfloor Analytics.
+            </div>
+
+            <!-- Footer Quick Links -->
+            <div
+                class="flex flex-wrap justify-center items-center gap-4 sm:gap-6 text-xs font-body text-on-surface-variant/80">
+                <a class="hover:text-primary transition-colors cursor-pointer" href="#">
+                    Privacy Policy
+                </a>
+                <span class="text-white/20 hidden xs:inline">•</span>
+                <a class="hover:text-primary transition-colors cursor-pointer" href="#">
+                    Terms of Service
+                </a>
+                <span class="text-white/20 hidden xs:inline">•</span>
+                <a class="hover:text-secondary transition-colors cursor-pointer flex items-center gap-1.5" href="#">
+                    <span class="w-2 h-2 rounded-full bg-[#04D98B] inline-block animate-pulse"></span>
+                    <span>System Status: Operational</span>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ========================================================================= -->
+    <!-- CLIENT INTERACTIVITY SCRIPT (Focus glow, password toggle & submission)   -->
+    <!-- ========================================================================= -->
+    <script>
+        // Dynamic Input Icon Highlight on Focus
+        const setupInputFocus = (inputId, iconId) => {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (!input || !icon) return;
+
+            input.addEventListener('focus', () => {
+                icon.style.color = '#bac3ff';
+            });
+            input.addEventListener('blur', () => {
+                icon.style.color = 'rgba(197, 197, 212, 0.5)';
+            });
+        };
+
+        setupInputFocus('username', 'userIcon');
+        setupInputFocus('password', 'passIcon');
+
+        // Toggle Password Visibility (Show/Hide)
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (!passInput || !eyeIcon) return;
+
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                eyeIcon.textContent = 'visibility_off';
+                eyeIcon.style.color = '#bac3ff';
+            } else {
+                passInput.type = 'password';
+                eyeIcon.textContent = 'visibility';
+                eyeIcon.style.color = '';
+            }
+        }
+
+        // Interactive sequence simulation on login submit
+        function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+            const username = document.getElementById('username').value.trim();
+
+            if (!btn || !btnText || !btnIcon) return;
+
+            // Visual feedback: loading state
+            btn.disabled = true;
+            btnText.textContent = "Authenticating...";
+            btnIcon.textContent = "sync";
+            btnIcon.classList.add("animate-spin");
+
+            setTimeout(() => {
+                btnText.textContent = "Access Granted";
+                btnIcon.textContent = "check_circle";
+                btnIcon.classList.remove("animate-spin");
+                btn.style.background = "linear-gradient(135deg, #04D98B 0%, #00995c 100%)";
+
+                setTimeout(() => {
+                    // Redirect to shopfloor dashboard
+                    window.location.href = '/';
+                }, 800);
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>
