@@ -25,6 +25,8 @@ urlpatterns = [
     path('api/v1/', include('audit.urls')),
     path('api/v1/', include('reports.urls')),
     path('api/v1/cft/', include('cft_awards.urls', namespace='cft_awards')),
+    path('api/v1/ppsr/', include('ppsr.urls')),
+    path('api/ppsr/', include('ppsr.urls')),
 
     # Health check
     path('api/v1/health/', include('core.health_urls')),

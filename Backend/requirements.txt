@@ -27,9 +27,11 @@ Pillow==11.2.1
 # Export Libraries
 openpyxl==3.1.5
 reportlab==4.4.0
+weasyprint>=60.0
 
-# Production Server
+# Production Server & Static Files
 gunicorn==23.0.0
+whitenoise>=6.6.0
 
 # Object Storage (MinIO / S3) — currently unused, ready for production
 boto3

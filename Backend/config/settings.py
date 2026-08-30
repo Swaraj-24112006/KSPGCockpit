@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'audit',
     'reports',
     'cft_awards',
+    'ppsr',
 ]
 
 MIDDLEWARE = [
@@ -120,7 +121,7 @@ if REDIS_USERNAME and REDIS_PASSWORD:
 elif REDIS_PASSWORD:
     _redis_user_pass = f':{REDIS_PASSWORD}@'
 
-REDIS_URL = f'redis://{_redis_user_pass}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+REDIS_URL = config('REDIS_URL', default=f'redis://{_redis_user_pass}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB or 1}')
 
 CACHES = {
     'default': {
@@ -128,16 +129,31 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'IGNORE_EXCEPTIONS': True,  # Ensures cache downtime does not crash app requests
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'RETRY_ON_TIMEOUT': True,
-            'MAX_CONNECTIONS': 20,
-            'CONNECTION_POOL_KWARGS': {'max_connections': 20},
+            # Reconnect on failure rather than crashing the request
+            'IGNORE_EXCEPTIONS': True,
+            # Connection pool — keep alive for high-throughput periods
+            'CONNECTION_POOL_KWARGS': {
+                'max_connections': 20,
+                'retry_on_timeout': True,
+            },
+            # Compress values larger than 10 KB (leaderboard JSON can be large)
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'COMPRESS_MIN_LEN': 10240,
         },
-        'KEY_PREFIX': 'kspg_cache',
+        # Key prefix — all PPSR keys are namespaced
+        'KEY_PREFIX': 'ppsr',
+        # Default TTL 5 minutes; overridden per view
+        'TIMEOUT': 300,
+        'VERSION': 1,
     }
 }
+
+# ── PPSR Cache TTL Configuration (seconds) ──────────────────────────────────
+PPSR_CACHE_TTL_LEADERBOARD = config('PPSR_CACHE_TTL_LEADERBOARD', default=300 if not DEBUG else 60, cast=int)
+PPSR_CACHE_TTL_SUMMARY     = config('PPSR_CACHE_TTL_SUMMARY',     default=120 if not DEBUG else 30, cast=int)
+PPSR_CACHE_TTL_REGISTER    = config('PPSR_CACHE_TTL_REGISTER',    default=60  if not DEBUG else 30, cast=int)
+PPSR_CACHE_TTL_SHEET       = config('PPSR_CACHE_TTL_SHEET',       default=300 if not DEBUG else 60, cast=int)
+PPSR_CACHE_TTL_MEETINGS    = config('PPSR_CACHE_TTL_MEETINGS',    default=180 if not DEBUG else 60, cast=int)
 
 # =============================================================================
 # Celery Configuration (Async Task Processing via Redis Broker)
@@ -164,6 +180,8 @@ SESSION_STRICT_DEVICE_CHECK = config('SESSION_STRICT_DEVICE_CHECK', default=True
 SESSION_STRICT_IP_CHECK = config('SESSION_STRICT_IP_CHECK', default=False, cast=bool)             # Strict IP binding
 
 # Cookie security flags
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_NAME = 'kspg_session'
 SESSION_COOKIE_HTTPONLY = True           # Not accessible via JavaScript
 SESSION_COOKIE_SAMESITE = 'Lax'         # Prevents CSRF while allowing normal navigation
