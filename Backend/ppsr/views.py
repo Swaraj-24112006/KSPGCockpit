@@ -1,16 +1,22 @@
 """
-PPSR Views — DRF ViewSets and Endpoints for PPSR with Redis Caching
-===================================================================
+PPSR Views — DRF ViewSets and Endpoints for PPSR with Caching & Rate Limiting
+=============================================================================
 Endpoints for PPSR CRUD, Review Board, Spreadsheet Metrics, Dashboard Summary,
 Photo Uploads, Steering Committee Meetings, Feedback, CFT Awards Scoring,
-and Leaderboard — optimized with high-performance Redis caching.
+and Leaderboard — protected with Redis caching and fine-grained rate limits.
 """
 
+import os
 from datetime import date
 import logging
+from django.conf import settings
 from django.db.models import Count, Sum, Q
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from django_ratelimit.core import is_ratelimited
+from django_ratelimit.exceptions import Ratelimited
+from celery.result import AsyncResult
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -18,6 +24,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
+from .tasks import generate_ppsr_pdf
 from .models import (
     PpsrReport,
     PpsrMeetingLog,
@@ -36,6 +43,7 @@ from .serializers import (
     AwardLeaderboardSerializer,
 )
 from .filters import PpsrReportFilter
+from .mixins import PpsrRateLimitMixin
 from .services import (
     generate_ppsr_number,
     get_award_leaderboard,
@@ -74,21 +82,30 @@ class PpsrStatusView(APIView):
 
 
 # ============================================================================
-# Task 4.1 & 4.3–4.7 & 4.9 & 5.4–5.6 — PPSR Report ViewSet
+# Task 4.1 & 4.3–4.7 & 4.9 & 5.4–5.6 & 6.6–6.9, 6.13 — PPSR Report ViewSet
 # ============================================================================
 
-class PpsrReportViewSet(viewsets.ModelViewSet):
+class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     """
     Primary ViewSet for PPSR Reports.
     Provides CRUD with dynamic serialization, soft deletion, committee review actions,
     spreadsheet metrics recalculation, summary stats, inspection, photo uploads,
-    and presentation feedback — cached via Redis.
+    and presentation feedback — protected with Redis caching and rate limits.
+
+    Rate limits:
+    - create: 10/h per user (deliberate wizard submission)
+    - partial_update: 60/h per user (review board editing)
     """
     filterset_class = PpsrReportFilter
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'ppsr_no', 'lead_owner', 'jira_number', 'line_station', 'plant']
     ordering_fields = ['created_at', 'updated_at', 'discovered_on', 'ppsr_no', 'title']
     ordering = ['-created_at']
+
+    RATE_LIMITS = {
+        'create': ('10/h', 'POST'),
+        'partial_update': ('60/h', 'PATCH'),
+    }
 
     def get_queryset(self):
         qs = PpsrReport.objects.all()
@@ -146,14 +163,26 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
         )
 
     # ------------------------------------------------------------------------
-    # Task 4.3 — Committee Decision Action
+    # Task 4.3 & 6.7 — Committee Decision Action (Rate limit: 40/h)
     # ------------------------------------------------------------------------
     @action(detail=True, methods=['patch'], url_path='decision')
     def decision(self, request, pk=None):
         """
         Update committee review decision and advance workflow status.
-        'Approved' -> 'Closed', 'Re-work Needed' -> 'In-Progress'.
+        Rate limit: 40/hour per user.
         """
+        if getattr(settings, 'RATELIMIT_ENABLE', True):
+            limited = is_ratelimited(
+                request=request,
+                group='ppsr:decision',
+                key='user_or_ip',
+                rate='40/h',
+                method='PATCH',
+                increment=True,
+            )
+            if limited:
+                raise Ratelimited()
+
         report = self.get_object()
         decision = request.data.get('committee_decision')
         sign = request.data.get('steering_committee_sign')
@@ -182,14 +211,26 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     # ------------------------------------------------------------------------
-    # Task 4.4 — Spreadsheet Metrics Action
+    # Task 4.4 & 6.8 — Spreadsheet Metrics Action (Rate limit: 40/h)
     # ------------------------------------------------------------------------
     @action(detail=True, methods=['patch'], url_path='metrics')
     def metrics(self, request, pk=None):
         """
-        Update raw production metrics and re-compute derived percentages,
-        demand savings, and cost saves before saving.
+        Update raw production metrics and re-compute derived values.
+        Rate limit: 40/hour per user.
         """
+        if getattr(settings, 'RATELIMIT_ENABLE', True):
+            limited = is_ratelimited(
+                request=request,
+                group='ppsr:metrics',
+                key='user_or_ip',
+                rate='40/h',
+                method='PATCH',
+                increment=True,
+            )
+            if limited:
+                raise Ratelimited()
+
         report = self.get_object()
         serializer = PpsrMetricsSerializer(instance=report, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -266,13 +307,15 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
     # ------------------------------------------------------------------------
-    # Task 4.7 — Photo Upload Action
+    # Task 4.7 & 6.13 — Photo Upload Action (Rate limit: 20/h)
     # ------------------------------------------------------------------------
     @action(detail=True, methods=['post'], url_path='photo', parser_classes=[MultiPartParser, FormParser])
     def photo(self, request, pk=None):
         """
         Upload initial problem sketch or effectiveness evidence photo.
-        Validates file size (<= 10MB) and image header via Pillow.
+        Validates file size (<= 10MB) and image header via Pillow before
+        incrementing the rate limit counter.
+        Rate limit: 20/hour per user.
         """
         report = self.get_object()
         photo_type = request.data.get('photo_type', 'sketch')
@@ -290,6 +333,7 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate image format BEFORE incrementing rate limit counter
         try:
             from PIL import Image
             img = Image.open(file_obj)
@@ -300,6 +344,18 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
                 {'error': f'Invalid image file: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        if getattr(settings, 'RATELIMIT_ENABLE', True):
+            limited = is_ratelimited(
+                request=request,
+                group='ppsr:photo_upload',
+                key='user_or_ip',
+                rate='20/h',
+                method='POST',
+                increment=True,
+            )
+            if limited:
+                raise Ratelimited()
 
         report.sketch_photo = file_obj
         report.save(update_fields=['sketch_photo'])
@@ -313,17 +369,122 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_200_OK)
 
     # ------------------------------------------------------------------------
-    # Task 4.9 — Committee Feedback Actions
+    # Task 7.4 — Async PDF Generation Trigger
+    # ------------------------------------------------------------------------
+    @action(detail=True, methods=['get'], url_path='pdf')
+    def pdf(self, request, pk=None):
+        """
+        Trigger async PDF generation for PPSR report using Celery.
+        Returns task_id and initial status.
+        """
+        report = self.get_object()
+        task = generate_ppsr_pdf.delay(str(report.id))
+        return Response({
+            'task_id': task.id,
+            'status': 'PENDING',
+            'ppsr_no': report.ppsr_no,
+            'message': 'PDF generation task dispatched successfully.'
+        }, status=status.HTTP_202_ACCEPTED)
+
+    # ------------------------------------------------------------------------
+    # Task 7.4 — PDF Generation Status Polling
+    # ------------------------------------------------------------------------
+    @action(detail=True, methods=['get'], url_path='pdf/status')
+    def pdf_status(self, request, pk=None):
+        """
+        Poll async PDF generation status using Celery AsyncResult or check file readiness.
+        """
+        report = self.get_object()
+        task_id = request.query_params.get('task_id')
+
+        # Check if the PDF file already exists on disk
+        pdf_rel_path = f'ppsr/exports/{report.ppsr_no}.pdf'
+        full_path = os.path.join(settings.MEDIA_ROOT, pdf_rel_path)
+        file_exists = os.path.exists(full_path)
+
+        if task_id:
+            res = AsyncResult(task_id)
+            state = res.state
+            is_ready = res.ready() or file_exists
+            is_success = res.successful() if res.ready() else file_exists
+            return Response({
+                'task_id': task_id,
+                'state': state,
+                'status': state,
+                'ready': is_ready,
+                'successful': is_success,
+                'ppsr_no': report.ppsr_no,
+                'file_ready': file_exists
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            'state': 'SUCCESS' if file_exists else 'PENDING',
+            'status': 'SUCCESS' if file_exists else 'PENDING',
+            'ready': file_exists,
+            'successful': file_exists,
+            'ppsr_no': report.ppsr_no,
+            'file_ready': file_exists
+        }, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------------
+    # Task 7.4 — Stream Generated PDF File
+    # ------------------------------------------------------------------------
+    @action(detail=True, methods=['get'], url_path='pdf/download')
+    def pdf_download(self, request, pk=None):
+        """
+        Stream generated PDF export once ready.
+        """
+        report = self.get_object()
+        pdf_rel_path = f'ppsr/exports/{report.ppsr_no}.pdf'
+        full_path = os.path.join(settings.MEDIA_ROOT, pdf_rel_path)
+
+        # If file doesn't exist yet, try generating it synchronously or return 404
+        if not os.path.exists(full_path):
+            try:
+                generate_ppsr_pdf(str(report.id))
+            except Exception as e:
+                return Response({
+                    'error': f'PDF file is not ready or failed to generate: {str(e)}'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            file_handle = open(full_path, 'rb')
+            response = FileResponse(
+                file_handle,
+                content_type='application/pdf',
+                as_attachment=True,
+                filename=f'PPSR_Report_{report.ppsr_no}.pdf'
+            )
+            return response
+        except Exception as e:
+            return Response({
+                'error': f'Failed to read PDF file: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ------------------------------------------------------------------------
+    # Task 4.9 & 6.9 — Committee Feedback Actions (Rate limits: 60/h & 120/h)
     # ------------------------------------------------------------------------
     @action(detail=True, methods=['get', 'post'], url_path='feedback')
     def feedback(self, request, pk=None):
-        """List all feedback for this report or create new step feedback."""
+        """List feedback or create new step feedback (Rate limit: 60/h on POST)."""
         report = self.get_object()
         if request.method == 'GET':
             feedbacks = report.committee_feedback.all().order_by('step_number', '-created_at')
             serializer = CommitteeFeedbackSerializer(feedbacks, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         elif request.method == 'POST':
+            if getattr(settings, 'RATELIMIT_ENABLE', True):
+                limited = is_ratelimited(
+                    request=request,
+                    group='ppsr:feedback_create',
+                    key='user_or_ip',
+                    rate='60/h',
+                    method='POST',
+                    increment=True,
+                )
+                if limited:
+                    raise Ratelimited()
+
             serializer = CommitteeFeedbackSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save(report=report)
@@ -332,7 +493,19 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], url_path=r'feedback/(?P<feedback_id>[^/.]+)')
     def update_feedback(self, request, pk=None, feedback_id=None):
-        """Update or toggle resolved status of a specific feedback note."""
+        """Update or toggle resolved status of feedback note (Rate limit: 120/h)."""
+        if getattr(settings, 'RATELIMIT_ENABLE', True):
+            limited = is_ratelimited(
+                request=request,
+                group='ppsr:feedback_toggle',
+                key='user_or_ip',
+                rate='120/h',
+                method='PATCH',
+                increment=True,
+            )
+            if limited:
+                raise Ratelimited()
+
         report = self.get_object()
         feedback_obj = get_object_or_404(CommitteeFeedback, id=feedback_id, report=report)
         serializer = CommitteeFeedbackSerializer(feedback_obj, data=request.data, partial=True)
@@ -343,16 +516,20 @@ class PpsrReportViewSet(viewsets.ModelViewSet):
 
 
 # ============================================================================
-# Task 4.8 & 5.7 — PPSR Meeting Log ViewSet (Cached)
+# Task 4.8 & 5.7 & 6.12 — PPSR Meeting Log ViewSet (Rate limit: 10/h on create)
 # ============================================================================
 
-class PpsrMeetingLogViewSet(viewsets.ModelViewSet):
+class PpsrMeetingLogViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     """
     ViewSet for Steering Committee Review Meetings.
-    Returns meeting logs with nested summaries of discussed PPSRs, cached via Redis.
+    Rate limit on create: 10/hour per user.
     """
     queryset = PpsrMeetingLog.objects.all().order_by('-meeting_date')
     serializer_class = PpsrMeetingLogSerializer
+
+    RATE_LIMITS = {
+        'create': ('10/h', 'POST'),
+    }
 
     def list(self, request, *args, **kwargs):
         key = meetings_key()
@@ -385,39 +562,62 @@ class PpsrMeetingLogViewSet(viewsets.ModelViewSet):
 # Task 4.9 — Standalone Committee Feedback ViewSet
 # ============================================================================
 
-class CommitteeFeedbackViewSet(viewsets.ModelViewSet):
+class CommitteeFeedbackViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     """
     Direct CRUD ViewSet for committee feedback notes.
+    Rate limits: create (60/h), partial_update (120/h).
     """
     queryset = CommitteeFeedback.objects.all().order_by('-created_at')
     serializer_class = CommitteeFeedbackSerializer
 
+    RATE_LIMITS = {
+        'create': ('60/h', 'POST'),
+        'partial_update': ('120/h', 'PATCH'),
+    }
+
 
 # ============================================================================
-# Task 4.10 — CFT Members ViewSet
+# Task 4.10 & 6.11 — CFT Members ViewSet (Rate limit: 10/h on create)
 # ============================================================================
 
-class CftMemberViewSet(viewsets.ModelViewSet):
+class CftMemberViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     """
     ViewSet for listing and adding active CFT evaluation committee members.
+    Rate limit on create: 10/hour per user.
     """
     queryset = CftMember.objects.filter(is_active=True).order_by('name')
     serializer_class = CftMemberSerializer
 
+    RATE_LIMITS = {
+        'create': ('10/h', 'POST'),
+    }
+
 
 # ============================================================================
-# Task 4.11 — CFT Ratings ViewSet
+# Task 4.11 & 6.10 — CFT Ratings ViewSet (Rate limit: 60/h on POST)
 # ============================================================================
 
 class CftRatingViewSet(viewsets.ModelViewSet):
     """
     ViewSet for CFT star ratings. Enforces one vote per member per report
-    via atomic update_or_create.
+    via atomic update_or_create. Rate limit: 60/hour per user.
     """
     queryset = CftRating.objects.all().order_by('-updated_at')
     serializer_class = CftRatingSerializer
 
     def create(self, request, *args, **kwargs):
+        if getattr(settings, 'RATELIMIT_ENABLE', True):
+            limited = is_ratelimited(
+                request=request,
+                group='ppsr:cft_rating',
+                key='user_or_ip',
+                rate='60/h',
+                method='POST',
+                increment=True,
+            )
+            if limited:
+                raise Ratelimited()
+
         member_id = request.data.get('member_id')
         report_id = request.data.get('report_id')
         score = request.data.get('score')

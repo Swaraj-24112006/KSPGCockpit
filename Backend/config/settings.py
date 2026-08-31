@@ -6,9 +6,18 @@ All secrets loaded from environment variables via python-decouple.
 """
 
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
+
+if sys.platform == "win32":
+    gtk_bin = r"C:\Program Files\GTK3-Runtime-Win64\bin"
+    if os.path.exists(gtk_bin):
+        os.add_dll_directory(gtk_bin)
+        os.environ["PATH"] = gtk_bin + ";" + os.environ["PATH"]
+
+import weasyprint
 
 # =============================================================================
 # Paths
@@ -58,12 +67,17 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    # Unauthenticated rate limit middleware — catches IP flooding early
+    'ppsr.middleware.PpsrUnauthenticatedRateLimitMiddleware',
     # Redis-backed session validation — must be AFTER CORS so preflight passes
     'core.session_middleware.SessionValidationMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Authenticated user backstop & response rate limit headers
+    'ppsr.middleware.PpsrAuthenticatedBackstopMiddleware',
+    'ppsr.middleware.PpsrRateLimitHeaderMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -214,8 +228,10 @@ AUTH_PASSWORD_VALIDATORS = [
 # =============================================================================
 # Rate Limiting Configuration (django-ratelimit & Redis cache)
 # =============================================================================
+TESTING = 'test' in sys.argv
 RATELIMIT_USE_CACHE = 'default'
-RATELIMIT_ENABLE = True
+RATELIMIT_FAIL_OPEN = False
+RATELIMIT_ENABLE = config('RATELIMIT_ENABLE', default=(not TESTING), cast=bool)
 RATELIMIT_VIEW = 'core.ratelimit.ratelimited_handler'
 
 # =============================================================================
@@ -245,7 +261,7 @@ REST_FRAMEWORK = {
         'file_upload': '30/min',
         'admin_api': '60/min',
     },
-    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
+    'EXCEPTION_HANDLER': 'ppsr.exceptions.ppsr_exception_handler',
     'DEFAULT_RENDERER_CLASSES': (
         'djangorestframework_camel_case.render.CamelCaseJSONRenderer',
         'djangorestframework_camel_case.render.CamelCaseBrowsableAPIRenderer',
