@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'reports',
     'cft_awards',
     'ppsr',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -137,12 +138,18 @@ elif REDIS_PASSWORD:
 
 REDIS_URL = config('REDIS_URL', default=f'redis://{_redis_user_pass}{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB or 1}')
 
+# Use FakeRedis by default for local development, caching, sessions, and rate-limiting
+USE_FAKEREDIS = config('USE_FAKEREDIS', default=True, cast=bool)
+if USE_FAKEREDIS:
+    DJANGO_REDIS_CONNECTION_FACTORY = 'core.fakeredis_pool.FakeRedisConnectionFactory'
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_FACTORY': 'core.fakeredis_pool.FakeRedisConnectionFactory' if USE_FAKEREDIS else 'django_redis.pool.ConnectionFactory',
             # Reconnect on failure rather than crashing the request
             'IGNORE_EXCEPTIONS': True,
             # Connection pool — keep alive for high-throughput periods

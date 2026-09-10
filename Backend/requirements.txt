@@ -11,6 +11,7 @@ django-ratelimit==4.1.0
 # Redis — Session Store & Cache
 django-redis==5.4.0
 redis==5.2.1
+fakeredis>=2.20.0
 
 # Async Tasks
 celery==5.6.3

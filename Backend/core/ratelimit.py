@@ -44,7 +44,17 @@ def get_user_or_ip(request) -> str:
 
 # ─── DRF Throttle Classes (Redis-Backed) ──────────────────────────────────────
 
-class NormalAPIRateThrottle(SimpleRateThrottle):
+class BaseKaizenThrottle(SimpleRateThrottle):
+    """Base throttle that dynamically re-evaluates rate from api_settings."""
+    def get_rate(self):
+        from rest_framework.settings import api_settings
+        rates = getattr(api_settings, 'DEFAULT_THROTTLE_RATES', {})
+        if self.scope and self.scope in rates:
+            return rates[self.scope]
+        return super().get_rate()
+
+
+class NormalAPIRateThrottle(BaseKaizenThrottle):
     """
     Normal APIs: 100 requests/minute/user, 60 requests/minute/anon.
     Backed by Redis cache.
@@ -61,7 +71,7 @@ class NormalAPIRateThrottle(SimpleRateThrottle):
         return f"throttle_normal_anon_{get_client_ip(request)}"
 
 
-class LoginIPRateThrottle(SimpleRateThrottle):
+class LoginIPRateThrottle(BaseKaizenThrottle):
     """
     Login: 5 attempts/minute/IP.
     """
@@ -72,7 +82,7 @@ class LoginIPRateThrottle(SimpleRateThrottle):
         return f"throttle_login_ip_{ip}"
 
 
-class LoginUserRateThrottle(SimpleRateThrottle):
+class LoginUserRateThrottle(BaseKaizenThrottle):
     """
     Login Account: 5 attempts/minute/username (prevents account-targeted brute force).
     """
@@ -87,7 +97,7 @@ class LoginUserRateThrottle(SimpleRateThrottle):
         return f"throttle_login_account_{get_client_ip(request)}"
 
 
-class ForgotPasswordRateThrottle(SimpleRateThrottle):
+class ForgotPasswordRateThrottle(BaseKaizenThrottle):
     """
     Forgot Password: 3 requests / 10 min / IP or account.
     """
@@ -98,7 +108,7 @@ class ForgotPasswordRateThrottle(SimpleRateThrottle):
         return f"throttle_forgot_pwd_{ip}"
 
 
-class PasswordResetRateThrottle(SimpleRateThrottle):
+class PasswordResetRateThrottle(BaseKaizenThrottle):
     """
     Password Reset: 5 requests / 10 min / IP.
     """
@@ -109,7 +119,7 @@ class PasswordResetRateThrottle(SimpleRateThrottle):
         return f"throttle_password_reset_{ip}"
 
 
-class OTPVerifyRateThrottle(SimpleRateThrottle):
+class OTPVerifyRateThrottle(BaseKaizenThrottle):
     """
     OTP Verification: 5 attempts / 5 min / user or IP.
     """
@@ -120,7 +130,7 @@ class OTPVerifyRateThrottle(SimpleRateThrottle):
         return f"throttle_otp_{ident}"
 
 
-class ResendOTPRateThrottle(SimpleRateThrottle):
+class ResendOTPRateThrottle(BaseKaizenThrottle):
     """
     Resend OTP: 1 request / 60 seconds / IP or user.
     """
@@ -134,7 +144,7 @@ class ResendOTPRateThrottle(SimpleRateThrottle):
 
 
 
-class FileUploadRateThrottle(SimpleRateThrottle):
+class FileUploadRateThrottle(BaseKaizenThrottle):
     """
     File Uploads: 10 requests/minute/user.
     """
@@ -145,7 +155,7 @@ class FileUploadRateThrottle(SimpleRateThrottle):
         return f"throttle_upload_{ident}"
 
 
-class AdminAPIRateThrottle(SimpleRateThrottle):
+class AdminAPIRateThrottle(BaseKaizenThrottle):
     """
     Admin APIs: 30 requests/minute/user.
     """

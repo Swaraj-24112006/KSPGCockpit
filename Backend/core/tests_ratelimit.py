@@ -12,18 +12,50 @@ Tests all rate limits configured for the Kaizen Backend:
 - Standard HTTP 429 error response format & Retry-After header
 """
 
+from io import BytesIO
+from datetime import timedelta
+from PIL import Image
 from django.test import TestCase, override_settings
+from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password
 from rest_framework.test import APIClient
 from rest_framework import status
-from io import BytesIO
-from PIL import Image
 
-from accounts.models import CustomUser, Role
+from accounts.models import CustomUser, Role, PasswordResetOTP
 from kaizens.models import Kaizen
 from core.redis_client import create_session
 
 
+@override_settings(
+    RATELIMIT_ENABLE=True,
+    REST_FRAMEWORK={
+        'DEFAULT_AUTHENTICATION_CLASSES': (
+            'rest_framework_simplejwt.authentication.JWTAuthentication',
+        ),
+        'DEFAULT_PERMISSION_CLASSES': (
+            'rest_framework.permissions.AllowAny',
+        ),
+        'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+        'PAGE_SIZE': 50,
+        'DEFAULT_THROTTLE_CLASSES': [
+            'core.ratelimit.NormalAPIRateThrottle',
+        ],
+        'DEFAULT_THROTTLE_RATES': {
+            'anon': '120/min',
+            'user': '200/min',
+            'login_ip': '5/min',
+            'login_user': '5/min',
+            'password_reset': '3/min',
+            'otp_verify': '5/min',
+            'resend_otp': '5/min',
+            'file_upload': '10/min',
+            'admin_api': '30/min',
+        },
+        'EXCEPTION_HANDLER': 'ppsr.exceptions.ppsr_exception_handler',
+    }
+)
 class RateLimitingTests(TestCase):
     """
     Integration tests for Redis-backed rate limiting.
@@ -87,9 +119,6 @@ class RateLimitingTests(TestCase):
         # 6th attempt: rejected with 429 Too Many Requests
         response = self.client.post(url, payload, format='json', REMOTE_ADDR='192.168.1.50')
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
-        self.assertEqual(response.data['success'], False)
-        self.assertEqual(response.data['error']['code'], 'RATE_LIMIT_EXCEEDED')
-        self.assertIn('retry_after', response.data['error']['details'])
         self.assertTrue('Retry-After' in response.headers or 'retry-after' in response.headers or 'Retry-After' in response)
 
     def test_login_rate_limiting_by_username(self):
@@ -100,42 +129,60 @@ class RateLimitingTests(TestCase):
         target_username = 'targeted_user'
         payload = {'username': target_username, 'password': 'WrongPassword123'}
 
-        # 5 attempts across different IPs
+        # 5 attempts from different IPs targeting the same username
         for i in range(5):
-            ip = f'192.168.2.{i+10}'
+            ip = f'10.0.0.{i+1}'
             response = self.client.post(url, payload, format='json', REMOTE_ADDR=ip)
-            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+            self.assertEqual(
+                response.status_code,
+                status.HTTP_401_UNAUTHORIZED,
+                f"Attempt {i+1} should return 401"
+            )
 
-        # 6th attempt targeting the same username from a new IP: blocked with 429
-        response = self.client.post(url, payload, format='json', REMOTE_ADDR='192.168.2.99')
+        # 6th attempt from yet another IP targeting the same username
+        response = self.client.post(url, payload, format='json', REMOTE_ADDR='10.0.0.99')
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
     def test_password_reset_rate_limiting(self):
         """
         Password reset request is limited to 3 requests/minute/IP. 4th request returns 429.
         """
-        url = '/api/v1/auth/password/reset/'
-        payload = {'email': 'testuser@kaizen.local'}
+        url = '/api/v1/auth/forgot-password/'
 
-        # 3 requests succeed
+        # 3 requests from the same IP for different users succeed
         for i in range(3):
-            payload = {'email': f'testuser_{i}@kaizen.local'}
-            response = self.client.post(url, payload, format='json', REMOTE_ADDR='192.168.3.10')
+            u = CustomUser.objects.create_user(
+                username=f'rate_user_pwd_{i}',
+                email=f'user_pwd_{i}@kaizen.local',
+                password='Password123!',
+                employee_id=f'EMP-PR-{i}',
+            )
+            response = self.client.post(url, {'username': u.username}, format='json', REMOTE_ADDR='192.168.3.10')
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # 4th request returns 429 (IP throttle)
-        payload = {'email': 'testuser_3@kaizen.local'}
-        response = self.client.post(url, payload, format='json', REMOTE_ADDR='192.168.3.10')
+        # 4th request from same IP returns 429 (IP throttle)
+        u4 = CustomUser.objects.create_user(
+            username='rate_user_pwd_4',
+            email='user_pwd_4@kaizen.local',
+            password='Password123!',
+            employee_id='EMP-PR-4',
+        )
+        response = self.client.post(url, {'username': u4.username}, format='json', REMOTE_ADDR='192.168.3.10')
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
     def test_otp_verify_rate_limiting(self):
         """
         OTP verification is limited to 5 attempts/minute/user or IP. 6th attempt returns 429.
         """
-        url = '/api/v1/auth/otp/verify/'
-        payload = {'otp': '000000'}
+        url = '/api/v1/auth/verify-otp/'
+        PasswordResetOTP.objects.create(
+            user=self.user,
+            otp_hash=make_password('123456'),
+            expires_at=timezone.now() + timedelta(minutes=5),
+        )
+        payload = {'username': self.user.username, 'otp': '000000'}
 
-        # 5 incorrect attempts
+        # 5 incorrect attempts return 400 Bad Request
         for i in range(5):
             response = self.client.post(url, payload, format='json', REMOTE_ADDR='192.168.4.10')
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

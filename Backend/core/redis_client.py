@@ -54,7 +54,11 @@ _redis_pool: redis.ConnectionPool | None = None
 
 
 def get_redis() -> redis.Redis:
-    """Return a shared Redis client (thread-safe connection pool)."""
+    """Return a shared Redis client (thread-safe connection pool or FakeRedis)."""
+    if getattr(settings, "USE_FAKEREDIS", False):
+        from core.fakeredis_pool import get_fake_redis_client
+        return get_fake_redis_client(decode_responses=True)
+
     global _redis_pool
     if _redis_pool is None:
         url = _build_redis_url()
