@@ -239,3 +239,68 @@ class KaizenDraftWorkflowTests(TestCase):
         # Attempt to submit
         submit_res = self.client.post(f'/api/v1/kaizens/{k.id}/submit/', {}, format='json')
         self.assertEqual(submit_res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_direct_submission_with_photo_uploads(self):
+        """Test full direct submission pipeline: create as draft, upload before/after photos, then submit."""
+        import io
+        from PIL import Image
+
+        self._login_user(self.initiator1)
+
+        # 1. Create draft with all required text fields
+        payload = {
+            'title': 'Direct Submission Kaizen Title',
+            'problem_before': 'Problem description is long enough for validation',
+            'counter_measure_after': 'Countermeasure description is long enough for validation',
+            'area': 'Machining Line 1',
+            'mini_factory': 'MF1',
+            'location': 'Station A',
+            'suggestion_date': str(date.today()),
+            'idea_by': 'Engineer Bob',
+            'status': 'draft',
+            'benefits': {
+                'productivity': True,
+                'safety': True,
+            },
+        }
+        res = self.client.post('/api/v1/kaizens/', payload, format='json')
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        kaizen_id = res.data['data']['id']
+
+        # Helper to generate a dummy image file
+        def generate_image():
+            file = io.BytesIO()
+            image = Image.new('RGB', (100, 100), color='blue')
+            image.save(file, 'jpeg')
+            file.seek(0)
+            file.name = 'test.jpg'
+            return file
+
+        # 2. Upload before photo
+        before_file = generate_image()
+        res_before = self.client.post(
+            f'/api/v1/kaizens/{kaizen_id}/upload-photo/',
+            {'photo_type': 'before', 'image': before_file},
+            format='multipart'
+        )
+        self.assertEqual(res_before.status_code, status.HTTP_201_CREATED)
+
+        # 3. Upload after photo
+        after_file = generate_image()
+        res_after = self.client.post(
+            f'/api/v1/kaizens/{kaizen_id}/upload-photo/',
+            {'photo_type': 'after', 'image': after_file},
+            format='multipart'
+        )
+        self.assertEqual(res_after.status_code, status.HTTP_201_CREATED)
+
+        # 4. Submit via /submit/ endpoint
+        submit_res = self.client.post(f'/api/v1/kaizens/{kaizen_id}/submit/', {}, format='json')
+        self.assertEqual(submit_res.status_code, status.HTTP_200_OK)
+
+        kaizen = Kaizen.objects.get(pk=kaizen_id)
+        self.assertEqual(kaizen.status, 'submitted')
+        self.assertIsNotNone(kaizen.submitted_at)
+        self.assertTrue(bool(kaizen.photo_before))
+        self.assertTrue(bool(kaizen.photo_after))
+

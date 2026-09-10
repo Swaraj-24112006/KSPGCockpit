@@ -379,7 +379,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         prepared_by: newKaizen.preparedBy,
         remark: newKaizen.remark || '',
         result: newKaizen.result || '',
-        status: 'submitted',
+        status: 'draft', // Save initially as draft so photos can be attached before submission
         classification: 'pending',
       };
 
@@ -412,47 +412,84 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       }
 
       const data = await res.json();
-      if (data.success || data.id) {
-        kaizenId = data.data?.id || data.id || kaizenId;
+      if (!res.ok && !data.success && !data.id) {
+        console.error('Kaizen save failed:', data);
+        const errMsg = data.details ? Object.values(data.details).join('\n• ') : (data.message || JSON.stringify(data));
+        alert(`Cannot submit Kaizen:\n• ${errMsg}`);
+        return;
+      }
 
-        // Upload Before photo if a real file was selected
-        if (kaizenId && newKaizen.photoBeforeFile) {
-          try {
-            const formData = new FormData();
-            formData.append('photo_type', 'before');
-            formData.append('image', newKaizen.photoBeforeFile);
-            await authFetch(`/api/v1/kaizens/${kaizenId}/upload-photo/`, {
-              method: 'POST',
-              body: formData,
-            });
-          } catch (photoErr) {
-            console.warn('Before photo upload failed (non-critical):', photoErr);
+      kaizenId = data.data?.id || data.id || kaizenId;
+      if (!kaizenId) {
+        alert('Error: Could not determine Kaizen ID for submission.');
+        return;
+      }
+
+      // Upload Before photo if a real file was selected
+      if (newKaizen.photoBeforeFile) {
+        try {
+          const formData = new FormData();
+          formData.append('photo_type', 'before');
+          formData.append('image', newKaizen.photoBeforeFile);
+          const photoRes = await authFetch(`/api/v1/kaizens/${kaizenId}/upload-photo/`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (!photoRes.ok) {
+            const photoData = await photoRes.json().catch(() => ({}));
+            const photoErr = photoData?.error?.message || photoData?.message || 'Failed to upload Before photo';
+            alert(`Cannot submit Kaizen:\n• ${photoErr}`);
+            return;
           }
+        } catch (photoErr: any) {
+          console.error('Before photo upload failed:', photoErr);
+          alert(`Before photo upload failed: ${photoErr?.message || 'Network error'}`);
+          return;
         }
+      }
 
-        // Upload After photo if a real file was selected
-        if (kaizenId && newKaizen.photoAfterFile) {
-          try {
-            const formData = new FormData();
-            formData.append('photo_type', 'after');
-            formData.append('image', newKaizen.photoAfterFile);
-            await authFetch(`/api/v1/kaizens/${kaizenId}/upload-photo/`, {
-              method: 'POST',
-              body: formData,
-            });
-          } catch (photoErr) {
-            console.warn('After photo upload failed (non-critical):', photoErr);
+      // Upload After photo if a real file was selected
+      if (newKaizen.photoAfterFile) {
+        try {
+          const formData = new FormData();
+          formData.append('photo_type', 'after');
+          formData.append('image', newKaizen.photoAfterFile);
+          const photoRes = await authFetch(`/api/v1/kaizens/${kaizenId}/upload-photo/`, {
+            method: 'POST',
+            body: formData,
+          });
+          if (!photoRes.ok) {
+            const photoData = await photoRes.json().catch(() => ({}));
+            const photoErr = photoData?.error?.message || photoData?.message || 'Failed to upload After photo';
+            alert(`Cannot submit Kaizen:\n• ${photoErr}`);
+            return;
           }
+        } catch (photoErr: any) {
+          console.error('After photo upload failed:', photoErr);
+          alert(`After photo upload failed: ${photoErr?.message || 'Network error'}`);
+          return;
         }
+      }
 
+      // Submit the Kaizen for review via POST /api/v1/kaizens/<id>/submit/
+      const submitRes = await authFetch(`/api/v1/kaizens/${kaizenId}/submit/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      const submitData = await submitRes.json();
+      if (submitRes.ok && (submitData.success || submitData.data)) {
         // Refresh list to get updated data and remove from drafts
         await fetchAllData();
         setEditingDraft(null);
         setActiveTab('dashboard');
         alert('🎉 Your Kaizen Sheet was successfully submitted for committee review!');
       } else {
-        console.error('Kaizen submit failed:', data);
-        const errMsg = data.details ? Object.values(data.details).join('\n• ') : (data.message || JSON.stringify(data));
+        console.error('Kaizen submit failed:', submitData);
+        const errMsg = submitData.details 
+          ? Object.values(submitData.details).join('\n• ') 
+          : (submitData.message || submitData.error?.message || JSON.stringify(submitData));
         alert(`Cannot submit Kaizen:\n• ${errMsg}`);
       }
     } catch (err) {

@@ -302,6 +302,24 @@ export default function KaizenSheetForm({
     }
   };
 
+  // Helper to convert base64 Data URL to a File object
+  const dataUrlToFile = (dataUrl: string, filename: string): File | null => {
+    try {
+      const [header, base64Data] = dataUrl.split(',');
+      if (!base64Data) return null;
+      const mimeMatch = header.match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      const binary = atob(base64Data);
+      const arr = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+      const blob = new Blob([arr], { type: mime });
+      const ext = mime.split('/')[1] || 'jpg';
+      return new File([blob], `${filename}.${ext}`, { type: mime });
+    } catch {
+      return null;
+    }
+  };
+
   // 1. Save Draft Handler — Partial data is explicitly allowed!
   const handleSaveDraftClick = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
@@ -309,6 +327,9 @@ export default function KaizenSheetForm({
 
     // Provide a default title if none entered so it's identifiable
     const draftTitle = title.trim() || 'Untitled Kaizen Draft';
+
+    const effectiveBeforeFile = photoBeforeFile || (photoBefore?.startsWith('data:') ? dataUrlToFile(photoBefore, `draft_before_${Date.now()}`) : undefined) || undefined;
+    const effectiveAfterFile = photoAfterFile || (photoAfter?.startsWith('data:') ? dataUrlToFile(photoAfter, `draft_after_${Date.now()}`) : undefined) || undefined;
 
     const draftPayload: Partial<Kaizen> & { photoBeforeFile?: File; photoAfterFile?: File } = {
       id: draftId,
@@ -332,8 +353,8 @@ export default function KaizenSheetForm({
       status: 'Draft',
       classification: 'Pending',
       remark: '',
-      photoBeforeFile: photoBeforeFile || undefined,
-      photoAfterFile: photoAfterFile || undefined,
+      photoBeforeFile: effectiveBeforeFile,
+      photoAfterFile: effectiveAfterFile,
     };
 
     const nowIso = new Date().toISOString();
@@ -400,6 +421,9 @@ export default function KaizenSheetForm({
       return;
     }
 
+    const effectiveBeforeFile = photoBeforeFile || (photoBefore?.startsWith('data:') ? dataUrlToFile(photoBefore, `submit_before_${Date.now()}`) : undefined) || undefined;
+    const effectiveAfterFile = photoAfterFile || (photoAfter?.startsWith('data:') ? dataUrlToFile(photoAfter, `submit_after_${Date.now()}`) : undefined) || undefined;
+
     const submissionPayload: Partial<Kaizen> & { photoBeforeFile?: File; photoAfterFile?: File } = {
       id: draftId,
       srNo: draftSrNo,
@@ -422,8 +446,8 @@ export default function KaizenSheetForm({
       status: 'Pending',
       classification: 'Pending',
       remark: '',
-      photoBeforeFile: photoBeforeFile || undefined,
-      photoAfterFile: photoAfterFile || undefined,
+      photoBeforeFile: effectiveBeforeFile,
+      photoAfterFile: effectiveAfterFile,
     };
 
     if (onSubmitKaizen) {

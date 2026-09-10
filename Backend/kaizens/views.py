@@ -108,11 +108,24 @@ class KaizenViewSet(viewsets.ModelViewSet):
         target_status = self.request.data.get('status', 'draft')
         submitted_at = timezone.now() if target_status == 'submitted' else None
 
+        # Check for photo files in request.FILES if sent as multipart/form-data
+        extra_fields = {}
+        if 'photo_before' in self.request.FILES:
+            extra_fields['photo_before'] = self.request.FILES['photo_before']
+        elif 'image_before' in self.request.FILES:
+            extra_fields['photo_before'] = self.request.FILES['image_before']
+
+        if 'photo_after' in self.request.FILES:
+            extra_fields['photo_after'] = self.request.FILES['photo_after']
+        elif 'image_after' in self.request.FILES:
+            extra_fields['photo_after'] = self.request.FILES['image_after']
+
         instance = serializer.save(
             created_by=user,
             sr_no=Kaizen.generate_sr_no(),
             status=target_status,
             submitted_at=submitted_at,
+            **extra_fields,
         )
 
         # If submitted on creation, validate all compulsory fields
@@ -128,6 +141,16 @@ class KaizenViewSet(viewsets.ModelViewSet):
                     code='INCOMPLETE_SUBMISSION',
                     status_code=422,
                     details=errors,
+                )
+            else:
+                from workflow.models import WorkflowHistory
+                WorkflowHistory.objects.create(
+                    kaizen=instance,
+                    action='submitted',
+                    from_status='draft',
+                    to_status='submitted',
+                    performed_by=user if user.is_authenticated else None,
+                    remarks='Kaizen submitted for review on creation.',
                 )
 
     def create(self, request, *args, **kwargs):
