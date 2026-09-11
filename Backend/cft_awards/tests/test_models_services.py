@@ -150,38 +150,40 @@ class AwardNominationTests(TestCase):
         self.member = services.create_cft_member(
             name='Award Member', role='Lead', department='Quality', mini_factory='MF1'
         )
-        self.cycle = services.create_award_cycle(
-            title='Dec 2026 MF1', mini_factory='MF1', month=12, year=2026,
-            auto_populate_members=False,
+        self.session, _ = services.get_or_create_evaluation_session(month='December', year=2026)
+        self.kaizen = Kaizen.objects.create(
+            title='Test Award Kaizen',
+            sr_no='KZ-AWARD-001',
+            idea_by='Award Member',
+            status='approved',
+            month='December',
+            created_by=self.admin,
         )
 
-    def test_nominate_award(self):
-        award = services.nominate_award(
-            cycle=self.cycle,
-            member=self.member,
-            award_type='best_kaizen',
-            citation='Outstanding improvement',
-            nominated_by=self.admin,
+    def test_create_monthly_award_record(self):
+        award = MonthlyAward.objects.create(
+            session=self.session,
+            category='MF1',
+            kaizen=self.kaizen,
+            rank=1,
+            score=25,
+            winner_status='PREVIEW',
         )
-        self.assertEqual(award.status, 'nominated')
-        self.assertEqual(award.award_type, 'best_kaizen')
+        self.assertEqual(award.rank, 1)
+        self.assertEqual(award.score, 25)
+        self.assertEqual(award.winner_status, 'PREVIEW')
+        self.assertEqual(award.category, 'MF1')
 
-    def test_approve_award(self):
-        award = services.nominate_award(
-            cycle=self.cycle, member=self.member, award_type='innovation',
+    def test_monthly_award_string_representation(self):
+        award = MonthlyAward.objects.create(
+            session=self.session,
+            category='MF1',
+            kaizen=self.kaizen,
+            rank=1,
+            score=20,
+            winner_status='PREVIEW',
         )
-        services.approve_award(award=award, actor=self.admin)
-        award.refresh_from_db()
-        self.assertEqual(award.status, 'approved')
-        self.assertIsNotNone(award.approved_at)
-
-    def test_cannot_nominate_in_finalized_cycle(self):
-        from django.core.exceptions import ValidationError
-        services.finalize_award_cycle(cycle=self.cycle, actor=self.admin)
-        with self.assertRaises(ValidationError):
-            services.nominate_award(
-                cycle=self.cycle, member=self.member, award_type='team_player'
-            )
+        self.assertIn('MF1 Rank 1', str(award))
 
 
 class CFTEvaluationSessionTests(TestCase):

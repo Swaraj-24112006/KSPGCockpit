@@ -418,8 +418,10 @@ def is_kaizen_eligible_for_session(kaizen: Kaizen, session: CFTEvaluationSession
       1. status is in ('approved', 'good point', 'good_point', 'closed', 'submitted', 'pending')
       2. It belongs to the session's designated month and year.
     """
-    # 1. Status eligibility
+    # 1. Status eligibility — strictly final submitted, NEVER drafts
     status_lower = (kaizen.status or '').strip().lower()
+    if status_lower in ('draft', 'save draft', 'saved_draft') or getattr(kaizen, 'is_draft', False):
+        return False
     if status_lower not in ELIGIBLE_KAIZEN_STATUSES:
         return False
 
@@ -427,6 +429,16 @@ def is_kaizen_eligible_for_session(kaizen: Kaizen, session: CFTEvaluationSession
     target_month_str = (session.month or '').strip().lower()
     target_month_num = MONTH_NAME_TO_NUMBER.get(target_month_str)
     target_year = int(session.year)
+
+    # If evaluating All Months for the year
+    if target_month_str in ('all', 'all months', ''):
+        for dt_field in (kaizen.suggestion_date, getattr(kaizen, 'implementation_date', None)):
+            if dt_field and hasattr(dt_field, 'year') and dt_field.year == target_year:
+                return True
+        for ts_field in (kaizen.created_at, kaizen.submitted_at):
+            if ts_field and hasattr(ts_field, 'year') and ts_field.year == target_year:
+                return True
+        return True
 
     # Check explicit month string on Kaizen
     k_month_str = (kaizen.month or '').strip().lower()

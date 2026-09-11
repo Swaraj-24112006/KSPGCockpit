@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PpsrReport } from '../types';
+import { authFetch } from '../shared/utils/auth';
 import {
     Trophy,
     Award,
@@ -116,30 +117,39 @@ export default function PpsrMonthlyAwards({
     const [newMemberRole, setNewMemberRole] = useState('');
     const [newMemberDept, setNewMemberDept] = useState('Quality');
 
-    // CFT Evaluators
-    const [cftMembers, setCftMembers] = useState<PpsrCftMember[]>([
-        { id: 'cft-1', name: 'Amit Mehta', role: 'Plant Quality Head', department: 'Quality' },
-        { id: 'cft-2', name: 'Dr. S. K. Kulkarni', role: 'Chief Technical Officer', department: 'Engineering' },
-        { id: 'cft-3', name: 'Rajesh Patil', role: 'Operations & Production Head', department: 'Operations' },
-        { id: 'cft-4', name: 'Sunita Rao', role: 'Shainin / PSQ Lead Specialist', department: 'Quality' },
-        { id: 'cft-5', name: 'Arjun Mehra', role: 'Automation & Process Lead', department: 'Engineering' },
-        { id: 'cft-6', name: 'Vijay Deshmukh', role: 'Plant Maintenance Lead', department: 'Maintenance' },
-        { id: 'cft-7', name: 'Sanjay Patil', role: 'Machining Line Supervisor', department: 'Machining' }
-    ]);
-
-    // Present Members Set
-    const [presentMemberIds, setPresentMemberIds] = useState<string[]>([
-        'cft-1', 'cft-2', 'cft-3', 'cft-4', 'cft-5', 'cft-6', 'cft-7'
-    ]);
+    // CFT Evaluators (strictly fetched from database)
+    const [cftMembers, setCftMembers] = useState<PpsrCftMember[]>([]);
+    const [presentMemberIds, setPresentMemberIds] = useState<string[]>([]);
+    const [isMembersLoading, setIsMembersLoading] = useState<boolean>(true);
 
     // Rating store: Map of memberId -> ppsrId -> rating (1..5)
-    const [ratings, setRatings] = useState<Record<string, Record<string, number>>>({
-        'cft-1': { 'ppsr-1': 5, 'ppsr-2': 5, 'ppsr-3': 4, 'ppsr-4': 4, 'ppsr-5': 5 },
-        'cft-2': { 'ppsr-1': 5, 'ppsr-2': 4, 'ppsr-3': 5, 'ppsr-4': 4, 'ppsr-5': 5 },
-        'cft-3': { 'ppsr-1': 4, 'ppsr-2': 5, 'ppsr-3': 4, 'ppsr-4': 5, 'ppsr-5': 4 },
-        'cft-4': { 'ppsr-1': 5, 'ppsr-2': 5, 'ppsr-3': 5, 'ppsr-4': 4, 'ppsr-5': 5 },
-        'cft-5': { 'ppsr-1': 4, 'ppsr-2': 4, 'ppsr-3': 4, 'ppsr-4': 5, 'ppsr-5': 4 }
-    });
+    const [ratings, setRatings] = useState<Record<string, Record<string, number>>>({});
+
+    // Fetch active committee members from database on mount
+    useEffect(() => {
+        const fetchDbMembers = async () => {
+            setIsMembersLoading(true);
+            try {
+                const res = await authFetch('/api/v1/cft/members/');
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+                    const dbMembers: PpsrCftMember[] = json.data.map((m: any) => ({
+                        id: String(m.id),
+                        name: m.name,
+                        role: m.role,
+                        department: m.department,
+                    }));
+                    setCftMembers(dbMembers);
+                    setPresentMemberIds(dbMembers.map(m => m.id));
+                }
+            } catch (err) {
+                console.error('Failed to load active CFT members for PPSR:', err);
+            } finally {
+                setIsMembersLoading(false);
+            }
+        };
+        fetchDbMembers();
+    }, []);
 
     // Filters State
     const [searchQuery, setSearchQuery] = useState('');
@@ -206,6 +216,10 @@ export default function PpsrMonthlyAwards({
 
     // Filter PPSRs for selected month
     const filteredPpsrs = ppsrReports.filter(p => {
+        // Exclude draft PPSRs
+        const s = (p.status || '').toLowerCase();
+        if (s === 'draft' || s === 'save draft') return false;
+
         // Status filter
         if (statusFilter !== 'All' && p.status !== statusFilter) return false;
 
@@ -263,24 +277,53 @@ export default function PpsrMonthlyAwards({
         }));
     };
 
-    // Add Member Inline
-    const handleAddMemberInline = (e: React.FormEvent) => {
+    // Add Member Inline and persist to database
+    const handleAddMemberInline = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMemberName.trim()) return;
 
-        const newMember: PpsrCftMember = {
+        try {
+            const res = await authFetch('/api/v1/cft/members/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: newMemberName.trim(),
+                    role: newMemberRole.trim() || 'CFT Evaluator',
+                    department: newMemberDept
+                }),
+            });
+            const json = await res.json();
+            if (json.success && json.data) {
+                const newMember: PpsrCftMember = {
+                    id: String(json.data.id),
+                    name: json.data.name,
+                    role: json.data.role,
+                    department: json.data.department
+                };
+                setCftMembers(prev => [...prev, newMember]);
+                setPresentMemberIds(prev => [...prev, newMember.id]);
+                setNewMemberName('');
+                setNewMemberRole('');
+                setShowInlineAddForm(false);
+                showToast(`Added ${newMember.name} to PPSR CFT Committee & saved to database!`);
+                return;
+            }
+        } catch (err) {
+            console.error('Failed to save CFT member to DB:', err);
+        }
+
+        const fallbackMember: PpsrCftMember = {
             id: `cft-${Date.now()}`,
             name: newMemberName.trim(),
             role: newMemberRole.trim() || 'CFT Evaluator',
             department: newMemberDept
         };
-
-        setCftMembers(prev => [...prev, newMember]);
-        setPresentMemberIds(prev => [...prev, newMember.id]);
+        setCftMembers(prev => [...prev, fallbackMember]);
+        setPresentMemberIds(prev => [...prev, fallbackMember.id]);
         setNewMemberName('');
         setNewMemberRole('');
         setShowInlineAddForm(false);
-        showToast(`Added ${newMember.name} to PPSR CFT Steering Committee & marked present!`);
+        showToast(`Added ${fallbackMember.name} to PPSR CFT Steering Committee & marked present!`);
     };
 
     return (
@@ -459,26 +502,37 @@ export default function PpsrMonthlyAwards({
                 )}
 
                 {/* Member Chips */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                    {cftMembers.map((m) => {
-                        const isPresent = presentMemberIds.includes(m.id);
-                        return (
-                            <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => toggleAttendance(m.id)}
-                                className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center space-x-2 transition cursor-pointer border-2 ${isPresent
-                                        ? 'bg-emerald-50 text-emerald-950 border-emerald-400 shadow-2xs'
-                                        : 'bg-slate-50 text-slate-400 border-slate-200 line-through opacity-60'
-                                    }`}
-                            >
-                                <span className={`w-2 h-2 rounded-full ${isPresent ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                                <span>{m.name}</span>
-                                <span className="text-[10px] opacity-75 font-normal">({m.role})</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                {isMembersLoading ? (
+                    <div className="flex items-center space-x-2 py-3 text-xs font-mono text-slate-400">
+                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                        <span>Loading CFT committee members from database...</span>
+                    </div>
+                ) : cftMembers.length === 0 ? (
+                    <div className="text-xs font-mono text-slate-400 py-2">
+                        No active committee members found in database. Use &quot;+ Add Evaluator&quot; to register.
+                    </div>
+                ) : (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                        {cftMembers.map((m) => {
+                            const isPresent = presentMemberIds.includes(m.id);
+                            return (
+                                <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => toggleAttendance(m.id)}
+                                    className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center space-x-2 transition cursor-pointer border-2 ${isPresent
+                                            ? 'bg-emerald-50 text-emerald-950 border-emerald-400 shadow-2xs'
+                                            : 'bg-slate-50 text-slate-400 border-slate-200 line-through opacity-60'
+                                        }`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${isPresent ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                    <span>{m.name}</span>
+                                    <span className="text-[10px] opacity-75 font-normal">({m.role})</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* ========================================================================= */}
@@ -849,7 +903,7 @@ export default function PpsrMonthlyAwards({
                             <div className="grid grid-cols-3 gap-4 pt-8 border-t-2 border-slate-200 font-sans text-xs">
                                 <div className="space-y-1">
                                     <div className="h-9 flex items-end justify-center font-serif italic text-slate-500 font-bold text-xs">
-                                        Amit Mehta
+                                        {cftMembers[0]?.name || 'CFT Chairperson'}
                                     </div>
                                     <div className="border-t border-slate-400 pt-1">
                                         <strong className="block font-black text-slate-900 text-[11px]">CFT Chairperson</strong>
@@ -859,7 +913,7 @@ export default function PpsrMonthlyAwards({
 
                                 <div className="space-y-1">
                                     <div className="h-9 flex items-end justify-center font-serif italic text-slate-500 font-bold text-xs">
-                                        Dr. S. K. Kulkarni
+                                        {cftMembers[1]?.name || 'Head of Engineering'}
                                     </div>
                                     <div className="border-t border-slate-400 pt-1">
                                         <strong className="block font-black text-slate-900 text-[11px]">Head of Engineering</strong>
@@ -869,7 +923,7 @@ export default function PpsrMonthlyAwards({
 
                                 <div className="space-y-1">
                                     <div className="h-9 flex items-end justify-center font-serif italic text-slate-500 font-bold text-xs">
-                                        Rajesh Patil
+                                        {cftMembers[2]?.name || 'Plant Head'}
                                     </div>
                                     <div className="border-t border-slate-400 pt-1">
                                         <strong className="block font-black text-slate-900 text-[11px]">Plant Head</strong>

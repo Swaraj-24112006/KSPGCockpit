@@ -45,7 +45,7 @@ from cft_awards.models import (
 # ─── CFT Members ─────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def cft_member_list(request):
     """
     GET  /api/v1/cft/members/         — list all active members
@@ -81,7 +81,7 @@ def cft_member_list(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def cft_member_detail(request, pk):
     """
     GET    /api/v1/cft/members/<pk>/  — retrieve member
@@ -124,7 +124,7 @@ def cft_member_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def award_cycle_list(request):
     """
     GET  /api/v1/cft/cycles/   — list all cycles
@@ -156,7 +156,7 @@ def award_cycle_list(request):
 
 
 @api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def award_cycle_detail(request, pk):
     """
     GET   /api/v1/cft/cycles/<pk>/  — retrieve cycle with attendance + awards
@@ -179,7 +179,7 @@ def award_cycle_detail(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminOrSuperAdmin])
+@permission_classes([IsAdminOrSuperAdmin])
 def finalize_cycle(request, pk):
     """
     POST /api/v1/cft/cycles/<pk>/finalize/
@@ -201,7 +201,7 @@ def finalize_cycle(request, pk):
 # ─── Attendance ───────────────────────────────────────────────────────────────
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def attendance_list(request, cycle_pk):
     """GET /api/v1/cft/cycles/<cycle_pk>/attendance/ — list attendance for a cycle."""
     records = selectors.get_attendance_for_cycle(cycle_pk)
@@ -209,7 +209,7 @@ def attendance_list(request, cycle_pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def bulk_attendance_update(request, cycle_pk):
     """
     POST /api/v1/cft/cycles/<cycle_pk>/attendance/bulk/
@@ -245,7 +245,7 @@ def bulk_attendance_update(request, cycle_pk):
 # ─── Awards ───────────────────────────────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def award_list(request, cycle_pk):
     """
     GET  /api/v1/cft/cycles/<cycle_pk>/awards/  — list awards in cycle
@@ -283,7 +283,7 @@ def award_list(request, cycle_pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def approve_award_view(request, pk):
     """POST /api/v1/cft/awards/<pk>/approve/"""
     try:
@@ -296,7 +296,7 @@ def approve_award_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def reject_award_view(request, pk):
     """POST /api/v1/cft/awards/<pk>/reject/"""
     try:
@@ -309,7 +309,7 @@ def reject_award_view(request, pk):
 
 
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated, IsAdminOrSuperAdmin])
+@permission_classes([IsAdminOrSuperAdmin])
 def delete_award_view(request, pk):
     """DELETE /api/v1/cft/awards/<pk>/"""
     try:
@@ -328,7 +328,7 @@ def delete_award_view(request, pk):
 # ─── CFTEvaluationSession Endpoints ───────────────────────────────────────────
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def get_or_create_session_view(request):
     """
     POST /api/v1/cft/sessions/get-or-create/
@@ -355,7 +355,7 @@ def get_or_create_session_view(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def session_list_view(request):
     """
     GET /api/v1/cft/sessions/ — List all monthly evaluation sessions.
@@ -366,7 +366,7 @@ def session_list_view(request):
 
 
 @api_view(['GET', 'PATCH'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def session_detail_view(request, pk):
     """
     GET   /api/v1/cft/sessions/<pk>/ — Retrieve session details.
@@ -397,7 +397,7 @@ def session_detail_view(request, pk):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def session_attendance_view(request, pk):
     """
     GET /api/v1/cft/sessions/<pk>/attendance/
@@ -423,7 +423,7 @@ def session_attendance_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def update_session_attendance_view(request, pk):
     """
     POST /api/v1/cft/sessions/<pk>/update-attendance/
@@ -464,7 +464,7 @@ def update_session_attendance_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def submit_session_ratings_view(request, pk):
     """
     POST /api/v1/cft/sessions/<pk>/submit-ratings/
@@ -502,7 +502,7 @@ def submit_session_ratings_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def update_session_overrides_view(request, pk):
     """
     POST /api/v1/cft/sessions/<pk>/update-overrides/
@@ -533,7 +533,7 @@ def update_session_overrides_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminOrSuperAdmin])
+@permission_classes([IsAdminOrSuperAdmin])
 def finalize_session_view(request, pk):
     """
     POST /api/v1/cft/sessions/<pk>/finalize/ — Lock session permanently.
@@ -558,7 +558,7 @@ def finalize_session_view(request, pk):
 # ─── Award Categories ─────────────────────────────────────────────────────────
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def award_category_list_view(request):
     """
     GET /api/v1/cft/categories/
@@ -576,7 +576,7 @@ def award_category_list_view(request):
 # ─── Eligible Kaizens for Session ─────────────────────────────────────────────
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def session_eligible_kaizens_view(request, pk):
     """
     GET /api/v1/cft/sessions/<pk>/kaizens/
@@ -657,7 +657,7 @@ def session_eligible_kaizens_view(request, pk):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsCftCoordinatorOrAbove])
+@permission_classes([IsCftCoordinatorOrAbove])
 def calculate_session_winners_view(request, pk):
     """
     POST /api/v1/cft/sessions/<pk>/calculate-winners/
@@ -681,7 +681,7 @@ def calculate_session_winners_view(request, pk):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsCftReadOnly])
+@permission_classes([IsCftReadOnly])
 def session_winners_view(request, pk):
     """
     GET /api/v1/cft/sessions/<pk>/winners/

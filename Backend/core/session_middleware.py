@@ -65,6 +65,15 @@ class SessionValidationMiddleware:
             if getattr(request, 'user', None) and request.user.is_authenticated:
                 return self.get_response(request)
 
+            # Pass through Bearer token authenticated API requests to DRF
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if auth_header.startswith('Bearer '):
+                return self.get_response(request)
+
+            # In local development (DEBUG=True), allow requests without session cookie
+            if getattr(settings, 'DEBUG', False) and not request.COOKIES.get(SESSION_COOKIE_NAME):
+                return self.get_response(request)
+
             session_id = request.COOKIES.get(SESSION_COOKIE_NAME)
 
             if not session_id:

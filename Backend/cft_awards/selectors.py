@@ -201,27 +201,36 @@ def get_eligible_kaizens_for_session(
     target_month_num = MONTH_NAME_TO_NUMBER.get(target_month_str)
     target_year = int(session.year)
 
-    # 1. Base status eligibility filter
+    # 1. Base status eligibility filter — strictly final submitted, NEVER drafts
     status_q = Q()
     for s in ELIGIBLE_KAIZEN_STATUSES:
         status_q |= Q(status__iexact=s)
 
     # 2. Base month / year filter
-    date_q = (
-        Q(month__iexact=session.month) |
-        Q(month__icontains=session.month)
-    )
-    if target_month_num:
-        date_q |= (
-            Q(suggestion_date__month=target_month_num, suggestion_date__year=target_year) |
-            Q(created_at__month=target_month_num, created_at__year=target_year) |
-            Q(submitted_at__month=target_month_num, submitted_at__year=target_year) |
-            Q(implementation_date__month=target_month_num, implementation_date__year=target_year)
+    if target_month_str in ('all', 'all months', ''):
+        date_q = (
+            Q(suggestion_date__year=target_year) |
+            Q(created_at__year=target_year) |
+            Q(submitted_at__year=target_year) |
+            Q(implementation_date__year=target_year)
         )
+    else:
+        date_q = (
+            Q(month__iexact=session.month) |
+            Q(month__icontains=session.month)
+        )
+        if target_month_num:
+            date_q |= (
+                Q(suggestion_date__month=target_month_num, suggestion_date__year=target_year) |
+                Q(created_at__month=target_month_num, created_at__year=target_year) |
+                Q(submitted_at__month=target_month_num, submitted_at__year=target_year) |
+                Q(implementation_date__month=target_month_num, implementation_date__year=target_year)
+            )
 
     qs = (
         Kaizen.objects
         .filter(status_q & date_q)
+        .exclude(status__iexact='draft')
         .select_related('benefits', 'created_by')
         .prefetch_related('cft_ratings')
         .order_by('-created_at')

@@ -190,6 +190,27 @@ class KaizenViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         updated_instance = serializer.save()
 
+        # Check for photo files in request.FILES if sent via multipart/form-data during update
+        updated_photos = []
+        if 'photo_before' in request.FILES:
+            updated_instance.photo_before = request.FILES['photo_before']
+            updated_photos.append('photo_before')
+        elif 'image_before' in request.FILES:
+            updated_instance.photo_before = request.FILES['image_before']
+            updated_photos.append('photo_before')
+
+        if 'photo_after' in request.FILES:
+            updated_instance.photo_after = request.FILES['photo_after']
+            updated_photos.append('photo_after')
+        elif 'image_after' in request.FILES:
+            updated_instance.photo_after = request.FILES['image_after']
+            updated_photos.append('photo_after')
+
+        if updated_photos:
+            updated_instance.save(update_fields=updated_photos)
+            # Re-serialize to include newly updated photo URLs
+            serializer = self.get_serializer(updated_instance)
+
         # If status changed via review, record in audit
         new_status = request.data.get('status')
         if new_status and new_status != instance.status:

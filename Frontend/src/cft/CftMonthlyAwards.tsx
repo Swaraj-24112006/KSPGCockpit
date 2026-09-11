@@ -100,9 +100,11 @@ export default function CftMonthlyAwards({
   kaizens,
   onUpdateKaizen
 }: CftMonthlyAwardsProps) {
-  // Month & Year Selection
-  const [selectedMonth, setSelectedMonth] = useState('August');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  // Month & Year Selection - dynamically default to current month (e.g. September)
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    return new Date().toLocaleString('en-US', { month: 'long' }) || 'September';
+  });
+  const [selectedYear, setSelectedYear] = useState<string>(() => String(new Date().getFullYear() || 2026));
 
   // Backend session ID
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -116,19 +118,12 @@ export default function CftMonthlyAwards({
   const [newMemberRole, setNewMemberRole] = useState('');
   const [newMemberDept, setNewMemberDept] = useState('Operations');
 
-  // Master List of CFT Members (loaded from backend)
-  const [cftMembers, setCftMembers] = useState<CftMember[]>([
-    { id: '1', name: 'Amit Mehta', role: 'Kaizen & Quality Lead', department: 'Quality' },
-    { id: '2', name: 'Sunita Rao', role: 'Quality Specialist', department: 'Quality' },
-    { id: '3', name: 'Rajesh Patil', role: 'Plant Supervisor', department: 'Operations' },
-    { id: '4', name: 'Arjun Mehra', role: 'Automation Lead', department: 'Engineering' },
-    { id: '5', name: 'Vijay Deshmukh', role: 'Area Leader', department: 'Maintenance' },
-    { id: '6', name: 'Sanjay Patil', role: 'Process Specialist', department: 'Machining' },
-    { id: '7', name: 'Rahul Sharma', role: 'Maintenance Lead', department: 'Maintenance' }
-  ]);
+  // Master List of CFT Members (strictly fetched from database, NO hardcoded values)
+  const [cftMembers, setCftMembers] = useState<CftMember[]>([]);
 
   // Present Members Set (stored by member.id)
-  const [presentMemberIds, setPresentMemberIds] = useState<string[]>(['1', '2', '3', '4', '5', '6', '7']);
+  const [presentMemberIds, setPresentMemberIds] = useState<string[]>([]);
+  const [isMembersLoading, setIsMembersLoading] = useState<boolean>(true);
 
   // Rating store: Map of memberId -> kaizenId -> rating (1..5)
   const [ratings, setRatings] = useState<Record<string, Record<string, number>>>({});
@@ -182,7 +177,7 @@ export default function CftMonthlyAwards({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const availableMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const availableMonths = ['All Months', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const availableYears = ['2026', '2025', '2024'];
 
   // Dynamic award categories loaded from DB (defaulting to CATEGORY_CONFIGS)
@@ -199,6 +194,44 @@ export default function CftMonthlyAwards({
   const [allSessionKaizens, setAllSessionKaizens] = useState<Kaizen[] | null>(null);
   const [isKaizensLoading, setIsKaizensLoading] = useState(false);
   const [sessionWinners, setSessionWinners] = useState<any[]>([]);
+
+  // Strictly filter only registered final submitted Kaizens (never draft kaizens)
+  const isFinalSubmittedKaizen = (k: Partial<Kaizen> | any): boolean => {
+    if (!k) return false;
+    if (k.isDraft === true || k.is_draft === true) return false;
+    const s = String(k.status || '').trim().toLowerCase();
+    if (s === 'draft' || s === 'save draft' || s === 'saved_draft' || s === 'saved draft') {
+      return false;
+    }
+    const validStatuses = ['submitted', 'pending', 'approved', 'good point', 'good_point', 'closed', 'reviewed'];
+    return validStatuses.includes(s);
+  };
+
+  // Load active CFT committee members directly from database on mount
+  useEffect(() => {
+    const fetchDbMembers = async () => {
+      setIsMembersLoading(true);
+      try {
+        const res = await authFetch('/api/v1/cft/members/');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const dbMembers: CftMember[] = json.data.map((m: any) => ({
+            id: String(m.id),
+            name: m.name,
+            role: m.role,
+            department: m.department,
+          }));
+          setCftMembers(dbMembers);
+          setPresentMemberIds(prev => (prev.length === 0 ? dbMembers.map(m => m.id) : prev));
+        }
+      } catch (err) {
+        console.error('Failed to load active CFT members from database:', err);
+      } finally {
+        setIsMembersLoading(false);
+      }
+    };
+    fetchDbMembers();
+  }, []);
 
   // Load configured award categories from DB
   useEffect(() => {
@@ -222,13 +255,14 @@ export default function CftMonthlyAwards({
     fetchCategories();
   }, []);
 
-  // Fetch all eligible kaizens for current session (for winner calculations)
+  // Fetch all eligible kaizens for current session (strictly final submitted, no drafts)
   const fetchAllSessionKaizens = async (currentSessionId: number) => {
     try {
       const res = await authFetch(`/api/v1/cft/sessions/${currentSessionId}/kaizens/`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        const mapped = json.data.map((k: any) => ({
+        const eligible = json.data.filter(isFinalSubmittedKaizen);
+        const mapped = eligible.map((k: any) => ({
           id: String(k.id),
           srNo: k.srNo || k.sr_no,
           title: k.title,
@@ -277,17 +311,20 @@ export default function CftMonthlyAwards({
 
           // Update members roster from DB
           if (d.members && d.members.length > 0) {
-            setCftMembers(d.members.map((m: any) => ({
+            const roster = d.members.map((m: any) => ({
               id: String(m.id),
               name: m.name,
               role: m.role,
               department: m.department,
-            })));
+            }));
+            setCftMembers(roster);
           }
 
           // Update attendance
-          if (d.presentIds && Array.isArray(d.presentIds)) {
+          if (d.presentIds && Array.isArray(d.presentIds) && d.presentIds.length > 0) {
             setPresentMemberIds(d.presentIds.map((id: any) => String(id)));
+          } else if (d.members && d.members.length > 0) {
+            setPresentMemberIds(prev => (prev.length === 0 ? d.members.map((m: any) => String(m.id)) : prev));
           }
 
           // Update category overrides
@@ -335,7 +372,7 @@ export default function CftMonthlyAwards({
     fetchWinners();
   }, [sessionId]);
 
-  // Load filtered eligible Kaizens from Django backend (Step 8 & 9)
+  // Load filtered eligible Kaizens from Django backend (strictly final submitted, no drafts)
   useEffect(() => {
     if (!sessionId) return;
 
@@ -351,7 +388,8 @@ export default function CftMonthlyAwards({
         const res = await authFetch(`/api/v1/cft/sessions/${sessionId}/kaizens/${qStr}`);
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          const mapped = json.data.map((k: any) => ({
+          const eligible = json.data.filter(isFinalSubmittedKaizen);
+          const mapped = eligible.map((k: any) => ({
             id: String(k.id),
             srNo: k.srNo || k.sr_no,
             title: k.title,
@@ -386,12 +424,12 @@ export default function CftMonthlyAwards({
   }, [sessionId, searchQuery, categoryFilter, benefitFilter]);
 
 
-  // Source Kaizens for monthly calculations (Django server-eligible or prop fallback)
-  const closedKaizensForMonth = allSessionKaizens !== null ? allSessionKaizens : kaizens.filter(k => {
-    const s = (k.status || '').toLowerCase();
-    const isEligible = s === 'approved' || s === 'good point' || s === 'good_point' || s === 'closed' || s === 'submitted' || s === 'pending';
-    const monthMatches = selectedMonth === 'All' || (k.month && k.month.toLowerCase().includes(selectedMonth.toLowerCase()));
-    return isEligible && monthMatches;
+  // Source Kaizens for monthly calculations (strictly final submitted, no draft kaizens)
+  const closedKaizensForMonth = (allSessionKaizens !== null ? allSessionKaizens : kaizens).filter(k => {
+    if (!isFinalSubmittedKaizen(k)) return false;
+    const isAll = selectedMonth === 'All' || selectedMonth === 'All Months';
+    const monthMatches = isAll || (k.month && k.month.toLowerCase().includes(selectedMonth.toLowerCase()));
+    return monthMatches;
   });
 
   // Helper function to resolve category
@@ -440,8 +478,8 @@ export default function CftMonthlyAwards({
     return true;
   });
 
-  // Authoritative table kaizens: Django backend when available, fallback to client filtering
-  const displayTableKaizens = serverKaizens !== null ? serverKaizens : fallbackFilteredKaizens;
+  // Authoritative table kaizens: Django backend when available, fallback to client filtering (strictly final submitted)
+  const displayTableKaizens = (serverKaizens !== null ? serverKaizens : fallbackFilteredKaizens).filter(isFinalSubmittedKaizen);
 
 
   // Calculate Cumulative Score
@@ -797,34 +835,47 @@ export default function CftMonthlyAwards({
 
         {/* EXPANDABLE ATTENDANCE CHIPS */}
         {isAttendanceExpanded && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
-            {cftMembers.map((m) => {
-              const isPresent = presentMemberIds.includes(m.id);
+          <div>
+            {isMembersLoading ? (
+              <div className="flex items-center justify-center py-6 text-slate-400 space-x-2 font-mono text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-amber-500" />
+                <span>Loading committee members from database...</span>
+              </div>
+            ) : cftMembers.length === 0 ? (
+              <div className="text-center py-6 text-slate-400 font-mono text-xs border border-dashed border-slate-200 rounded-2xl">
+                No active committee members found in database. Use &quot;+ Add New Committee Member&quot; above to register.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+                {cftMembers.map((m) => {
+                  const isPresent = presentMemberIds.includes(m.id);
 
-              return (
-                <div
-                  key={m.id}
-                  onClick={() => toggleAttendance(m.id)}
-                  className={`p-3 rounded-2xl border-2 transition cursor-pointer select-none space-y-1 ${
-                    isPresent
-                      ? 'bg-emerald-50/70 border-emerald-500 text-slate-900 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`w-2 h-2 rounded-full ${isPresent ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    <span className={`text-[10px] font-mono font-bold ${isPresent ? 'text-emerald-700' : 'text-slate-400'}`}>
-                      {isPresent ? 'PRESENT' : 'ABSENT'}
-                    </span>
-                  </div>
+                  return (
+                    <div
+                      key={m.id}
+                      onClick={() => toggleAttendance(m.id)}
+                      className={`p-3 rounded-2xl border-2 transition cursor-pointer select-none space-y-1 ${
+                        isPresent
+                          ? 'bg-emerald-50/70 border-emerald-500 text-slate-900 shadow-2xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`w-2 h-2 rounded-full ${isPresent ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        <span className={`text-[10px] font-mono font-bold ${isPresent ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          {isPresent ? 'PRESENT' : 'ABSENT'}
+                        </span>
+                      </div>
 
-                  <h4 className={`text-xs font-bold truncate ${isPresent ? 'text-slate-900' : 'text-slate-500 line-through'}`}>
-                    {m.name}
-                  </h4>
-                  <p className="text-[10px] font-mono text-slate-500 truncate">{m.role}</p>
-                </div>
-              );
-            })}
+                      <h4 className={`text-xs font-bold truncate ${isPresent ? 'text-slate-900' : 'text-slate-500 line-through'}`}>
+                        {m.name}
+                      </h4>
+                      <p className="text-[10px] font-mono text-slate-500 truncate">{m.role}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1249,14 +1300,14 @@ export default function CftMonthlyAwards({
                 <div className="pt-8 grid grid-cols-2 gap-8 text-center font-mono text-xs border-t border-slate-200">
                   <div>
                     <div className="h-10 border-b border-slate-400 flex items-end justify-center pb-1">
-                      <span className="font-serif italic text-slate-700">Amit Mehta</span>
+                      <span className="font-serif italic text-slate-700">{cftMembers[0]?.name || 'CFT Committee Lead'}</span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase mt-1 block">CFT Committee Lead</span>
                   </div>
 
                   <div>
                     <div className="h-10 border-b border-slate-400 flex items-end justify-center pb-1">
-                      <span className="font-serif italic text-slate-700">Rajesh Patil</span>
+                      <span className="font-serif italic text-slate-700">{cftMembers[1]?.name || 'Plant Operations Head'}</span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase mt-1 block">Plant Operations Head</span>
                   </div>

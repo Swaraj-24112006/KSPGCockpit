@@ -341,9 +341,7 @@ ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE_BYTES
 
 # =============================================================================
-# MinIO Object Storage Config (kept for future production deployment)
-# Currently using local filesystem storage (Django default).
-# To enable MinIO, uncomment DEFAULT_FILE_STORAGE and the AWS_* settings below.
+# MinIO Object Storage Config
 # =============================================================================
 MINIO_ENDPOINT = config('MINIO_ENDPOINT', default='localhost:9000')
 MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY', default='minioadmin')
@@ -352,19 +350,16 @@ MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='kaizenimages')
 MINIO_USE_HTTPS = config('MINIO_USE_HTTPS', default=False, cast=bool)
 MINIO_REGION = config('MINIO_REGION', default='us-east-1')
 
-# Uncomment below to switch to MinIO storage in production:
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# AWS_ACCESS_KEY_ID = MINIO_ACCESS_KEY
-# AWS_SECRET_ACCESS_KEY = MINIO_SECRET_KEY
-# AWS_STORAGE_BUCKET_NAME = MINIO_BUCKET_NAME
-# AWS_S3_ENDPOINT_URL = ('https://' if MINIO_USE_HTTPS else 'http://') + MINIO_ENDPOINT
-# AWS_S3_REGION_NAME = 'us-east-1'
-# AWS_DEFAULT_ACL = None
-# AWS_QUERYSTRING_AUTH = True
-# AWS_QUERYSTRING_EXPIRE = 3600
-# AWS_S3_FILE_OVERWRITE = False
-# AWS_S3_VERIFY = False
-# AWS_S3_SIGNATURE_VERSION = 's3v4'
+# Modern Django 4.2+ STORAGES definition with MinIO Media Storage
+STORAGES = {
+    "default": {
+        "BACKEND": "core.storage.MinioMediaStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+DEFAULT_FILE_STORAGE = 'core.storage.MinioMediaStorage'
 
 
 # =============================================================================
