@@ -22,9 +22,11 @@ import {
   Check,
   Building,
   ArrowUpRight,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react';
 import { formatIndianRupees } from '../utils';
+import { downloadElementAsPdf } from '../shared/utils/pdfExporter';
 
 interface CftMonthlyAwardsProps {
   kaizens: Kaizen[];
@@ -155,6 +157,23 @@ export default function CftMonthlyAwards({
     month: string;
     year: string;
   } | null>(null);
+  const [isPrintingCert, setIsPrintingCert] = useState(false);
+
+  // Handle direct PDF export for certificate
+  const handlePrintCertificate = async () => {
+    if (!showCertificateModal) return;
+    setIsPrintingCert(true);
+    const safeWinner = (showCertificateModal.winnerName || 'Winner').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeMonth = (showCertificateModal.month || 'Month').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeYear = (showCertificateModal.year || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+    await downloadElementAsPdf('cft-certificate-document', {
+      filename: `Certificate_Excellence_${safeWinner}_${safeMonth}_${safeYear}.pdf`,
+      orientation: 'landscape',
+      format: 'a4',
+      scale: 2
+    });
+    setIsPrintingCert(false);
+  };
 
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -1159,11 +1178,22 @@ export default function CftMonthlyAwards({
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="flex items-center space-x-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer"
+                  disabled={isPrintingCert}
+                  onClick={handlePrintCertificate}
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer"
+                  title="Save specific certificate as PDF"
                 >
-                  <Printer className="w-4 h-4" />
-                  <span>Print Certificate</span>
+                  {isPrintingCert ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-4 h-4" />
+                      <span>Print / Save PDF</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => setShowCertificateModal(null)}
@@ -1177,7 +1207,10 @@ export default function CftMonthlyAwards({
 
             {/* Certificate Body */}
             <div className="p-8 bg-amber-50/30 print:p-0">
-              <div className="bg-white border-8 border-amber-600/30 p-10 rounded-2xl shadow-xl text-center space-y-6 relative overflow-hidden print:border-4 print:shadow-none print:rounded-none">
+              <div 
+                id="cft-certificate-document" 
+                className="bg-white border-8 border-amber-600/30 p-10 rounded-2xl shadow-xl text-center space-y-6 relative overflow-hidden print:border-4 print:shadow-none print:rounded-none"
+              >
                 
                 <div className="flex justify-between items-center border-b border-slate-200 pb-4 font-mono text-xs">
                   <span className="font-bold text-slate-600 uppercase">SHOPFLOOR MS • KAIZEN CELL</span>
@@ -1245,11 +1278,22 @@ export default function CftMonthlyAwards({
 
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="flex items-center space-x-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer font-mono"
+                disabled={isPrintingCert}
+                onClick={handlePrintCertificate}
+                className="flex items-center space-x-2 px-5 py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer font-mono shadow-md"
+                title="Save specific certificate as PDF"
               >
-                <Printer className="w-4 h-4" />
-                <span>PRINT CERTIFICATE</span>
+                {isPrintingCert ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>SAVING PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    <span>PRINT / SAVE CERTIFICATE PDF</span>
+                  </>
+                )}
               </button>
             </div>
 

@@ -20,9 +20,11 @@ import {
     FileText,
     DollarSign,
     Layers,
-    ArrowRight
+    ArrowRight,
+    Loader2
 } from 'lucide-react';
 import { formatIndianRupees } from '../utils';
+import { downloadElementAsPdf } from '../shared/utils/pdfExporter';
 
 interface PpsrMonthlyAwardsProps {
     ppsrReports: PpsrReport[];
@@ -161,6 +163,23 @@ export default function PpsrMonthlyAwards({
         month: string;
         year: string;
     } | null>(null);
+    const [isPrintingCert, setIsPrintingCert] = useState(false);
+
+    // Handle direct PDF export for certificate
+    const handlePrintCertificate = async () => {
+        if (!showCertificateModal) return;
+        setIsPrintingCert(true);
+        const safeWinner = (showCertificateModal.winnerName || 'Winner').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeMonth = (showCertificateModal.month || 'Month').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeYear = (showCertificateModal.year || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        await downloadElementAsPdf('ppsr-certificate-document', {
+            filename: `PPSR_Certificate_Excellence_${safeWinner}_${safeMonth}_${safeYear}.pdf`,
+            orientation: 'landscape',
+            format: 'a4',
+            scale: 2
+        });
+        setIsPrintingCert(false);
+    };
 
     // Toast
     const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -748,11 +767,22 @@ export default function PpsrMonthlyAwards({
                             <div className="flex items-center space-x-2">
                                 <button
                                     type="button"
-                                    onClick={() => window.print()}
-                                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer"
+                                    disabled={isPrintingCert}
+                                    onClick={handlePrintCertificate}
+                                    className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-mono font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                                    title="Save specific PPSR certificate as PDF"
                                 >
-                                    <Printer className="w-3.5 h-3.5" />
-                                    <span>Print / Save PDF</span>
+                                    {isPrintingCert ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            <span>Saving PDF...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Printer className="w-3.5 h-3.5" />
+                                            <span>Print / Save PDF</span>
+                                        </>
+                                    )}
                                 </button>
                                 <button
                                     type="button"
@@ -765,7 +795,10 @@ export default function PpsrMonthlyAwards({
                         </div>
 
                         {/* Certificate Canvas */}
-                        <div className="p-8 sm:p-12 overflow-y-auto space-y-6 text-center bg-radial from-amber-50/40 via-white to-amber-50/20 border-8 border-double border-amber-600/30 m-4 rounded-2xl shadow-inner">
+                        <div 
+                            id="ppsr-certificate-document" 
+                            className="p-8 sm:p-12 overflow-y-auto space-y-6 text-center bg-white border-8 border-double border-amber-600/30 m-4 rounded-2xl shadow-inner"
+                        >
 
                             {/* Plant Emblem & Subtitle */}
                             <div className="space-y-1">

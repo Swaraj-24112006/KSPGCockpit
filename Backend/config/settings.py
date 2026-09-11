@@ -85,6 +85,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

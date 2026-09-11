@@ -11,9 +11,10 @@ import SafetyModule from './safety/SafetyModule';
 import PpsrModule from './ppsr/PpsrModule';
 import CftAwardsModule from './cft/CftAwardsModule';
 import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction } from './types';
-import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu } from 'lucide-react';
+import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
 import { RoleCategory, KaizenSubTab, canAccessTab, getRoleBadge } from './shared/utils/rbac';
+import { downloadElementAsPdf } from './shared/utils/pdfExporter';
 
 interface AppProps {
   loggedInUser?: AuthUser | null;
@@ -95,6 +96,20 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   const [isLoading, setIsLoading] = useState(true);
   const [inspectKaizen, setInspectKaizen] = useState<Kaizen | null>(null);
   const [inspectPpsr, setInspectPpsr] = useState<PpsrReport | null>(null);
+  const [isPrintingInspectKaizen, setIsPrintingInspectKaizen] = useState(false);
+
+  // Handle direct A3 PDF export for inspected Kaizen sheet
+  const handlePrintInspectKaizen = async () => {
+    if (!inspectKaizen) return;
+    setIsPrintingInspectKaizen(true);
+    await downloadElementAsPdf('kaizen-inspect-sheet-document', {
+      filename: `Kaizen_A3_Sheet_${inspectKaizen.srNo}.pdf`,
+      orientation: 'landscape',
+      format: 'a3',
+      scale: 2
+    });
+    setIsPrintingInspectKaizen(false);
+  };
 
   // Submenu Quick triggers
   const [initialRedFlagAction, setInitialRedFlagAction] = useState<string | null>(null);
@@ -1049,12 +1064,22 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
-                  title="Print Kaizen Sheet"
+                  disabled={isPrintingInspectKaizen}
+                  onClick={handlePrintInspectKaizen}
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
+                  title="Save specific A3 Kaizen Sheet as PDF"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Print to PDF</span>
+                  {isPrintingInspectKaizen ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span className="hidden sm:inline">Saving PDF...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Print / Save A3 PDF</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => setInspectKaizen(null)}
@@ -1069,7 +1094,10 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
             <div className="p-6 overflow-y-auto bg-slate-100/50 space-y-6 print:p-0 print:bg-white print:overflow-visible print:space-y-8">
               
               {/* Paper Layout Card */}
-              <div className="bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden text-slate-800 font-sans print:border print:border-slate-400 print:rounded-none print:shadow-none">
+              <div 
+                id="kaizen-inspect-sheet-document" 
+                className="bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden text-slate-800 font-sans print:border print:border-slate-400 print:rounded-none print:shadow-none"
+              >
                 
                 {/* 1. Header Banner */}
                 <div className="border-b border-slate-300 text-center py-5 px-4 bg-white">
@@ -1296,11 +1324,22 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
             <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end shrink-0 gap-3 print:hidden">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="flex items-center space-x-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                disabled={isPrintingInspectKaizen}
+                onClick={handlePrintInspectKaizen}
+                className="flex items-center space-x-1.5 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                title="Save specific A3 Kaizen Sheet as PDF"
               >
-                <Printer className="w-4 h-4" />
-                <span>Print / Save PDF</span>
+                {isPrintingInspectKaizen ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>SAVING A3 PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    <span>PRINT / SAVE A3 PDF</span>
+                  </>
+                )}
               </button>
               <button
                 type="button"

@@ -69,6 +69,18 @@ export default function KaizenReviewBoard({ kaizens, onUpdateKaizen }: KaizenRev
     setIsPdfExporting(false);
   };
 
+  // Print / Save A3 PDF handler
+  const handleDownloadA3Pdf = async () => {
+    if (!selectedKaizen) return;
+    setIsPdfExporting(true);
+    await downloadElementAsPdf('a3-paper-document', {
+      filename: `Kaizen_A3_Sheet_${selectedKaizen.srNo}.pdf`,
+      orientation: 'landscape',
+      format: 'a3'
+    });
+    setIsPdfExporting(false);
+  };
+
   // Currently selected Kaizen for A3 view
   const selectedKaizen = kaizens.find(k => String(k.id) === String(selectedId)) || kaizens[0];
 
@@ -666,14 +678,25 @@ export default function KaizenReviewBoard({ kaizens, onUpdateKaizen }: KaizenRev
                 )}
               </button>
 
-              {/* Print A4 Sheet Button */}
+              {/* Print / Save A3 Sheet PDF Button */}
               <button
                 type="button"
-                onClick={() => triggerA4Print('a3-paper-document', `Kaizen A4 Sheet - ${selectedKaizen.srNo}`)}
-                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center space-x-2 font-mono uppercase tracking-wider cursor-pointer border border-amber-300"
+                disabled={isPdfExporting}
+                onClick={handleDownloadA3Pdf}
+                className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 disabled:opacity-50 text-slate-950 font-black text-xs rounded-xl shadow-md transition flex items-center space-x-2 font-mono uppercase tracking-wider cursor-pointer border border-amber-300"
+                title="Save specific A3 Kaizen Sheet as PDF"
               >
-                <Printer className="w-4.5 h-4.5" />
-                <span>PRINT A4 SHEET</span>
+                {isPdfExporting ? (
+                  <>
+                    <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                    <span>SAVING A3 PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4.5 h-4.5" />
+                    <span>PRINT / SAVE A3 PDF</span>
+                  </>
+                )}
               </button>
 
               {/* Presentation Mode */}

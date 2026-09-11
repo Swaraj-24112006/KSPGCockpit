@@ -3,9 +3,25 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+function patchHtml2CanvasPlugin() {
+  return {
+    name: 'patch-html2canvas',
+    async buildStart() {
+      try {
+        await import('./patch-html2canvas.js');
+      } catch {}
+    },
+    async configureServer() {
+      try {
+        await import('./patch-html2canvas.js');
+      } catch {}
+    }
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), patchHtml2CanvasPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
