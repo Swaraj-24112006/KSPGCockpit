@@ -13,7 +13,7 @@ def create_role(name):
     role, _ = Role.objects.get_or_create(name=name)
     return role
 
-def get_or_create_test_user(username, email, emp_id, first_name, last_name, dept, desig, mf, role_name, kaizen_role, is_superadmin=False):
+def get_or_create_test_user(username, email, emp_id, first_name, last_name, dept, desig, mf, role_name, kaizen_role, ppsr_role=None, is_superadmin=False):
     role = create_role(role_name)
     
     user = CustomUser.objects.filter(username=username).first() or CustomUser.objects.filter(employee_id=emp_id).first()
@@ -69,6 +69,17 @@ def get_or_create_test_user(username, email, emp_id, first_name, last_name, dept
         }
     )
     
+    # Update or create PPSR Module Role
+    if ppsr_role:
+        UserModuleRole.objects.update_or_create(
+            user=user,
+            module_code='ppsr',
+            defaults={
+                'role_name': ppsr_role,
+                'mini_factory': mf
+            }
+        )
+    
     return user
 
 if __name__ == '__main__':
@@ -114,6 +125,30 @@ if __name__ == '__main__':
     get_or_create_test_user(
         'committee_rahul', 'committee.rahul@kspg.com', 'EMP-107', 'Rahul', 'Verma', 
         'Maintenance', 'Maintenance Engineer', 'MF3', 'reviewer', 'committee'
+    )
+    
+    # 8. PPSR Initiator
+    get_or_create_test_user(
+        'ppsr_initiator', 'ppsr.initiator@kspg.com', 'EMP-PPSR-1', 'PPSR', 'Initiator',
+        'Production', 'Operator', 'MF1', 'initiator', 'initiator', 'initiator'
+    )
+
+    # 9. PPSR Coordinator
+    get_or_create_test_user(
+        'ppsr_coord', 'ppsr.coord@kspg.com', 'EMP-PPSR-2', 'PPSR', 'Coordinator',
+        'Quality', 'Coordinator', 'MF1', 'kaizen_lead', 'coordinator', 'coordinator'
+    )
+
+    # 10. PPSR Committee Member
+    get_or_create_test_user(
+        'ppsr_committee', 'ppsr.committee@kspg.com', 'EMP-PPSR-3', 'PPSR', 'Committee',
+        'Management', 'Manager', 'MF1', 'reviewer', 'committee', 'committee'
+    )
+
+    # 11. PPSR Admin
+    get_or_create_test_user(
+        'ppsr_admin', 'ppsr.admin@kspg.com', 'EMP-PPSR-4', 'PPSR', 'Admin',
+        'IT', 'Administrator', 'Central', 'admin', 'admin', 'admin', True
     )
     
     print("\n--- Test Users Ready ---")

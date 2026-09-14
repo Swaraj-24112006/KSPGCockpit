@@ -359,6 +359,7 @@ export interface PpsrReport {
   presentationFeedback?: PpsrCommitteeFeedback[];
   committeeDecision?: 'Approved' | 'Re-work Needed' | 'In Review';
   committeeDecisionDate?: string;
+  steeringCommitteeSign?: string;
 }
 
 export interface PpsrCommitteeFeedback {

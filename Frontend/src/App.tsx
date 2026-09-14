@@ -192,6 +192,71 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
     };
   };
 
+  const normalizePpsrReport = (p: any): PpsrReport => {
+    return {
+      id: p.id || '',
+      ppsrNo: p.ppsrNo || p.ppsr_no || '',
+      title: p.title || '',
+      problemStatement: p.problemStatement || p.problem_statement || '',
+      rootCauseAnalysis: p.rootCauseAnalysis || p.root_cause_analysis || '',
+      containmentAction: p.containmentAction || (p.containment_actions && p.containment_actions[0]?.action) || '',
+      permanentCorrectiveAction: p.permanentCorrectiveAction || (p.corrective_actions && p.corrective_actions[0]?.measure) || '',
+      validationCheck: p.validationCheck || p.effectiveness_evidence || '',
+      status: p.status || 'Open',
+      targetDate: p.targetDate || p.target_date || '',
+      leadOwner: p.leadOwner || p.lead_owner || '',
+      createdAt: p.createdAt || p.created_at || new Date().toISOString(),
+
+      projectLeader: p.projectLeader || p.project_leader || p.leadOwner || p.lead_owner || '',
+      teamMembers: p.teamMembers || p.team_members || '',
+      plant: p.plant || 'Pune Assembly & Paint Complex',
+      lineStation: p.lineStation || p.line_station || '',
+      productComponent: p.productComponent || p.product_component || '',
+      amountDefects: p.amountDefects || p.amount_defects || '',
+      discoveredOn: p.discoveredOn || p.discovered_on || '',
+      discoveredBy: p.discoveredBy || p.discovered_by || '',
+      repeatCase: p.repeatCase || p.repeat_case || 'no',
+      sketchPhoto: p.sketchPhoto || p.sketch_photo || '',
+      initialEvidenceType: p.initialEvidenceType || p.initial_evidence_type || 'data',
+      initialDefectTrendData: p.initialDefectTrendData || p.initial_defect_trend_data || [],
+
+      factsAnalysis: p.factsAnalysis || p.facts_analysis || {},
+      containmentActionsList: p.containmentActionsList || p.containment_actions || [],
+      ishikawa: p.ishikawa || {},
+      fiveWhysList: p.fiveWhysList || p.five_whys || { column1: [], column2: [], column3: [] },
+      correctiveActionsList: p.correctiveActionsList || p.corrective_actions || [],
+      effectivenessEvidence: p.effectivenessEvidence || p.effectiveness_evidence || '',
+      effectivenessChartData: p.effectivenessChartData || p.effectiveness_chart_data || [],
+      defectTrendData: p.defectTrendData || p.defect_trend_data || [],
+      standardizationList: p.standardizationList || p.standardization_items || [],
+      readAcrossList: p.readAcrossList || p.read_across_items || [],
+      readAcrossExplanation: p.readAcrossExplanation || p.read_across_explanation || '',
+      completionSignatures: p.completionSignatures || p.completion_signatures || {},
+
+      jiraNumber: p.jiraNumber || p.jira_number || '',
+      week: p.week || '',
+      coach: p.coach || '',
+      cft: p.cft || '',
+      stdStatusMF: p.stdStatusMF || p.std_status_mf || 'Pending',
+      stdDate: p.stdDate || p.std_date || '',
+      effDaysStd: p.effDaysStd ?? p.eff_days_std ?? undefined,
+      responsibility: p.responsibility || '',
+      ppsrEndDate: p.ppsrEndDate || p.ppsr_end_date || '',
+      effDaysClosePpsr: p.effDaysClosePpsr ?? p.eff_days_close_ppsr ?? undefined,
+      prodQtyBefore: p.prodQtyBefore ?? p.prod_qty_before ?? undefined,
+      rejectedQtyBefore: p.rejectedQtyBefore ?? p.rejected_qty_before ?? undefined,
+      pctBefore: p.pctBefore ?? p.pct_before ?? undefined,
+      prodQtyAfter: p.prodQtyAfter ?? p.prod_qty_after ?? undefined,
+      rejectedQtyAfter: p.rejectedQtyAfter ?? p.rejected_qty_after ?? undefined,
+      pctAfter: p.pctAfter ?? p.pct_after ?? undefined,
+      costSavePerMonth: p.costSavePerMonth ?? (p.cost_save_per_month ? parseFloat(p.cost_save_per_month) : undefined),
+      costSavePerAnnum: p.costSavePerAnnum ?? (p.cost_save_per_annum ? parseFloat(p.cost_save_per_annum) : undefined),
+      committeeDecision: p.committeeDecision || p.committee_decision || 'In Review',
+      committeeDecisionDate: p.committeeDecisionDate || p.committee_decision_date || '',
+      steeringCommitteeSign: p.steeringCommitteeSign || p.steering_committee_sign || '',
+    };
+  };
+
   // Helper to safely fetch JSON without throwing on HTML 404s
   const fetchJsonSafe = async (url: string) => {
     try {
@@ -250,13 +315,33 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       const dataS = await fetchJsonSafe('/api/safetyincidents');
       if (dataS?.success && Array.isArray(dataS.data)) setSafetyIncidents(dataS.data);
 
-      // Fetch PPSRs
-      const dataP = await fetchJsonSafe('/api/ppsrreports');
-      if (dataP?.success && Array.isArray(dataP.data)) setPpsrReports(dataP.data);
+      // Fetch PPSRs from Django Backend
+      const dataP = await fetchJsonSafe('/api/v1/ppsr/reports/');
+      if (dataP) {
+        let rawReports: any[] = [];
+        if (dataP.results && Array.isArray(dataP.results)) {
+          rawReports = dataP.results;
+        } else if (dataP.data && Array.isArray(dataP.data)) {
+          rawReports = dataP.data;
+        } else if (Array.isArray(dataP)) {
+          rawReports = dataP;
+        }
+        setPpsrReports(rawReports.map(normalizePpsrReport));
+      }
 
-      // Fetch PPSR Meetings
-      const dataM = await fetchJsonSafe('/api/ppsrmeetings');
-      if (dataM?.success && Array.isArray(dataM.data)) setPpsrMeetings(dataM.data);
+      // Fetch PPSR Meetings from Django Backend
+      const dataM = await fetchJsonSafe('/api/v1/ppsr/meetings/');
+      if (dataM) {
+        let rawMtgs: any[] = [];
+        if (dataM.results && Array.isArray(dataM.results)) {
+          rawMtgs = dataM.results;
+        } else if (dataM.data && Array.isArray(dataM.data)) {
+          rawMtgs = dataM.data;
+        } else if (Array.isArray(dataM)) {
+          rawMtgs = dataM;
+        }
+        setPpsrMeetings(rawMtgs);
+      }
 
       // Fetch Open Impact Actions
       const dataI = await fetchJsonSafe('/api/impactactions');
@@ -700,14 +785,21 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   // PPSR Problem solver
   const handleAddPpsrReport = async (ppsrData: Partial<PpsrReport>) => {
     try {
-      const res = await authFetch('/api/ppsrreports', {
+      const res = await authFetch('/api/v1/ppsr/reports/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ppsrData)
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Error adding PPSR to backend:', err);
+        alert(`Failed to save PPSR: ${JSON.stringify(err)}`);
+        return;
+      }
       const data = await res.json();
-      if (data.success) {
-        setPpsrReports(prev => [data.data, ...prev]);
+      const report = data.data || (data.id ? data : null);
+      if (report) {
+        setPpsrReports(prev => [normalizePpsrReport(report), ...prev]);
       }
     } catch (err) {
       console.error('Error adding PPSR:', err);
@@ -716,14 +808,16 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   const handleUpdatePpsrReport = async (id: string, ppsrData: Partial<PpsrReport>) => {
     try {
-      const res = await authFetch(`/api/ppsrreports/${id}`, {
-        method: 'PUT',
+      const res = await authFetch(`/api/v1/ppsr/reports/${id}/`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ppsrData)
       });
+      if (!res.ok) return;
       const data = await res.json();
-      if (data.success) {
-        setPpsrReports(prev => prev.map(p => p.id === id ? data.data : p));
+      const report = data.data || (data.id ? data : null);
+      if (report) {
+        setPpsrReports(prev => prev.map(p => p.id === id ? normalizePpsrReport(report) : p));
       }
     } catch (err) {
       console.error('Error updating PPSR:', err);
@@ -732,14 +826,16 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   const handleAddPpsrMeeting = async (mtgData: Partial<PpsrMeetingLog>) => {
     try {
-      const res = await authFetch('/api/ppsrmeetings', {
+      const res = await authFetch('/api/v1/ppsr/meetings/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mtgData)
       });
+      if (!res.ok) return;
       const data = await res.json();
-      if (data.success) {
-        setPpsrMeetings(prev => [data.data, ...prev]);
+      const mtg = data.data || (data.id ? data : null);
+      if (mtg) {
+        setPpsrMeetings(prev => [mtg, ...prev]);
       }
     } catch (err) {
       console.error('Error adding PPSR meeting:', err);

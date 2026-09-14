@@ -131,13 +131,10 @@ export default function SuperAdminDashboard({
     last_name: '',
     email: '',
     phone: '',
-    department: 'Production',
-    designation: 'Process Operator',
     mini_factory: 'MF1',
-    plant: 'Pune Plant 1',
-    role: 'initiator',
+    password: '',
     kaizen_role: 'initiator',
-    temporary_password: '',
+    ppsr_role: 'none',
   });
 
   // Edit User Form State
@@ -146,10 +143,9 @@ export default function SuperAdminDashboard({
     last_name: '',
     email: '',
     phone: '',
-    department: '',
-    designation: '',
     mini_factory: 'MF1',
-    role: 'initiator',
+    kaizen_role: 'initiator',
+    ppsr_role: 'none',
   });
 
   // Module Role Assign State
@@ -334,6 +330,10 @@ export default function SuperAdminDashboard({
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!createForm.password) {
+      alert('Password is required.');
+      return;
+    }
     try {
       const res = await authFetch('/api/v1/auth/superadmin/users/', {
         method: 'POST',
@@ -343,7 +343,7 @@ export default function SuperAdminDashboard({
       const json = await res.json();
       if (res.ok && json.success) {
         setShowCreateModal(false);
-        setTempPasswordSuccess({ username: createForm.username, tempPass: json.temporary_password });
+        setTempPasswordSuccess({ username: createForm.username, tempPass: createForm.password });
         setCreateForm({
           username: '',
           employee_id: '',
@@ -351,18 +351,15 @@ export default function SuperAdminDashboard({
           last_name: '',
           email: '',
           phone: '',
-          department: 'Production',
-          designation: 'Process Operator',
           mini_factory: 'MF1',
-          plant: 'Pune Plant 1',
-          role: 'initiator',
+          password: '',
           kaizen_role: 'initiator',
-          temporary_password: '',
+          ppsr_role: 'none',
         });
         fetchUsers();
         fetchSummary();
       } else {
-        alert(json?.error?.message || 'Failed to create user in database.');
+        alert(json?.error?.message || 'Failed to create user.');
       }
     } catch {
       alert('Error creating user account.');
@@ -423,6 +420,12 @@ export default function SuperAdminDashboard({
     }
   };
 
+  /** Extract a module role name from user.module_roles, or return 'none'. */
+  const getModuleRoleForUser = (user: UserRow, moduleCode: string): string => {
+    const found = (user.module_roles || []).find((r) => r.module_code === moduleCode);
+    return found ? found.role_name : 'none';
+  };
+
   const handleAssignModuleRole = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
@@ -455,10 +458,9 @@ export default function SuperAdminDashboard({
       last_name: user.last_name || '',
       email: user.email || '',
       phone: user.phone || '',
-      department: user.department || '',
-      designation: user.designation || '',
       mini_factory: user.mini_factory || 'MF1',
-      role: user.role_category === 'superadmin' ? 'superadmin' : (user.role_name || 'initiator'),
+      kaizen_role: getModuleRoleForUser(user, 'kaizen'),
+      ppsr_role: getModuleRoleForUser(user, 'ppsr'),
     });
     setShowEditModal(true);
   };
@@ -1775,6 +1777,7 @@ export default function SuperAdminDashboard({
             </div>
 
             <form onSubmit={handleCreateUser}>
+              {/* Row 1: Username + Employee ID */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Username *</label>
@@ -1800,6 +1803,7 @@ export default function SuperAdminDashboard({
                 </div>
               </div>
 
+              {/* Row 2: Full Name */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>First Name</label>
@@ -1823,6 +1827,7 @@ export default function SuperAdminDashboard({
                 </div>
               </div>
 
+              {/* Row 3: Email + Phone */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Email Address</label>
@@ -1846,7 +1851,19 @@ export default function SuperAdminDashboard({
                 </div>
               </div>
 
+              {/* Row 4: Password + Mini-Factory */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Password *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Set password for user"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Assigned Mini-Factory *</label>
                   <select
@@ -1860,49 +1877,49 @@ export default function SuperAdminDashboard({
                     <option value="Central">Plant Central / Shared</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Primary Role</label>
-                  <select
-                    value={createForm.role}
-                    onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none' }}
-                  >
-                    <option value="initiator">Initiator / Operator</option>
-                    <option value="reviewer">Reviewer / Committee</option>
-                    <option value="kaizen_lead">Coordinator / Lead</option>
-                    <option value="superadmin">SuperAdmin</option>
-                  </select>
-                </div>
               </div>
 
+              {/* Row 5: Module Role Dropdowns */}
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem', marginTop: '0.5rem' }}>
+                Module Access Roles
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Kaizen Module Role *</label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    <span style={{ color: '#fbbf24' }}>⚡</span> Kaizen Role
+                  </label>
                   <select
                     value={createForm.kaizen_role}
                     onChange={(e) => setCreateForm({ ...createForm, kaizen_role: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none' }}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#ffffff', outline: 'none' }}
                   >
                     <option value="initiator">Initiator / Operator</option>
                     <option value="committee">Committee Member / Reviewer</option>
                     <option value="coordinator">Module Coordinator / Lead</option>
                     <option value="admin">Module Administrator</option>
+                    <option value="none">🚫 No Access Required</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Initial Temporary Password</label>
-                  <input
-                    type="text"
-                    placeholder="Leave empty to auto-generate"
-                    value={createForm.temporary_password}
-                    onChange={(e) => setCreateForm({ ...createForm, temporary_password: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
-                  />
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    <span style={{ color: '#60a5fa' }}>🔧</span> PPSR Role
+                  </label>
+                  <select
+                    value={createForm.ppsr_role}
+                    onChange={(e) => setCreateForm({ ...createForm, ppsr_role: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(96, 165, 250, 0.3)', color: '#ffffff', outline: 'none' }}
+                  >
+                    <option value="initiator">Initiator / Operator</option>
+                    <option value="committee">Committee Member / Reviewer</option>
+                    <option value="coordinator">Module Coordinator / Lead</option>
+                    <option value="admin">Module Administrator</option>
+                    <option value="none">🚫 No Access Required</option>
+                  </select>
                 </div>
               </div>
 
               <div style={{ padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: '0.5rem', fontSize: '0.75rem', color: '#93c5fd', marginBottom: '1.5rem' }}>
-                ℹ️ The user will be created in PostgreSQL with their assigned Mini-Factory and Kaizen module role. Login credentials will be generated and displayed upon creation.
+                ℹ️ The user will be created with the specified password and module roles. Select "No Access Required" for modules the user should not access.
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -1925,7 +1942,7 @@ export default function SuperAdminDashboard({
         </div>
       )}
 
-      {/* ── Modal 2: Edit User Profile & Mini-Factory ────────────────────────── */}
+      {/* ── Modal 2: Edit User Profile & Module Roles ──────────────────────── */}
       {showEditModal && selectedUser && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(10, 15, 29, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
           <div style={{ background: '#11192e', borderRadius: '1.25rem', border: '1px solid rgba(255, 255, 255, 0.1)', width: '100%', maxWidth: '540px', padding: '2rem' }}>
@@ -1935,6 +1952,7 @@ export default function SuperAdminDashboard({
             </div>
 
             <form onSubmit={handleEditUser}>
+              {/* Row 1: Name */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>First Name</label>
@@ -1956,6 +1974,7 @@ export default function SuperAdminDashboard({
                 </div>
               </div>
 
+              {/* Row 2: Email + Phone */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Email Address</label>
@@ -1978,52 +1997,56 @@ export default function SuperAdminDashboard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Department</label>
-                  <input
-                    type="text"
-                    value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Designation</label>
-                  <input
-                    type="text"
-                    value={editForm.designation}
-                    onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
+              {/* Row 3: Mini-Factory */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Mini-Factory Scope *</label>
+                <select
+                  value={editForm.mini_factory}
+                  onChange={(e) => setEditForm({ ...editForm, mini_factory: e.target.value })}
+                  style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none' }}
+                >
+                  <option value="MF1">MF1 (Mini-Factory 1)</option>
+                  <option value="MF2">MF2 (Mini-Factory 2)</option>
+                  <option value="MF3">MF3 (Mini-Factory 3)</option>
+                  <option value="Central">Plant Central / Shared</option>
+                </select>
               </div>
 
+              {/* Row 4: Module Role Dropdowns */}
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem', marginTop: '0.5rem' }}>
+                Module Access Roles
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Mini-Factory Scope *</label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    <span style={{ color: '#fbbf24' }}>⚡</span> Kaizen Role
+                  </label>
                   <select
-                    value={editForm.mini_factory}
-                    onChange={(e) => setEditForm({ ...editForm, mini_factory: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none' }}
+                    value={editForm.kaizen_role}
+                    onChange={(e) => setEditForm({ ...editForm, kaizen_role: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#ffffff', outline: 'none' }}
                   >
-                    <option value="MF1">MF1 (Mini-Factory 1)</option>
-                    <option value="MF2">MF2 (Mini-Factory 2)</option>
-                    <option value="MF3">MF3 (Mini-Factory 3)</option>
-                    <option value="Central">Plant Central / Shared</option>
+                    <option value="initiator">Initiator / Operator</option>
+                    <option value="committee">Committee Member / Reviewer</option>
+                    <option value="coordinator">Module Coordinator / Lead</option>
+                    <option value="admin">Module Administrator</option>
+                    <option value="none">🚫 No Access Required</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>Primary Role</label>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    <span style={{ color: '#60a5fa' }}>🔧</span> PPSR Role
+                  </label>
                   <select
-                    value={editForm.role}
-                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', outline: 'none' }}
+                    value={editForm.ppsr_role}
+                    onChange={(e) => setEditForm({ ...editForm, ppsr_role: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '0.5rem', background: '#0a0f1d', border: '1px solid rgba(96, 165, 250, 0.3)', color: '#ffffff', outline: 'none' }}
                   >
                     <option value="initiator">Initiator / Operator</option>
-                    <option value="reviewer">Reviewer / Committee</option>
-                    <option value="kaizen_lead">Coordinator / Lead</option>
-                    <option value="superadmin">SuperAdmin</option>
+                    <option value="committee">Committee Member / Reviewer</option>
+                    <option value="coordinator">Module Coordinator / Lead</option>
+                    <option value="admin">Module Administrator</option>
+                    <option value="none">🚫 No Access Required</option>
                   </select>
                 </div>
               </div>
@@ -2152,6 +2175,7 @@ export default function SuperAdminDashboard({
                   <option value="committee">Committee Member / Reviewer</option>
                   <option value="coordinator">Module Coordinator / Lead</option>
                   <option value="admin">Module Administrator</option>
+                  <option value="none">🚫 No Access Required</option>
                 </select>
               </div>
 

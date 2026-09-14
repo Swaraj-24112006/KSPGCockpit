@@ -240,9 +240,10 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Create a new user with generated/provided temporary password and assigned Kaizen module role.
-        Validates uniqueness of employee_id, username, and email.
-        Atomic transaction writes to PostgreSQL and logs audit trail.
+        Create a new user with admin-set password and per-module role assignments.
+        Accepts: username, employee_id, first_name, last_name, email, phone,
+                 password (required), mini_factory, kaizen_role, ppsr_role.
+        Module roles accept 'none' to skip granting access for that module.
         """
         data = request.data.copy()
         username = data.get('username', '').strip()
@@ -250,16 +251,22 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         email = data.get('email', '').strip()
         first_name = data.get('first_name', '').strip()
         last_name = data.get('last_name', '').strip()
-        department = data.get('department', '').strip()
-        designation = data.get('designation', '').strip()
         mini_factory = data.get('mini_factory', 'MF1').strip()
         phone = data.get('phone', '').strip()
-        role_name = data.get('role', 'initiator').strip()
-        kaizen_role_name = data.get('kaizen_role', role_name).strip()
+        password = data.get('password', '').strip()
+        kaizen_role = data.get('kaizen_role', 'initiator').strip().lower()
+        ppsr_role = data.get('ppsr_role', 'none').strip().lower()
 
+        # --- Validation ---
         if not username or not employee_id:
             return Response(
                 {'success': False, 'error': {'message': 'Username and Employee ID are required.'}},
+                status=drf_status.HTTP_400_BAD_REQUEST
+            )
+
+        if not password:
+            return Response(
+                {'success': False, 'error': {'message': 'Password is required. Super Admin must set the password for the new user.'}},
                 status=drf_status.HTTP_400_BAD_REQUEST
             )
 
@@ -281,13 +288,18 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 status=drf_status.HTTP_400_BAD_REQUEST
             )
 
-        temp_password = data.get('temporary_password', '').strip() or generate_temp_password()
+        valid_module_roles = ('initiator', 'committee', 'coordinator', 'admin')
 
         with transaction.atomic():
-            # Find or create primary role
-            role_obj = Role.objects.filter(name=role_name).first()
-            if not role_obj and role_name in ('initiator', 'reviewer', 'kaizen_lead', 'coordinator', 'committee', 'cft_member', 'verifier', 'admin', 'superadmin'):
-                role_obj = Role.objects.create(name=role_name)
+            # Derive primary role from kaizen_role for backward compat
+            db_role_map = {
+                'initiator': 'initiator',
+                'committee': 'reviewer',
+                'coordinator': 'kaizen_lead',
+                'admin': 'admin',
+            }
+            primary_role_name = db_role_map.get(kaizen_role, 'initiator') if kaizen_role != 'none' else 'initiator'
+            role_obj, _ = Role.objects.get_or_create(name=primary_role_name)
 
             user = CustomUser.objects.create(
                 username=username,
@@ -295,10 +307,10 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 email=email,
                 first_name=first_name,
                 last_name=last_name,
-                department=department,
-                designation=designation,
+                department=data.get('department', '').strip(),
+                designation=data.get('designation', '').strip(),
                 mini_factory=mini_factory,
-                plant=data.get('plant', 'Pune Plant 1'),
+                plant=data.get('plant', ''),
                 area=data.get('area', mini_factory),
                 phone=phone,
                 role=role_obj,
@@ -306,18 +318,28 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 is_active=True,
                 must_change_password=False,
             )
-            user.set_password(temp_password)
+            user.set_password(password)
             user.save()
 
-            # Assign Kaizen module role
-            kaizen_role_valid = kaizen_role_name if kaizen_role_name in ('initiator', 'committee', 'coordinator', 'admin') else 'initiator'
-            UserModuleRole.objects.create(
-                user=user,
-                module_code='kaizen',
-                role_name=kaizen_role_valid,
-                mini_factory=mini_factory,
-                assigned_by=request.user,
-            )
+            # Assign Kaizen module role (skip if 'none')
+            if kaizen_role in valid_module_roles:
+                UserModuleRole.objects.create(
+                    user=user,
+                    module_code='kaizen',
+                    role_name=kaizen_role,
+                    mini_factory=mini_factory,
+                    assigned_by=request.user,
+                )
+
+            # Assign PPSR module role (skip if 'none')
+            if ppsr_role in valid_module_roles:
+                UserModuleRole.objects.create(
+                    user=user,
+                    module_code='ppsr',
+                    role_name=ppsr_role,
+                    mini_factory=mini_factory,
+                    assigned_by=request.user,
+                )
 
             # Audit Log
             create_audit_log(
@@ -330,16 +352,28 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     'email': user.email,
                     'phone': user.phone,
                     'mini_factory': user.mini_factory,
-                    'role': user.role_name,
-                    'kaizen_role': kaizen_role_valid,
+                    'kaizen_role': kaizen_role,
+                    'ppsr_role': ppsr_role,
                 },
-                remarks=f"SuperAdmin created user {user.username} (Emp ID: {user.employee_id}) assigned to {mini_factory}.",
+                remarks=f"SuperAdmin created user {user.username} (Emp ID: {user.employee_id}) — Kaizen: {kaizen_role}, PPSR: {ppsr_role}, MF: {mini_factory}.",
                 ip_address=get_client_ip(request),
             )
 
-        # Dispatch temporary credentials email if email is provided
+        # Dispatch credentials email if email is provided
         if email:
             try:
+                # Build module access summary
+                module_access_lines = []
+                if kaizen_role in valid_module_roles:
+                    module_access_lines.append(f"• Kaizen Role: {kaizen_role.capitalize()}")
+                else:
+                    module_access_lines.append("• Kaizen: No Access")
+                if ppsr_role in valid_module_roles:
+                    module_access_lines.append(f"• PPSR Role: {ppsr_role.capitalize()}")
+                else:
+                    module_access_lines.append("• PPSR: No Access")
+                module_summary = "\n".join(module_access_lines)
+
                 subject = "Your KSPG Shopfloor Platform Account Credentials"
                 msg_body = (
                     f"Hello {user.get_full_name() or user.username},\n\n"
@@ -347,10 +381,9 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     f"Account Details:\n"
                     f"• Username: {username}\n"
                     f"• Employee ID: {employee_id}\n"
-                    f"• Temporary Password: {temp_password}\n"
                     f"• Assigned Mini-Factory: {mini_factory}\n"
-                    f"• Kaizen Role: {kaizen_role_valid.capitalize()}\n\n"
-                    f"Please keep your credentials secure.\n\n"
+                    f"\nModule Access:\n{module_summary}\n\n"
+                    f"Please contact your administrator for your login password.\n\n"
                     f"Best regards,\n"
                     f"KSPG Administration Team"
                 )
@@ -368,9 +401,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         serializer = UserProfileSerializer(user)
         return Response({
             'success': True,
-            'message': f'User {user.username} created successfully in database.',
+            'message': f'User {user.username} created successfully.',
             'data': serializer.data,
-            'temporary_password': temp_password,
         }, status=drf_status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
@@ -410,7 +442,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         """
-        Update user profile attributes, mini-factory, phone, or primary role.
+        Update user profile attributes and per-module role assignments.
+        Accepts optional kaizen_role and ppsr_role ('none' revokes access).
         Validates email uniqueness and writes audit log to PostgreSQL.
         """
         user = self.get_object()
@@ -425,6 +458,9 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     status=drf_status.HTTP_400_BAD_REQUEST
                 )
 
+        # Capture old state for audit
+        old_kaizen = user.module_roles.filter(module_code='kaizen').first()
+        old_ppsr = user.module_roles.filter(module_code='ppsr').first()
         old_state = {
             'first_name': user.first_name,
             'last_name': user.last_name,
@@ -435,7 +471,11 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
             'mini_factory': user.mini_factory,
             'role': user.role_name,
             'is_active_employee': user.is_active_employee,
+            'kaizen_role': old_kaizen.role_name if old_kaizen else 'none',
+            'ppsr_role': old_ppsr.role_name if old_ppsr else 'none',
         }
+
+        valid_module_roles = ('initiator', 'committee', 'coordinator', 'admin')
 
         with transaction.atomic():
             if 'first_name' in data: user.first_name = data['first_name'].strip()
@@ -451,8 +491,51 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 # Sync mini_factory on all user module roles
                 user.module_roles.update(mini_factory=new_mf)
 
+            # Handle per-module role updates
+            kaizen_role = data.get('kaizen_role', '').strip().lower() if 'kaizen_role' in data else None
+            ppsr_role = data.get('ppsr_role', '').strip().lower() if 'ppsr_role' in data else None
+
+            if kaizen_role is not None:
+                if kaizen_role == 'none':
+                    # Revoke Kaizen access
+                    UserModuleRole.objects.filter(user=user, module_code='kaizen').delete()
+                elif kaizen_role in valid_module_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='kaizen',
+                        defaults={
+                            'role_name': kaizen_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+                # Also sync primary role FK from kaizen role
+                db_role_map = {
+                    'initiator': 'initiator',
+                    'committee': 'reviewer',
+                    'coordinator': 'kaizen_lead',
+                    'admin': 'admin',
+                }
+                primary_role_name = db_role_map.get(kaizen_role, 'initiator') if kaizen_role != 'none' else 'initiator'
+                role_obj, _ = Role.objects.get_or_create(name=primary_role_name)
+                user.role = role_obj
+
+            if ppsr_role is not None:
+                if ppsr_role == 'none':
+                    # Revoke PPSR access
+                    UserModuleRole.objects.filter(user=user, module_code='ppsr').delete()
+                elif ppsr_role in valid_module_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='ppsr',
+                        defaults={
+                            'role_name': ppsr_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+
+            # Handle legacy 'role' field if passed directly
             role_name = data.get('role')
-            if role_name:
+            if role_name and kaizen_role is None:
                 role_name = role_name.strip()
                 role_obj = Role.objects.filter(name=role_name).first()
                 if not role_obj:
@@ -461,6 +544,9 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
 
             user.save()
 
+            # Refresh module roles for audit
+            new_kaizen = user.module_roles.filter(module_code='kaizen').first()
+            new_ppsr = user.module_roles.filter(module_code='ppsr').first()
             new_state = {
                 'first_name': user.first_name,
                 'last_name': user.last_name,
@@ -471,6 +557,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 'mini_factory': user.mini_factory,
                 'role': user.role_name,
                 'is_active_employee': user.is_active_employee,
+                'kaizen_role': new_kaizen.role_name if new_kaizen else 'none',
+                'ppsr_role': new_ppsr.role_name if new_ppsr else 'none',
             }
 
             create_audit_log(
@@ -486,7 +574,7 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         serializer = UserProfileSerializer(user)
         return Response({
             'success': True,
-            'message': f'User {user.username} updated successfully in database.',
+            'message': f'User {user.username} updated successfully.',
             'data': serializer.data,
         })
 
@@ -612,8 +700,9 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
     def assign_module_role(self, request, pk=None):
         """
         POST /api/v1/auth/superadmin/users/<id>/assign-module-role/
-        Assigns or updates exactly one role and mini-factory scope for a specific module.
+        Assigns, updates, or revokes a role for a specific module.
         Body: { "module_code": "kaizen", "role_name": "coordinator", "mini_factory": "MF2" }
+        Pass role_name='none' to revoke access for that module.
         """
         user = self.get_object()
         module_code = request.data.get('module_code', 'kaizen').strip().lower()
@@ -629,39 +718,49 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 status=drf_status.HTTP_400_BAD_REQUEST
             )
 
-        if role_name not in valid_roles:
+        if role_name not in valid_roles and role_name != 'none':
             return Response(
-                {'success': False, 'error': {'message': f"Invalid role_name '{role_name}'. Must be one of: {valid_roles}"}},
+                {'success': False, 'error': {'message': f"Invalid role_name '{role_name}'. Must be one of: {valid_roles + ['none']}"}},
                 status=drf_status.HTTP_400_BAD_REQUEST
             )
 
         existing_role = UserModuleRole.objects.filter(user=user, module_code=module_code).first()
-        old_role = existing_role.role_name if existing_role else (user.role_name or 'initiator')
+        old_role = existing_role.role_name if existing_role else 'none'
         old_mf = existing_role.mini_factory if existing_role else user.mini_factory
 
         with transaction.atomic():
-            obj, created = UserModuleRole.objects.update_or_create(
-                user=user,
-                module_code=module_code,
-                defaults={
-                    'role_name': role_name,
-                    'mini_factory': mini_factory,
-                    'assigned_by': request.user,
-                }
-            )
+            if role_name == 'none':
+                # Revoke access for this module
+                UserModuleRole.objects.filter(user=user, module_code=module_code).delete()
 
-            # Sync primary user role if changing Kaizen module role
-            if module_code == 'kaizen':
-                db_role_map = {
-                    'initiator': 'initiator',
-                    'committee': 'reviewer',
-                    'coordinator': 'kaizen_lead',
-                    'admin': 'admin',
-                }
-                target_role_name = db_role_map.get(role_name, role_name)
-                role_obj, _ = Role.objects.get_or_create(name=target_role_name)
-                user.role = role_obj
-                user.save(update_fields=['role'])
+                # If revoking kaizen, reset primary role to initiator
+                if module_code == 'kaizen':
+                    role_obj, _ = Role.objects.get_or_create(name='initiator')
+                    user.role = role_obj
+                    user.save(update_fields=['role'])
+            else:
+                obj, created = UserModuleRole.objects.update_or_create(
+                    user=user,
+                    module_code=module_code,
+                    defaults={
+                        'role_name': role_name,
+                        'mini_factory': mini_factory,
+                        'assigned_by': request.user,
+                    }
+                )
+
+                # Sync primary user role if changing Kaizen module role
+                if module_code == 'kaizen':
+                    db_role_map = {
+                        'initiator': 'initiator',
+                        'committee': 'reviewer',
+                        'coordinator': 'kaizen_lead',
+                        'admin': 'admin',
+                    }
+                    target_role_name = db_role_map.get(role_name, role_name)
+                    role_obj, _ = Role.objects.get_or_create(name=target_role_name)
+                    user.role = role_obj
+                    user.save(update_fields=['role'])
 
             create_audit_log(
                 user=request.user,
@@ -675,7 +774,7 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
 
         return Response({
             'success': True,
-            'message': f"Successfully assigned '{role_name}' role for module {module_code.upper()} (Scope: {mini_factory}) to {user.username}.",
+            'message': f"Successfully {'revoked' if role_name == 'none' else 'assigned'} '{role_name}' role for module {module_code.upper()} to {user.username}.",
             'data': UserProfileSerializer(user).data,
         })
 
