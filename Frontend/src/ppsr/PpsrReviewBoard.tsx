@@ -160,16 +160,16 @@ export default function PpsrReviewBoard({
     setStdDate(r.stdDate || '');
     setResponsibility(r.responsibility || r.leadOwner || '');
     setPpsrEndDate(r.ppsrEndDate || '');
-    setProdQtyBefore(r.prodQtyBefore || 1000);
-    setRejectedQtyBefore(r.rejectedQtyBefore || 45);
-    setProdQtyAfter(r.prodQtyAfter || 1000);
-    setRejectedQtyAfter(r.rejectedQtyAfter || 2);
-    setCustDemandQtyMonth(r.custDemandQtyMonth || 5000);
-    setCustDemandQtyAnnum(r.custDemandQtyAnnum || 60000);
-    setPerSetRejectionCost(r.perSetRejectionCost || 240);
+    setProdQtyBefore(r.prodQtyBefore ?? 1000);
+    setRejectedQtyBefore(r.rejectedQtyBefore ?? 45);
+    setProdQtyAfter(r.prodQtyAfter ?? 1000);
+    setRejectedQtyAfter(r.rejectedQtyAfter ?? 2);
+    setCustDemandQtyMonth(r.custDemandQtyMonth ?? 5000);
+    setCustDemandQtyAnnum(r.custDemandQtyAnnum ?? 60000);
+    setPerSetRejectionCost(r.perSetRejectionCost ?? 240);
     setRemarks(r.remarks || '');
     setEffectivityText(r.effectivityText || 'Defects eliminated with zero recurring failures verified over 30 shifts.');
-    setSteeringCommitteeSign(r.completionSignatures?.steeringCommittee || 'Rajesh Patil (Steering Committee)');
+    setSteeringCommitteeSign(r.completionSignatures?.steeringCommittee || r.steeringCommitteeSign || 'Rajesh Patil (Steering Committee)');
     setSuccessMessage(null);
   };
 
@@ -197,6 +197,7 @@ export default function PpsrReviewBoard({
       status: targetStatus,
       committeeDecision,
       committeeDecisionDate: new Date().toISOString().split('T')[0],
+      steeringCommitteeSign,
       jiraNumber,
       week,
       coach,

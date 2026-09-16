@@ -108,13 +108,19 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     }
 
     def get_queryset(self):
-        qs = PpsrReport.objects.all()
+        qs = PpsrReport.objects.prefetch_related(
+            'containment_actions',
+            'corrective_actions',
+            'standardization_items',
+            'read_across_items',
+            'five_whys',
+        ).all()
         if self.request.query_params.get('status') != 'Archived':
             qs = qs.exclude(status='Archived')
         return qs.order_by('-created_at')
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == 'list' and (self.request.query_params.get('brief') == 'true' or self.request.query_params.get('view') == 'table'):
             return PpsrReportListSerializer
         return PpsrReportDetailSerializer
 

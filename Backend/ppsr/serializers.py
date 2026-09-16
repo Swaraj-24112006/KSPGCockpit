@@ -123,6 +123,7 @@ class PpsrReportListSerializer(serializers.ModelSerializer):
             'id',
             'ppsr_no',
             'title',
+            'problem_statement',
             'plant',
             'line_station',
             'lead_owner',
@@ -164,7 +165,7 @@ class PpsrReportListSerializer(serializers.ModelSerializer):
             if causes:
                 summary = ", ".join(causes)
 
-        if not summary:
+        if not rc_summary if 'rc_summary' in locals() else not summary:
             summary = obj.problem_statement or ""
 
         return summary[:200]
@@ -173,10 +174,12 @@ class PpsrReportListSerializer(serializers.ModelSerializer):
         ret = super().to_representation(instance)
         aliases = {
             'ppsrNo': ret.get('ppsr_no'),
+            'problemStatement': ret.get('problem_statement'),
             'leadOwner': ret.get('lead_owner'),
             'lineStation': ret.get('line_station'),
             'discoveredOn': ret.get('discovered_on'),
             'discoveredBy': ret.get('discovered_by'),
+            'committeeDecision': ret.get('committee_decision'),
             'rootCauseAnalysis': ret.get('root_cause_analysis'),
             'costSavePerMonth': ret.get('cost_save_per_month'),
             'costSavePerAnnum': ret.get('cost_save_per_annum'),
@@ -471,9 +474,46 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
             'effectivityText': ret.get('effectivity_text'),
             'costSavePerMonth': ret.get('cost_save_per_month'),
             'costSavePerAnnum': ret.get('cost_save_per_annum'),
+            'committeeDecision': ret.get('committee_decision'),
+            'committeeDecisionDate': ret.get('committee_decision_date'),
+            'steeringCommitteeSign': ret.get('steering_committee_sign'),
+            'custDemandQtyMonth': ret.get('cust_demand_qty_month'),
+            'custDemandQtyAnnum': ret.get('cust_demand_qty_annum'),
+            'qtyMonthBeforeRejPct': ret.get('qty_month_before_rej_pct'),
+            'qtyMonthAfterRejPct': ret.get('qty_month_after_rej_pct'),
+            'qtyMonthSavedRejPct': ret.get('qty_month_saved_rej_pct'),
+            'perSetRejectionCost': ret.get('per_set_rejection_cost'),
             'createdAt': ret.get('created_at'),
             'updatedAt': ret.get('updated_at'),
         }
+
+        # Calculate root cause analysis summary for inspection and presentation
+        rc_summary = ""
+        if hasattr(instance, 'five_whys') and instance.five_whys:
+            whys = []
+            for col in [instance.five_whys.column1, instance.five_whys.column2, instance.five_whys.column3]:
+                if isinstance(col, list) and col:
+                    whys.extend([str(item) for item in col if item])
+            if whys:
+                rc_summary = " -> ".join(whys)
+
+        if not rc_summary and instance.standard_worksheet and isinstance(instance.standard_worksheet, list):
+            causes = [
+                row.get('root_cause', '') or row.get('cause', '')
+                for row in instance.standard_worksheet
+                if isinstance(row, dict)
+            ]
+            causes = [c for c in causes if c]
+            if causes:
+                rc_summary = ", ".join(causes)
+
+        if not rc_summary:
+            rc_summary = instance.problem_statement or ""
+
+        ret['root_cause_analysis'] = rc_summary[:200]
+        aliases['rootCauseAnalysis'] = rc_summary[:200]
+        aliases['root_cause_analysis'] = rc_summary[:200]
+
         for k, v in aliases.items():
             if k not in ret and v is not None:
                 ret[k] = v
