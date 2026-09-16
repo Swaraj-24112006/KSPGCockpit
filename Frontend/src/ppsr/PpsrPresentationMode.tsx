@@ -142,8 +142,14 @@ export default function PpsrPresentationMode({
     { no: 1, action: report.containmentAction, responsible: report.leadOwner || 'TBD', date: report.targetDate || '', status: 'implemented' as const }
   ] : []);
 
-  const ishikawa = report.ishikawa || {
-    man: [], machine: [], material: [], methods: [], milieu: [], measurement: []
+  const rawIshikawa = report.ishikawa || (report as any).fishbone || {};
+  const ishikawa = {
+    man: rawIshikawa.man || [],
+    machine: rawIshikawa.machine || [],
+    material: rawIshikawa.material || [],
+    methods: rawIshikawa.methods || rawIshikawa.method || [],
+    milieu: rawIshikawa.milieu || rawIshikawa.environment || [],
+    measurement: rawIshikawa.measurement || rawIshikawa.measurements || []
   };
 
   const fiveWhys = report.fiveWhysList || {
@@ -160,14 +166,22 @@ export default function PpsrPresentationMode({
   const readAcrossList = report.readAcrossList || [];
 
   const chartData = report.defectTrendData && report.defectTrendData.length > 0
-    ? report.defectTrendData.map(d => ({ name: d.date, value: d.defectsCount }))
-    : (report.effectivenessChartData || [
-      { name: 'Day 1 (Initial)', value: report.pctBefore || 6.2 },
-      { name: 'Day 2 (Manual)', value: 3.5 },
-      { name: 'Day 3 (Fluid Revert)', value: 1.1 },
-      { name: 'Day 4 (PLC Cycle)', value: 0.3 },
-      { name: 'Day 5 (Current)', value: report.pctAfter || 0.1 }
-    ]);
+    ? report.defectTrendData.map(d => ({
+        name: d.date || (d as any).name || (d as any).stage || 'Stage',
+        value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+      }))
+    : ((report.effectivenessChartData && report.effectivenessChartData.length > 0)
+      ? report.effectivenessChartData.map(d => ({
+          name: d.name || (d as any).date || 'Stage',
+          value: Number(d.value ?? (d as any).defectsCount ?? (d as any).defects_count ?? 0)
+        }))
+      : [
+        { name: 'Day 1 (Initial)', value: report.pctBefore || 6.2 },
+        { name: 'Day 2 (Manual)', value: 3.5 },
+        { name: 'Day 3 (Fluid Revert)', value: 1.1 },
+        { name: 'Day 4 (PLC Cycle)', value: 0.3 },
+        { name: 'Day 5 (Current)', value: report.pctAfter || 0.1 }
+      ]);
 
   const totalFeedbackCount = (report.presentationFeedback || []).length;
   const unresolvedFeedbackCount = (report.presentationFeedback || []).filter(f => !f.resolved).length;
@@ -568,7 +582,10 @@ export default function PpsrPresentationMode({
                     {report.initialDefectTrendData && report.initialDefectTrendData.length > 0 ? (
                       <div className="h-44 bg-white p-2 rounded-xl border border-slate-200">
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={report.initialDefectTrendData.map(d => ({ name: d.date, value: d.defectsCount }))}>
+                          <LineChart data={report.initialDefectTrendData.map(d => ({
+                            name: d.date || (d as any).name || (d as any).stage || 'Stage',
+                            value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+                          }))}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                             <XAxis dataKey="name" stroke="#64748b" fontSize={10} />
                             <YAxis stroke="#64748b" fontSize={10} />
@@ -784,8 +801,8 @@ export default function PpsrPresentationMode({
 
                   <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 overflow-x-auto">
                     <PsqEliminationTree
-                      data={report.psqTreeData || DEFAULT_PSQ_TREE_DATA}
-                      standardWorksheet={report.standardWorksheet || []}
+                      data={report.psqTreeData || (report as any).psq_tree_data || DEFAULT_PSQ_TREE_DATA}
+                      standardWorksheet={report.standardWorksheet || (report as any).standard_worksheet || []}
                       isEditable={false}
                     />
                   </div>

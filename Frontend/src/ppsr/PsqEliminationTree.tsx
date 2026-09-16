@@ -383,6 +383,66 @@ interface PsqEliminationTreeProps {
   };
 }
 
+export function normalizePsqSwapData(raw: any): PsqComponentSearchData {
+  if (!raw) return BLANK_PSQ_SWAP_DATA;
+  const s = raw.swapData || raw.swap_data || raw;
+  const s0 = s.stage0 || s.stage_0 || {};
+  const s1 = s.stage1 || s.stage_1 || {};
+  const s2 = s.stage2 || s.stage_2 || {};
+
+  const rawChildParts = s2.childParts || s2.child_parts || [];
+  const childParts: PsqChildPartSwapItem[] = Array.isArray(rawChildParts) ? rawChildParts.map((cp: any, idx: number) => ({
+    id: cp.id || `cp-${idx}`,
+    partName: cp.partName || cp.part_name || '',
+    wowInBobValue: cp.wowInBobValue || cp.wow_in_bob_value || '',
+    wowInBobResult: cp.wowInBobResult || cp.wow_in_bob_result || '',
+    bobInWowValue: cp.bobInWowValue || cp.bob_in_wow_value || '',
+    bobInWowResult: cp.bobInWowResult || cp.bob_in_wow_result || '',
+    isDefective: Boolean(cp.isDefective ?? cp.is_defective),
+    status: cp.status || (cp.isDefective ? 'target' : 'eliminated'),
+    notes: cp.notes || ''
+  })) : [];
+
+  return {
+    productName: s.productName || s.product_name || '',
+    productNumber: s.productNumber || s.product_number || '',
+    customerName: s.customerName || s.customer_name || '',
+    testResultSpecification: s.testResultSpecification || s.test_result_specification || '',
+    activeStage: (Number(s.activeStage ?? s.active_stage ?? 0) || 0) as 0 | 1 | 2,
+    stage0: {
+      bobOriginal: s0.bobOriginal || s0.bob_original || '',
+      wowOriginal: s0.wowOriginal || s0.wow_original || '',
+      bobRepeat1: s0.bobRepeat1 || s0.bob_repeat_1 || '',
+      wowRepeat1: s0.wowRepeat1 || s0.wow_repeat_1 || '',
+      bobRepeat2: s0.bobRepeat2 || s0.bob_repeat_2 || '',
+      wowRepeat2: s0.wowRepeat2 || s0.wow_repeat_2 || '',
+      bobRepeat3: s0.bobRepeat3 || s0.bob_repeat_3 || '',
+      wowRepeat3: s0.wowRepeat3 || s0.wow_repeat_3 || '',
+      measurementGood: Boolean(s0.measurementGood ?? s0.measurement_good),
+      deltaMStatus: s0.deltaMStatus || s0.delta_m_status || 'pending',
+      deltaPStatus: s0.deltaPStatus || s0.delta_p_status || 'pending',
+      notes: s0.notes || ''
+    },
+    stage1: {
+      bobRepeat1: s1.bobRepeat1 || s1.bob_repeat_1 || '',
+      wowRepeat1: s1.wowRepeat1 || s1.wow_repeat_1 || '',
+      bobRepeat2: s1.bobRepeat2 || s1.bob_repeat_2 || '',
+      wowRepeat2: s1.wowRepeat2 || s1.wow_repeat_2 || '',
+      bobRepeat3: s1.bobRepeat3 || s1.bob_repeat_3 || '',
+      wowRepeat3: s1.wowRepeat3 || s1.wow_repeat_3 || '',
+      processGood: Boolean(s1.processGood ?? s1.process_good),
+      assemblyProcessStatus: s1.assemblyProcessStatus || s1.assembly_process_status || 'pending',
+      partsStatus: s1.partsStatus || s1.parts_status || 'pending',
+      notes: s1.notes || ''
+    },
+    stage2: {
+      childParts,
+      contributingPartName: s2.contributingPartName || s2.contributing_part_name || '',
+      notes: s2.notes || ''
+    }
+  };
+}
+
 export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
   data = BLANK_PSQ_TREE_DATA,
   onChange,
@@ -392,7 +452,7 @@ export const PsqEliminationTree: React.FC<PsqEliminationTreeProps> = ({
   compact = false,
   contextInfo
 }) => {
-  const swapData: PsqComponentSearchData = data.swapData || BLANK_PSQ_SWAP_DATA;
+  const swapData: PsqComponentSearchData = normalizePsqSwapData(data.swapData || (data as any).swap_data);
 
   // View modes: 'studio' (Interactive Swap Studio) | 'tree_diagram' (Pure White Tree) | 'split' (Studio + Tree) | 'standard_worksheet' (Spreadsheet)
   const [viewMode, setViewMode] = useState<'studio' | 'tree_diagram' | 'split' | 'standard_worksheet'>('studio');

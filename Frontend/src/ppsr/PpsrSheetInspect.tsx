@@ -24,8 +24,14 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
     { no: 1, action: report.containmentAction, responsible: report.leadOwner || 'TBD', date: report.targetDate || '', status: 'implemented' as const }
   ] : []);
 
-  const ishikawa = report.ishikawa || {
-    man: [], machine: [], material: [], methods: [], milieu: [], measurement: []
+  const rawIshikawa = report.ishikawa || (report as any).fishbone || {};
+  const ishikawa = {
+    man: rawIshikawa.man || [],
+    machine: rawIshikawa.machine || [],
+    material: rawIshikawa.material || [],
+    methods: rawIshikawa.methods || rawIshikawa.method || [],
+    milieu: rawIshikawa.milieu || rawIshikawa.environment || [],
+    measurement: rawIshikawa.measurement || rawIshikawa.measurements || []
   };
 
   const fiveWhys = report.fiveWhysList || {
@@ -41,18 +47,20 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
   const standardizationList = report.standardizationList || [];
   const readAcrossList = report.readAcrossList || [];
 
-  const completion = report.completionSignatures || {
-    projectLeader: report.leadOwner || '',
-    steeringCommittee: 'Steering Committee Member',
-    completedOn: report.targetDate || ''
+  const completion = {
+    projectLeader: report.completionSignatures?.projectLeader || report.leadOwner || '',
+    steeringCommittee: report.completionSignatures?.steeringCommittee || report.steeringCommitteeSign || 'Steering Committee Member',
+    completedOn: report.completionSignatures?.completedOn || report.targetDate || ''
   };
 
-  const chartData = report.effectivenessChartData || [
-    { name: 'Initial', value: 8 },
-    { name: 'Contain', value: 4.5 },
-    { name: 'Fix', value: 1 },
-    { name: 'Current', value: 0.2 }
-  ];
+  const chartData = (report.effectivenessChartData && report.effectivenessChartData.length > 0)
+    ? report.effectivenessChartData
+    : [
+      { name: 'Initial', value: 8 },
+      { name: 'Contain', value: 4.5 },
+      { name: 'Fix', value: 1 },
+      { name: 'Current', value: 0.2 }
+    ];
 
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [activeApproach, setActiveApproach] = useState<'both' | 'fishbone' | 'psq'>(
@@ -228,7 +236,10 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   {report.initialDefectTrendData && report.initialDefectTrendData.length > 0 ? (
                     <div className="h-28 bg-white p-1 rounded border border-slate-200">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={report.initialDefectTrendData.map(d => ({ name: d.date, value: d.defectsCount }))} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                        <LineChart data={report.initialDefectTrendData.map(d => ({
+                          name: d.date || (d as any).name || (d as any).stage || 'Stage',
+                          value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+                        }))} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                           <XAxis dataKey="name" tick={{ fontSize: 7, fill: '#64748b' }} />
                           <YAxis tick={{ fontSize: 7, fill: '#64748b' }} />
@@ -408,8 +419,8 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                     </span>
                   )}
                   <PsqEliminationTree
-                    data={report.psqTreeData || DEFAULT_PSQ_TREE_DATA}
-                    standardWorksheet={report.standardWorksheet || []}
+                    data={report.psqTreeData || (report as any).psq_tree_data || DEFAULT_PSQ_TREE_DATA}
+                    standardWorksheet={report.standardWorksheet || (report as any).standard_worksheet || []}
                     isEditable={false}
                     compact={true}
                   />
@@ -547,7 +558,17 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   </div>
                   <div className="h-44 bg-slate-50 p-2 rounded-xl border border-slate-200">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={report.defectTrendData && report.defectTrendData.length > 0 ? report.defectTrendData.map(d => ({ name: d.date, value: d.defectsCount })) : chartData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+                      <LineChart data={
+                        report.defectTrendData && report.defectTrendData.length > 0
+                          ? report.defectTrendData.map(d => ({
+                              name: d.date || (d as any).name || (d as any).stage || 'Stage',
+                              value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+                            }))
+                          : chartData.map(d => ({
+                              name: d.name || (d as any).date || 'Stage',
+                              value: Number(d.value ?? (d as any).defectsCount ?? (d as any).defects_count ?? 0)
+                            }))
+                      } margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                         <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#475569', fontWeight: 600 }} />
                         <YAxis tick={{ fontSize: 8, fill: '#475569', fontWeight: 600 }} />

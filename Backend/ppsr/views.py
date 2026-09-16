@@ -114,6 +114,7 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
             'standardization_items',
             'read_across_items',
             'five_whys',
+            'committee_feedback',
         ).all()
         if self.request.query_params.get('status') != 'Archived':
             qs = qs.exclude(status='Archived')

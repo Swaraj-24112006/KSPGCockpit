@@ -30,17 +30,37 @@ export default function IshikawaFishbone({ ishikawa, problemTitle }: IshikawaFis
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Default arrays with clean structures
-  const data = ishikawa || {
-    man: [], machine: [], material: [], methods: [], milieu: [], measurement: []
+  // Default arrays with clean structures and safe parsing
+  let parsedIshikawa: any = ishikawa;
+  if (typeof ishikawa === 'string') {
+    try {
+      parsedIshikawa = JSON.parse(ishikawa);
+    } catch {
+      parsedIshikawa = {};
+    }
+  }
+
+  const data = parsedIshikawa || {};
+
+  const cleanList = (raw: any): string[] => {
+    if (!raw) return [];
+    if (!Array.isArray(raw)) {
+      if (typeof raw === 'string') return raw.split(',').map(s => s.trim()).filter(Boolean);
+      return [];
+    }
+    return raw.map(item => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') return (item.text || item.name || item.cause || JSON.stringify(item)).trim();
+      return String(item).trim();
+    }).filter(Boolean);
   };
 
-  const manList = data.man || [];
-  const machineList = data.machine || [];
-  const materialList = data.material || [];
-  const methodsList = data.methods || [];
-  const milieuList = data.milieu || [];
-  const measurementList = data.measurement || [];
+  const manList = cleanList(data.man);
+  const machineList = cleanList(data.machine);
+  const materialList = cleanList(data.material);
+  const methodsList = cleanList(data.methods || data.method);
+  const milieuList = cleanList(data.milieu || data.environment || data.mother_nature);
+  const measurementList = cleanList(data.measurement || data.measurements);
 
   // Categorized structural definitions
   const categories = [

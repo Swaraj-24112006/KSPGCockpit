@@ -277,6 +277,7 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 'committeeDecision': 'committee_decision',
                 'committeeDecisionDate': 'committee_decision_date',
                 'steeringCommitteeSign': 'steering_committee_sign',
+                'fishbone': 'ishikawa',
             }
             for camel, snake in mapping.items():
                 if camel in normalized and snake not in normalized:
@@ -514,9 +515,73 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
         aliases['rootCauseAnalysis'] = rc_summary[:200]
         aliases['root_cause_analysis'] = rc_summary[:200]
 
+        # Map presentation feedback if exists
+        feedback_list = []
+        if hasattr(instance, 'committee_feedback'):
+            for fb in instance.committee_feedback.all():
+                feedback_list.append({
+                    'id': str(fb.id),
+                    'stepNumber': fb.step_number,
+                    'stepTitle': fb.step_title,
+                    'reviewerName': fb.reviewer_name,
+                    'feedbackType': fb.feedback_type,
+                    'comment': fb.comment,
+                    'resolved': fb.resolved,
+                    'createdAt': fb.created_at.strftime('%Y-%m-%d %H:%M') if fb.created_at else ''
+                })
+        ret['presentation_feedback'] = feedback_list
+        aliases['presentationFeedback'] = feedback_list
+        aliases['presentation_feedback'] = feedback_list
+
         for k, v in aliases.items():
             if k not in ret and v is not None:
                 ret[k] = v
+
+        # Dual-key ishikawa and fishbone with 6M category variants
+        ish = ret.get('ishikawa') or ret.get('fishbone')
+        if isinstance(ish, dict):
+            dual_ish = dict(ish)
+            if 'methods' in dual_ish and 'method' not in dual_ish:
+                dual_ish['method'] = dual_ish['methods']
+            elif 'method' in dual_ish and 'methods' not in dual_ish:
+                dual_ish['methods'] = dual_ish['method']
+            if 'milieu' in dual_ish and 'environment' not in dual_ish:
+                dual_ish['environment'] = dual_ish['milieu']
+            elif 'environment' in dual_ish and 'milieu' not in dual_ish:
+                dual_ish['milieu'] = dual_ish['environment']
+            if 'measurement' in dual_ish and 'measurements' not in dual_ish:
+                dual_ish['measurements'] = dual_ish['measurement']
+            elif 'measurements' in dual_ish and 'measurement' not in dual_ish:
+                dual_ish['measurement'] = dual_ish['measurements']
+            ret['ishikawa'] = dual_ish
+            ret['fishbone'] = dual_ish
+
+        # Dual-key psq_tree_data and psqTreeData with camelCase and snake_case swap data
+        psq = ret.get('psq_tree_data') or ret.get('psqTreeData')
+        if isinstance(psq, dict):
+            dual_psq = dict(psq)
+            swap = dual_psq.get('swapData') or dual_psq.get('swap_data')
+            if isinstance(swap, dict):
+                dual_swap = dict(swap)
+                for s_key in ['stage0', 'stage1', 'stage2']:
+                    snake_s = f'stage_{s_key[-1]}'
+                    s_val = dual_swap.get(s_key) or dual_swap.get(snake_s)
+                    if isinstance(s_val, dict):
+                        dual_s = dict(s_val)
+                        if 'bobOriginal' in dual_s and 'bob_original' not in dual_s:
+                            dual_s['bob_original'] = dual_s['bobOriginal']
+                        elif 'bob_original' in dual_s and 'bobOriginal' not in dual_s:
+                            dual_s['bobOriginal'] = dual_s['bob_original']
+                        if 'wowOriginal' in dual_s and 'wow_original' not in dual_s:
+                            dual_s['wow_original'] = dual_s['wowOriginal']
+                        elif 'wow_original' in dual_s and 'wowOriginal' not in dual_s:
+                            dual_s['wowOriginal'] = dual_s['wow_original']
+                        dual_swap[s_key] = dual_s
+                        dual_swap[snake_s] = dual_s
+                dual_psq['swapData'] = dual_swap
+                dual_psq['swap_data'] = dual_swap
+            ret['psq_tree_data'] = dual_psq
+            ret['psqTreeData'] = dual_psq
 
         if 'facts_analysis' in ret and isinstance(ret['facts_analysis'], dict):
             fa = dict(ret['facts_analysis'])
@@ -553,22 +618,31 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
             ret['completion_signatures'] = cs
             ret['completionSignatures'] = cs
 
-        for trend_field in ['initial_defect_trend_data', 'defect_trend_data']:
+        for trend_field in ['initial_defect_trend_data', 'defect_trend_data', 'effectiveness_chart_data']:
             if trend_field in ret and isinstance(ret[trend_field], list):
                 dual_items = []
                 for it in ret[trend_field]:
                     if isinstance(it, dict):
                         d_item = dict(it)
-                        val = d_item.get('defectsCount') if d_item.get('defectsCount') is not None else d_item.get('defects_count')
+                        val = d_item.get('defectsCount') if d_item.get('defectsCount') is not None else (d_item.get('defects_count') if d_item.get('defects_count') is not None else d_item.get('value'))
                         if val is not None:
                             d_item['defectsCount'] = val
                             d_item['defects_count'] = val
+                            d_item['value'] = val
+                        dt = d_item.get('date') or d_item.get('name')
+                        if dt:
+                            d_item['date'] = dt
+                            d_item['name'] = dt
                         dual_items.append(d_item)
                     else:
                         dual_items.append(it)
                 ret[trend_field] = dual_items
-                camel_field = 'initialDefectTrendData' if 'initial' in trend_field else 'defectTrendData'
-                ret[camel_field] = dual_items
+                if trend_field == 'initial_defect_trend_data':
+                    ret['initialDefectTrendData'] = dual_items
+                elif trend_field == 'defect_trend_data':
+                    ret['defectTrendData'] = dual_items
+                elif trend_field == 'effectiveness_chart_data':
+                    ret['effectivenessChartData'] = dual_items
 
         return ret
 
@@ -644,6 +718,29 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
         if five_whys_data is not None:
             five_whys_data.pop('report', None)
             FiveWhysChain.objects.update_or_create(report=instance, defaults=five_whys_data)
+
+        # Handle presentation feedback updates
+        fb_data = self.initial_data.get('presentationFeedback') or self.initial_data.get('presentation_feedback')
+        if fb_data and isinstance(fb_data, list):
+            for item in fb_data:
+                if isinstance(item, dict) and item.get('comment'):
+                    fb_obj = instance.committee_feedback.filter(
+                        step_number=item.get('stepNumber') or item.get('step_number', 1),
+                        comment=item.get('comment')
+                    ).first()
+                    if fb_obj:
+                        fb_obj.resolved = item.get('resolved', False)
+                        fb_obj.save(update_fields=['resolved'])
+                    else:
+                        CommitteeFeedback.objects.create(
+                            report=instance,
+                            step_number=item.get('stepNumber') or item.get('step_number', 1),
+                            step_title=item.get('stepTitle') or item.get('step_title', ''),
+                            reviewer_name=item.get('reviewerName') or item.get('reviewer_name', 'Committee Member'),
+                            feedback_type=item.get('feedbackType') or item.get('feedback_type', 'general'),
+                            comment=item.get('comment'),
+                            resolved=item.get('resolved', False),
+                        )
 
         return instance
 
