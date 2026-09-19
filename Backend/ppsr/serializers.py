@@ -165,7 +165,7 @@ class PpsrReportListSerializer(serializers.ModelSerializer):
             if causes:
                 summary = ", ".join(causes)
 
-        if not rc_summary if 'rc_summary' in locals() else not summary:
+        if not summary:
             summary = obj.problem_statement or ""
 
         return summary[:200]

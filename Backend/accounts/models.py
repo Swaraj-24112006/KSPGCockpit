@@ -138,12 +138,17 @@ class CustomUser(AbstractUser):
     def is_admin_role(self) -> bool:
         return self.role_category in ('admin', 'superadmin')
 
+    def get_module_role(self, module_code: str) -> str | None:
+        """Get the user's assigned role for a specific module."""
+        from core.rbac import get_user_module_role
+        return get_user_module_role(self, module_code)
+
     def has_kaizen_permission(self, permission: str) -> bool:
         """Check if user has a specific Kaizen permission via their role."""
         if self.is_superadmin:
             return True
         from core.rbac import get_role_category, ROLE_ADMIN, ROLE_PERMISSIONS
-        category = get_role_category(self)
+        category = get_role_category(self, module_code='kaizen')
         if category == ROLE_ADMIN:
             return True
         return ROLE_PERMISSIONS.get(category, {}).get(permission, False)
@@ -160,6 +165,7 @@ class UserModuleRole(models.Model):
         ('fives', '5S Workplace Organization'),
         ('ppsr', 'PPSR Problem Solving'),
         ('safety_desk', 'Safety Desk & Red Flags'),
+        ('tpm', 'TPM Total Productive Maintenance'),
     ]
     ROLE_CHOICES = [
         ('initiator', 'Initiator / Operator'),

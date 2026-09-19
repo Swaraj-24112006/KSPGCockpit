@@ -13,7 +13,7 @@ import CftAwardsModule from './cft/CftAwardsModule';
 import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction } from './types';
 import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
-import { RoleCategory, KaizenSubTab, canAccessTab, getRoleBadge } from './shared/utils/rbac';
+import { RoleCategory, KaizenSubTab, canAccessTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
 import { downloadElementAsPdf } from './shared/utils/pdfExporter';
 
 interface AppProps {
@@ -38,14 +38,19 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   // Kaizen internal tab state
   const [activeTab, setActiveTab] = useState<KaizenSubTab>('dashboard');
 
-  const userRole: RoleCategory = loggedInUser?.role_category || 'initiator';
+  // Dynamic module-specific role resolution
+  const kaizenRole: RoleCategory = getUserModuleRole(loggedInUser, 'kaizen');
+  const ppsrRole: RoleCategory = getUserModuleRole(loggedInUser, 'ppsr');
+  const currentModule = activeModule === 'global-dashboard' ? 'kaizen' : activeModule;
+  const activeModuleRole: RoleCategory = getUserModuleRole(loggedInUser, currentModule);
+  const userRole: RoleCategory = activeModuleRole;
 
-  // Auto-guard activeTab on userRole change or initial load
+  // Auto-guard activeTab on kaizenRole change or initial load
   useEffect(() => {
-    if (activeModule === 'kaizen' && !canAccessTab(userRole, 'kaizen', activeTab)) {
+    if (activeModule === 'kaizen' && !canAccessTab(kaizenRole, 'kaizen', activeTab)) {
       setActiveTab('dashboard');
     }
-  }, [userRole, activeModule, activeTab]);
+  }, [kaizenRole, activeModule, activeTab]);
 
   // Mobile drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -974,7 +979,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${getRoleBadge(userRole).colorClass}`}>
                 <span>{getRoleBadge(userRole).icon}</span>
-                <span>{getRoleBadge(userRole).label}</span>
+                <span>{getRoleBadge(userRole, currentModule === 'kaizen' ? 'Kaizen' : currentModule === 'ppsr' ? 'PPSR' : currentModule === 'tpm' ? 'TPM' : undefined).label}</span>
               </span>
             </div>
           </div>
@@ -1074,7 +1079,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 setEditingDraft={setEditingDraft}
                 ppsrReports={ppsrReports}
                 impactActions={impactActions}
-                userRole={userRole}
+                userRole={kaizenRole}
                 onAddKaizen={handleAddKaizen}
                 onSaveDraft={handleSaveDraft}
                 onSubmitKaizen={handleSubmitKaizen}
@@ -1127,7 +1132,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
               <PpsrModule
                 reports={ppsrReports}
                 kaizens={kaizens}
-                userRole={userRole}
+                userRole={ppsrRole}
                 onAddReport={handleAddPpsrReport}
                 onUpdateReport={handleUpdatePpsrReport}
                 onUpdateKaizen={handleUpdateKaizen}
@@ -1144,7 +1149,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
               <CftAwardsModule
                 kaizens={kaizens}
                 ppsrReports={ppsrReports}
-                userRole={userRole}
+                userRole={kaizenRole}
                 onUpdateKaizen={handleUpdateKaizen}
                 onUpdatePpsrReport={handleUpdatePpsrReport}
                 onNavigateHome={() => setActiveModule('global-dashboard')}

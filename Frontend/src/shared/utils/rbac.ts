@@ -106,50 +106,91 @@ export function canAccessTab(
   return true;
 }
 
+import type { AuthUser } from './auth';
+
+/**
+ * Resolve the user's role specifically for a target module.
+ * - If user is superadmin -> 'superadmin'.
+ * - If user has an assigned role for moduleCode in user.module_roles -> returns that role.
+ * - Otherwise falls back to user.role_category (if assigned) or least-privilege 'initiator'.
+ */
+export function getUserModuleRole(
+  user: AuthUser | null | undefined,
+  moduleCode: string
+): RoleCategory {
+  if (!user) return 'initiator';
+  if (user.is_superadmin || user.role_category === 'superadmin') {
+    return 'superadmin';
+  }
+
+  // Normalise module code (e.g. 'cft-awards' maps to 'kaizen')
+  const targetCode = moduleCode === 'cft-awards' ? 'kaizen' : moduleCode;
+
+  const found = user.module_roles?.find((r) => r.module_code === targetCode);
+  if (found && found.role_name) {
+    return found.role_name as RoleCategory;
+  }
+
+  // Fallback to least privilege
+  return 'initiator';
+}
+
 /**
  * Human readable label for role category
  */
-export function getRoleBadge(role: RoleCategory = 'initiator'): {
+export function getRoleBadge(
+  role: RoleCategory = 'initiator',
+  moduleName?: string
+): {
   label: string;
   icon: string;
   colorClass: string;
   description: string;
 } {
+  const prefix = moduleName ? `${moduleName} ` : '';
   switch (role) {
     case 'initiator':
       return {
-        label: 'Kaizen Initiator',
+        label: moduleName ? `${prefix}Initiator` : 'Kaizen Initiator',
         icon: '👷',
         colorClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30',
-        description: 'Can log kaizens & view dashboards, flowchart and monthly awards',
+        description: 'Can log ideas & view dashboards and flowcharts',
       };
     case 'committee':
       return {
-        label: 'Committee Reviewer',
+        label: moduleName ? `${prefix}Committee` : 'Committee Reviewer',
         icon: '👥',
         colorClass: 'bg-indigo-950/80 text-indigo-300 border-indigo-500/30',
-        description: 'Can review kaizens, track impact & manage spreadsheet register',
+        description: 'Can review items, track impact & manage register',
       };
     case 'coordinator':
       return {
-        label: 'Kaizen Coordinator',
+        label: moduleName ? `${prefix}Coordinator` : 'Kaizen Coordinator',
         icon: '⚙️',
         colorClass: 'bg-amber-950/80 text-amber-300 border-amber-500/30',
-        description: 'Kaizen Administrator with full system control',
+        description: 'Module Coordinator with full administrative control',
       };
     case 'admin':
       return {
-        label: 'System Admin',
-        icon: '👑',
+        label: moduleName ? `${prefix}Admin` : 'System Admin',
+        icon: '🛡️',
         colorClass: 'bg-purple-950/80 text-purple-300 border-purple-500/30',
         description: 'Full master access across all modules and settings',
       };
+    case 'superadmin':
+      return {
+        label: 'Super Administrator',
+        icon: '👑',
+        colorClass: 'bg-purple-950/80 text-purple-300 border-purple-500/30',
+        description: 'Global master access across all modules and settings',
+      };
     default:
       return {
-        label: 'Kaizen Initiator',
+        label: moduleName ? `${prefix}Initiator` : 'Kaizen Initiator',
         icon: '👷',
         colorClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30',
         description: 'Standard access',
       };
   }
 }
+

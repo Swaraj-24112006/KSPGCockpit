@@ -44,28 +44,125 @@ DB_ROLE_TO_CATEGORY = {
 }
 
 
-def get_role_category(user) -> str:
+def get_user_module_role(user, module_code: str) -> str | None:
     """
-    Return the RBAC category for a user.
+    Get the assigned role for a user in a specific module.
+    Returns: 'initiator' | 'committee' | 'coordinator' | 'admin' | 'superadmin' | None
+    SuperAdmin always returns 'superadmin'.
+    If the user has no UserModuleRole record for the given module, returns None.
+    """
+    if not user or not user.is_authenticated:
+        return None
+    if getattr(user, 'is_superadmin', False) or getattr(user, 'is_superuser', False):
+        return ROLE_SUPERADMIN
+
+    # Check prefetched cache if available
+    if hasattr(user, '_prefetched_objects_cache') and 'module_roles' in user._prefetched_objects_cache:
+        mr = next((r for r in user.module_roles.all() if r.module_code == module_code), None)
+    else:
+        mr = user.module_roles.filter(module_code=module_code).first()
+
+    if mr:
+        return mr.role_name
+    return None
+
+
+def get_role_category(user, module_code: str | None = None) -> str:
+    """
+    Return the RBAC category for a user, optionally scoped to a module.
     Strictly: user is SuperAdmin only if is_superuser=True or role.name == 'superadmin'.
     (is_staff does NOT grant SuperAdmin).
+    If module_code is provided, checks the user's role in that specific module first.
     Falls back to 'initiator' (least privilege) if no role is assigned.
     """
     if not user or not user.is_authenticated:
         return ROLE_INITIATOR
-    if user.is_superuser:
+    if getattr(user, 'is_superuser', False) or getattr(user, 'is_superadmin', False):
         return ROLE_SUPERADMIN
     if user.role and user.role.name == 'superadmin':
         return ROLE_SUPERADMIN
+
+    if module_code:
+        mod_role = get_user_module_role(user, module_code)
+        if mod_role:
+            return mod_role
+
     db_role_name = user.role.name if user.role else 'initiator'
     return DB_ROLE_TO_CATEGORY.get(db_role_name, ROLE_INITIATOR)
 
 
-# ─── Permission class factory ─────────────────────────────────────────────────
+# ─── Module-specific Permission Class Factory ────────────────────────────────
+
+def require_module_role(module_code: str, *allowed_roles: str):
+    """
+    DRF permission class factory for per-module RBAC.
+
+    Usage:
+        class TpmViewSet(viewsets.ModelViewSet):
+            permission_classes = [IsAuthenticated, require_module_role('tpm', 'coordinator', 'admin')]
+
+    Enforcement rules:
+    1. Rejects unauthenticated requests (HTTP 401/403).
+    2. SuperAdmin (is_superadmin or is_superuser) bypasses all module checks globally.
+    3. If the user has no entry in UserModuleRole for `module_code`, DRF immediately rejects
+       the request with HTTP 403 Forbidden.
+    4. If an entry exists, verifies that user's assigned role is in `allowed_roles`. If not,
+       rejects with HTTP 403 Forbidden.
+    """
+    allowed_set = frozenset(allowed_roles)
+
+    class _ModuleRolePermission(BasePermission):
+        message = (
+            f"Access denied. This action requires one of the following roles in '{module_code}': "
+            f"{', '.join(allowed_roles)}."
+        )
+
+        def has_permission(self, request, view) -> bool:
+            if not request.user or not request.user.is_authenticated:
+                return False
+
+            # SuperAdmin has global override access across all modules
+            if getattr(request.user, 'is_superadmin', False) or getattr(request.user, 'is_superuser', False):
+                return True
+
+            module_role = get_user_module_role(request.user, module_code)
+            if not module_role:
+                self.message = f"Access denied. You do not have an assigned role for the '{module_code}' module."
+                logger.warning(
+                    "RBAC module denied: user=%s has no role assigned for module=%s (attempted %s %s)",
+                    request.user.username,
+                    module_code,
+                    request.method,
+                    request.path,
+                )
+                return False
+
+            allowed = module_role in allowed_set
+            if not allowed:
+                self.message = (
+                    f"Access denied. This action requires one of the following roles in '{module_code}': "
+                    f"{', '.join(allowed_roles)}. Your current role in this module is '{module_role}'."
+                )
+                logger.warning(
+                    "RBAC module denied: user=%s role=%s in module=%s (required=%s) on %s %s",
+                    request.user.username,
+                    module_role,
+                    module_code,
+                    allowed_roles,
+                    request.method,
+                    request.path,
+                )
+            return allowed
+
+    _ModuleRolePermission.__name__ = f"RequireModuleRole({module_code}:{'|'.join(sorted(allowed_roles))})"
+    return _ModuleRolePermission
+
+
+# ─── Permission class factory (Global / Legacy) ───────────────────────────────
 
 def require_role(*allowed_roles: str):
     """
-    DRF permission class factory.
+    DRF permission class factory for global/legacy role checks.
 
     Usage:
         class MyView(APIView):
@@ -160,8 +257,8 @@ class IsOwnerOrCommitteeOrAbove(BasePermission):
     def has_object_permission(self, request, view, obj) -> bool:
         if not request.user or not request.user.is_authenticated:
             return True
-        category = get_role_category(request.user)
-        if category in (ROLE_COMMITTEE, ROLE_COORDINATOR, ROLE_ADMIN):
+        category = get_role_category(request.user, module_code='kaizen')
+        if category in (ROLE_COMMITTEE, ROLE_COORDINATOR, ROLE_ADMIN, ROLE_SUPERADMIN):
             return True
         # Initiators can only edit their own draft or rework records
         return obj.created_by == request.user and getattr(obj, 'is_editable', True)
