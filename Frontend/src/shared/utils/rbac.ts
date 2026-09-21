@@ -34,6 +34,12 @@ export type KaizenSubTab =
   | 'impact-tracker' 
   | 'process-flowchart';
 
+export type PpsrSubTab = 
+  | 'initiate' 
+  | 'meeting' 
+  | 'cft-awards' 
+  | 'register';
+
 /**
  * Access mapping for Kaizen subtabs per role category
  */
@@ -64,6 +70,20 @@ export const KAIZEN_TAB_PERMISSIONS: Record<KaizenSubTab, RoleCategory[]> = {
 };
 
 /**
+ * Access mapping for PPSR subtabs per role category
+ * Rules:
+ * - Initiator: Can only see and access filling form ('initiate')
+ * - Committee: Can only see and access committee review ('meeting')
+ * - Coordinator / Admin / Superadmin: Full access to all tabs
+ */
+export const PPSR_TAB_PERMISSIONS: Record<PpsrSubTab, RoleCategory[]> = {
+  'initiate': ['initiator', 'coordinator', 'admin', 'superadmin'],
+  'meeting': ['committee', 'coordinator', 'admin', 'superadmin'],
+  'cft-awards': ['coordinator', 'admin', 'superadmin'],
+  'register': ['coordinator', 'admin', 'superadmin'],
+};
+
+/**
  * Access mapping for top-level modules
  */
 export const MODULE_PERMISSIONS: Record<AppModule, RoleCategory[]> = {
@@ -78,12 +98,26 @@ export const MODULE_PERMISSIONS: Record<AppModule, RoleCategory[]> = {
 };
 
 /**
+ * Check if a role can access a specific PPSR sub-tab
+ */
+export function canAccessPpsrTab(
+  role: RoleCategory = 'initiator',
+  tab: PpsrSubTab
+): boolean {
+  if (role === 'admin' || role === 'coordinator' || role === 'superadmin') {
+    return true;
+  }
+  const tabRoles = PPSR_TAB_PERMISSIONS[tab];
+  return tabRoles ? tabRoles.includes(role) : false;
+}
+
+/**
  * Check if a role can access a specific module and optional subtab
  */
 export function canAccessTab(
   role: RoleCategory = 'initiator',
   module: AppModule | string,
-  tab?: KaizenSubTab | string
+  tab?: KaizenSubTab | PpsrSubTab | string
 ): boolean {
   if (role === 'admin' || role === 'coordinator' || role === 'superadmin') {
     return true;
@@ -98,6 +132,14 @@ export function canAccessTab(
   // Check Kaizen sub-tab access
   if (module === 'kaizen' && tab) {
     const tabRoles = KAIZEN_TAB_PERMISSIONS[tab as KaizenSubTab];
+    if (tabRoles && !tabRoles.includes(role)) {
+      return false;
+    }
+  }
+
+  // Check PPSR sub-tab access
+  if (module === 'ppsr' && tab) {
+    const tabRoles = PPSR_TAB_PERMISSIONS[tab as PpsrSubTab];
     if (tabRoles && !tabRoles.includes(role)) {
       return false;
     }
@@ -119,16 +161,29 @@ export function getUserModuleRole(
   moduleCode: string
 ): RoleCategory {
   if (!user) return 'initiator';
-  if (user.is_superadmin || user.role_category === 'superadmin') {
+  if (
+    user.is_superadmin ||
+    user.role_category === 'superadmin' ||
+    (user as any).isSuperadmin ||
+    (user as any).roleCategory === 'superadmin'
+  ) {
     return 'superadmin';
   }
 
   // Normalise module code (e.g. 'cft-awards' maps to 'kaizen')
   const targetCode = moduleCode === 'cft-awards' ? 'kaizen' : moduleCode;
 
-  const found = user.module_roles?.find((r) => r.module_code === targetCode);
-  if (found && found.role_name) {
-    return found.role_name as RoleCategory;
+  const rolesList: any[] = user.module_roles || (user as any).moduleRoles || [];
+  if (Array.isArray(rolesList)) {
+    const found = rolesList.find(
+      (r: any) => (r.module_code === targetCode || r.moduleCode === targetCode)
+    );
+    if (found) {
+      const rName = found.role_name || found.roleName;
+      if (rName) {
+        return rName as RoleCategory;
+      }
+    }
   }
 
   // Fallback to least privilege

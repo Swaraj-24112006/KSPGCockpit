@@ -6,6 +6,8 @@ import { PsqEliminationTree, BLANK_PSQ_TREE_DATA, DEFAULT_PSQ_TREE_DATA } from '
 import PpsrPresentationMode from './PpsrPresentationMode';
 import PpsrMonthlyAwards from './PPSRMonthlyAwards';
 import PpsrReviewBoard from './PpsrReviewBoard';
+import type { RoleCategory, PpsrSubTab } from '../shared/utils/rbac';
+import { canAccessPpsrTab } from '../shared/utils/rbac';
 import {
   Compass,
   Plus,
@@ -61,9 +63,8 @@ interface PpsrSystemProps {
   onInspectReport?: (report: PpsrReport) => void;
   meetings?: PpsrMeetingLog[];
   onAddMeeting?: (data: Partial<PpsrMeetingLog>) => void;
+  userRole?: RoleCategory;
 }
-
-type PpsrSubTab = 'initiate' | 'meeting' | 'cft-awards' | 'register';
 
 export default function PpsrSystem({
   reports,
@@ -77,16 +78,31 @@ export default function PpsrSystem({
   onClearInitialAction,
   onInspectReport,
   meetings,
-  onAddMeeting
+  onAddMeeting,
+  userRole = 'initiator'
 }: PpsrSystemProps) {
 
-  const [internalTab, setInternalTab] = useState<PpsrSubTab>('initiate');
+  const resolvedRole: RoleCategory = userRole || 'initiator';
+  const defaultTab: PpsrSubTab = resolvedRole === 'committee' ? 'meeting' : 'initiate';
+
+  const [internalTab, setInternalTab] = useState<PpsrSubTab>(defaultTab);
   const currentTab = activePpsrTab || internalTab;
 
   const handleSetTab = (tab: PpsrSubTab) => {
+    if (!canAccessPpsrTab(resolvedRole, tab)) {
+      return;
+    }
     setInternalTab(tab);
     if (setActivePpsrTab) setActivePpsrTab(tab);
   };
+
+  // Guard currentTab against unauthorized access whenever role or tab changes
+  useEffect(() => {
+    if (!canAccessPpsrTab(resolvedRole, currentTab)) {
+      const fallbackTab: PpsrSubTab = resolvedRole === 'committee' ? 'meeting' : 'initiate';
+      handleSetTab(fallbackTab);
+    }
+  }, [resolvedRole, currentTab]);
 
   const [selectedReport, setSelectedReport] = useState<PpsrReport | null>(null);
   const [presentingReport, setPresentingReport] = useState<PpsrReport | null>(null);
@@ -96,22 +112,19 @@ export default function PpsrSystem({
     if (!initialAction) return;
 
     if (initialAction === 'initiate-ppsr' || initialAction === 'initiate') {
-      handleSetTab('initiate');
+      if (canAccessPpsrTab(resolvedRole, 'initiate')) handleSetTab('initiate');
       if (onClearInitialAction) onClearInitialAction();
     } else if (initialAction === 'meeting' || initialAction === 'committee') {
-      handleSetTab('meeting');
+      if (canAccessPpsrTab(resolvedRole, 'meeting')) handleSetTab('meeting');
       if (onClearInitialAction) onClearInitialAction();
-    } else if (initialAction === 'register') {
-      handleSetTab('register');
-      if (onClearInitialAction) onClearInitialAction();
-    } else if (initialAction === 'board') {
-      handleSetTab('register');
+    } else if (initialAction === 'register' || initialAction === 'board') {
+      if (canAccessPpsrTab(resolvedRole, 'register')) handleSetTab('register');
       if (onClearInitialAction) onClearInitialAction();
     } else if (initialAction === 'cft-awards') {
-      handleSetTab('cft-awards');
+      if (canAccessPpsrTab(resolvedRole, 'cft-awards')) handleSetTab('cft-awards');
       if (onClearInitialAction) onClearInitialAction();
     }
-  }, [initialAction]);
+  }, [initialAction, resolvedRole]);
 
   // Set default selected report if none selected
   useEffect(() => {
@@ -585,7 +598,11 @@ export default function PpsrSystem({
     setLeadOwner('');
     setFormStep(1);
 
-    handleSetTab('register');
+    if (canAccessPpsrTab(resolvedRole, 'register')) {
+      handleSetTab('register');
+    } else {
+      handleSetTab('initiate');
+    }
   };
 
   return (
@@ -594,67 +611,75 @@ export default function PpsrSystem({
       {/* PPSR Workflow Sub-Tabs Navigation */}
       <div className="bg-white border border-slate-200/80 rounded-xl p-1 shadow-2xs flex items-center justify-between gap-1 overflow-x-auto select-none">
         <div className="flex items-center gap-1 min-w-max">
-          {/* 1. Initiate PPSR */}
-          <button
-            id="tab-ppsr-initiate"
-            onClick={() => handleSetTab('initiate')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'initiate'
-                ? 'bg-violet-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-          >
-            <PlusCircle className="w-3.5 h-3.5 shrink-0 text-violet-300" />
-            <span>1. Initiate PPSR</span>
-          </button>
+          {/* 1. Initiate PPSR — Initiator, Coordinator, Admin */}
+          {canAccessPpsrTab(resolvedRole, 'initiate') && (
+            <button
+              id="tab-ppsr-initiate"
+              onClick={() => handleSetTab('initiate')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'initiate'
+                  ? 'bg-violet-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+            >
+              <PlusCircle className="w-3.5 h-3.5 shrink-0 text-violet-300" />
+              <span>1. Initiate PPSR</span>
+            </button>
+          )}
 
-          {/* 2. Committee Review */}
-          <button
-            id="tab-ppsr-meeting"
-            onClick={() => handleSetTab('meeting')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'meeting'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-          >
-            <Users className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
-            <span>2. Committee Review</span>
-            {meetings && meetings.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'meeting' ? 'bg-emerald-800 text-emerald-100' : 'bg-slate-200 text-slate-700'
+          {/* 2. Committee Review — Committee, Coordinator, Admin */}
+          {canAccessPpsrTab(resolvedRole, 'meeting') && (
+            <button
+              id="tab-ppsr-meeting"
+              onClick={() => handleSetTab('meeting')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'meeting'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+            >
+              <Users className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
+              <span>2. Committee Review</span>
+              {meetings && meetings.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'meeting' ? 'bg-emerald-800 text-emerald-100' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                  {meetings.length}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* 3. Monthly Awards — Coordinator & Admin only */}
+          {canAccessPpsrTab(resolvedRole, 'cft-awards') && (
+            <button
+              id="tab-ppsr-awards"
+              onClick={() => handleSetTab('cft-awards')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'cft-awards'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+            >
+              <Trophy className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+              <span>3. Monthly Awards</span>
+            </button>
+          )}
+
+          {/* 4. PPSR Register — Coordinator & Admin only */}
+          {canAccessPpsrTab(resolvedRole, 'register') && (
+            <button
+              id="tab-ppsr-register"
+              onClick={() => handleSetTab('register')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'register'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 shrink-0 text-blue-300" />
+              <span>4. PPSR Register</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'register' ? 'bg-blue-800 text-blue-100' : 'bg-slate-200 text-slate-700'
                 }`}>
-                {meetings.length}
+                {reports.length}
               </span>
-            )}
-          </button>
-
-          {/* 3. Monthly Awards */}
-          <button
-            id="tab-ppsr-awards"
-            onClick={() => handleSetTab('cft-awards')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'cft-awards'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-          >
-            <Trophy className="w-3.5 h-3.5 shrink-0 text-amber-200" />
-            <span>3. Monthly Awards</span>
-          </button>
-
-          {/* 4. PPSR Register */}
-          <button
-            id="tab-ppsr-register"
-            onClick={() => handleSetTab('register')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'register'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-          >
-            <ClipboardList className="w-3.5 h-3.5 shrink-0 text-blue-300" />
-            <span>4. PPSR Register</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'register' ? 'bg-blue-800 text-blue-100' : 'bg-slate-200 text-slate-700'
-              }`}>
-              {reports.length}
-            </span>
-          </button>
+            </button>
+          )}
         </div>
 
         <div className="hidden lg:flex items-center space-x-2 px-3 text-[11px] font-mono text-slate-400">
@@ -663,9 +688,26 @@ export default function PpsrSystem({
         </div>
       </div>
 
+      {/* Fallback Access Restricted notice if unauthorized tab accessed */}
+      {!canAccessPpsrTab(resolvedRole, currentTab) && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-8 text-center max-w-lg mx-auto my-8">
+          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-800">Access Restricted</h3>
+          <p className="text-xs text-slate-600 mt-1">
+            Your current role (<strong className="capitalize">{resolvedRole}</strong>) does not have access to this section.
+          </p>
+          <button
+            onClick={() => handleSetTab(resolvedRole === 'committee' ? 'meeting' : 'initiate')}
+            className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition"
+          >
+            Go to {resolvedRole === 'committee' ? 'Committee Review' : 'Initiate PPSR'}
+          </button>
+        </div>
+      )}
+
       {/* 2. Render Active Tab */}
 
-      {currentTab === 'cft-awards' && (
+      {currentTab === 'cft-awards' && canAccessPpsrTab(resolvedRole, 'cft-awards') && (
         <PpsrMonthlyAwards
           ppsrReports={reports}
           onUpdatePpsrReport={onUpdateReport}
@@ -673,7 +715,7 @@ export default function PpsrSystem({
       )}
 
       {/* SUB-TAB 2: REGISTER SPREADSHEET */}
-      {currentTab === 'register' && (
+      {currentTab === 'register' && canAccessPpsrTab(resolvedRole, 'register') && (
         <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-6">
 
           {/* Filtering row */}
@@ -798,7 +840,7 @@ export default function PpsrSystem({
       )}
 
       {/* SUB-TAB 3: LOG NEW BE FORM */}
-      {currentTab === 'initiate' && (
+      {currentTab === 'initiate' && canAccessPpsrTab(resolvedRole, 'initiate') && (
         <form onSubmit={handleFormSubmit} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4 max-w-4xl mx-auto text-left" id="ppsr-initiate-form-wizard">
 
           {/* Form Header */}
@@ -2102,7 +2144,7 @@ export default function PpsrSystem({
         </form>
       )}
 
-      {currentTab === 'meeting' && (
+      {currentTab === 'meeting' && canAccessPpsrTab(resolvedRole, 'meeting') && (
         <PpsrReviewBoard
           reports={reports}
           onUpdateReport={onUpdateReport}

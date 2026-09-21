@@ -24,6 +24,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
+from .permissions import (
+    IsPpsrInitiatorOrAbove,
+    IsPpsrCommitteeOrAbove,
+    IsPpsrCoordinatorOrAdmin,
+)
 from .tasks import generate_ppsr_pdf
 from .models import (
     PpsrReport,
@@ -106,6 +111,25 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
         'create': ('10/h', 'POST'),
         'partial_update': ('60/h', 'PATCH'),
     }
+
+    def get_permissions(self):
+        """
+        Dynamic RBAC enforcement:
+        - create: IsPpsrInitiatorOrAbove (Initiators and Coordinators can create)
+        - decision, metrics: IsPpsrCommitteeOrAbove (Committee and Coordinators can review/edit metrics)
+        - feedback (POST, PATCH, DELETE): IsPpsrCommitteeOrAbove
+        - destroy: IsPpsrCoordinatorOrAdmin (Only Coordinators / Admins can delete)
+        - other actions: default permissions
+        """
+        if self.action == 'create':
+            return [IsPpsrInitiatorOrAbove()]
+        if self.action in ('decision', 'metrics'):
+            return [IsPpsrCommitteeOrAbove()]
+        if self.action == 'feedback' and self.request.method in ('POST', 'PATCH', 'PUT', 'DELETE'):
+            return [IsPpsrCommitteeOrAbove()]
+        if self.action == 'destroy':
+            return [IsPpsrCoordinatorOrAdmin()]
+        return super().get_permissions()
 
     def get_queryset(self):
         qs = PpsrReport.objects.prefetch_related(
@@ -531,6 +555,7 @@ class PpsrMeetingLogViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     ViewSet for Steering Committee Review Meetings.
     Rate limit on create: 10/hour per user.
     """
+    permission_classes = [IsPpsrCommitteeOrAbove]
     queryset = PpsrMeetingLog.objects.all().order_by('-meeting_date')
     serializer_class = PpsrMeetingLogSerializer
 
@@ -574,6 +599,7 @@ class CommitteeFeedbackViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     Direct CRUD ViewSet for committee feedback notes.
     Rate limits: create (60/h), partial_update (120/h).
     """
+    permission_classes = [IsPpsrCommitteeOrAbove]
     queryset = CommitteeFeedback.objects.all().order_by('-created_at')
     serializer_class = CommitteeFeedbackSerializer
 
@@ -592,6 +618,7 @@ class CftMemberViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
     ViewSet for listing and adding active CFT evaluation committee members.
     Rate limit on create: 10/hour per user.
     """
+    permission_classes = [IsPpsrCoordinatorOrAdmin]
     queryset = CftMember.objects.filter(is_active=True).order_by('name')
     serializer_class = CftMemberSerializer
 
@@ -609,6 +636,7 @@ class CftRatingViewSet(viewsets.ModelViewSet):
     ViewSet for CFT star ratings. Enforces one vote per member per report
     via atomic update_or_create. Rate limit: 60/hour per user.
     """
+    permission_classes = [IsPpsrCoordinatorOrAdmin]
     queryset = CftRating.objects.all().order_by('-updated_at')
     serializer_class = CftRatingSerializer
 
@@ -673,7 +701,7 @@ class AwardLeaderboardView(APIView):
     Supports ?year=YYYY, ?month=Month|YYYY-MM, ?category=MF1, and ?status=All query parameters.
     Caches aggregated leaderboard output with TTL_LEADERBOARD.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsPpsrCoordinatorOrAdmin]
 
     def get(self, request):
         year_param = request.query_params.get('year')

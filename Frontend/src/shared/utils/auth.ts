@@ -45,6 +45,7 @@ export interface AuthUser {
   must_change_password?: boolean;
   is_active_employee?: boolean;
   module_roles?: AuthModuleRole[];
+  moduleRoles?: AuthModuleRole[];
 }
 
 export interface AuthTokens {
@@ -76,7 +77,24 @@ export function getUser(): AuthUser | null {
   const raw = sessionStorage.getItem(USER_DATA_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AuthUser;
+    const parsed = JSON.parse(raw) as AuthUser;
+    if (parsed) {
+      const rawRoles = parsed.module_roles || (parsed as any).moduleRoles || [];
+      if (Array.isArray(rawRoles)) {
+        const normalized = rawRoles.map((r: any) => ({
+          ...r,
+          module_code: r.module_code || r.moduleCode || '',
+          moduleCode: r.moduleCode || r.module_code || '',
+          role_name: r.role_name || r.roleName || 'initiator',
+          roleName: r.roleName || r.role_name || 'initiator',
+          mini_factory: r.mini_factory || r.miniFactory || 'MF1',
+          miniFactory: r.miniFactory || r.mini_factory || 'MF1',
+        }));
+        parsed.module_roles = normalized;
+        parsed.moduleRoles = normalized;
+      }
+    }
+    return parsed;
   } catch {
     return null;
   }

@@ -27,7 +27,7 @@ import {
   FileEdit
 } from 'lucide-react';
 import { UserPersona } from '../../types';
-import { RoleCategory, canAccessTab, getRoleBadge } from '../utils/rbac';
+import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge } from '../utils/rbac';
 
 interface SidebarProps {
   activeModule: string;
@@ -39,6 +39,12 @@ interface SidebarProps {
   openRedflagsCount: number;
   draftsCount?: number;
   userRole?: RoleCategory;
+  kaizenRole?: RoleCategory;
+  ppsrRole?: RoleCategory;
+  activePpsrTab?: PpsrSubTab;
+  setActivePpsrTab?: (tab: PpsrSubTab) => void;
+  openPpsrCount?: number;
+  ppsrMeetingsCount?: number;
   
   // Quick sub-action setters
   setInitialRedFlagAction: (act: string | null) => void;
@@ -61,6 +67,12 @@ export default function Sidebar({
   openRedflagsCount,
   draftsCount = 0,
   userRole = 'initiator',
+  kaizenRole,
+  ppsrRole,
+  activePpsrTab = 'initiate',
+  setActivePpsrTab,
+  openPpsrCount = 0,
+  ppsrMeetingsCount = 0,
   setInitialRedFlagAction,
   setInitialFiveSAction,
   setInitialSafetyAction,
@@ -68,6 +80,7 @@ export default function Sidebar({
   isMobileOpen,
   setIsMobileOpen
 }: SidebarProps) {
+  const effectivePpsrRole: RoleCategory = ppsrRole || userRole || 'initiator';
   // Desktop collapse state
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hovering, setHovering] = useState(false);
@@ -81,6 +94,15 @@ export default function Sidebar({
     ppsr: false,
   });
 
+  React.useEffect(() => {
+    if (activeModule) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        [activeModule]: true
+      }));
+    }
+  }, [activeModule]);
+
   const toggleSubmenu = (menuKey: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedMenus(prev => ({
@@ -91,6 +113,9 @@ export default function Sidebar({
 
   const selectModule = (moduleKey: any) => {
     setActiveModule(moduleKey);
+    if (moduleKey === 'ppsr' && setActivePpsrTab) {
+      setActivePpsrTab(effectivePpsrRole === 'committee' ? 'meeting' : 'initiate');
+    }
     // Auto-open submenu when selecting a module
     setExpandedMenus(prev => ({
       ...prev,
@@ -111,6 +136,9 @@ export default function Sidebar({
     } else if (moduleKey === 'safety') {
       setInitialSafetyAction(actionVal || null);
     } else if (moduleKey === 'ppsr') {
+      if (setActivePpsrTab && subTab) {
+        setActivePpsrTab(subTab as PpsrSubTab);
+      }
       setInitialPpsrAction(actionVal || null);
     }
     setIsMobileOpen(false);
@@ -547,24 +575,74 @@ export default function Sidebar({
 
             {isExpanded && expandedMenus.ppsr && (
               <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                <button
-                  onClick={() => selectSubTab('ppsr', '')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <ClipboardList className="w-3 h-3 shrink-0" />
-                  <span>Practical Problem Solving</span>
-                </button>
-                <button
-                  onClick={() => selectSubTab('ppsr', '', 'initiate-ppsr')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <PlusCircle className="w-3 h-3 shrink-0" />
-                  <span>Initiate New PPSR</span>
-                </button>
-                {canAccessTab(userRole, 'cft-awards') && (
+                {/* 1. Initiate PPSR — Initiator, Coordinator, Admin */}
+                {canAccessPpsrTab(effectivePpsrRole, 'initiate') && (
                   <button
-                    onClick={() => selectSubTab('cft-awards', '')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30"
+                    onClick={() => selectSubTab('ppsr', 'initiate', 'initiate-ppsr')}
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'ppsr' && activePpsrTab === 'initiate'
+                        ? 'text-violet-400 font-bold bg-slate-900/60'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                    }`}
+                  >
+                    <PlusCircle className="w-3 h-3 shrink-0 text-violet-400" />
+                    <span>👷 Initiate New PPSR</span>
+                  </button>
+                )}
+
+                {/* 2. Committee Review — Committee, Coordinator, Admin */}
+                {canAccessPpsrTab(effectivePpsrRole, 'meeting') && (
+                  <button
+                    onClick={() => selectSubTab('ppsr', 'meeting', 'meeting')}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'ppsr' && activePpsrTab === 'meeting'
+                        ? 'text-indigo-400 font-bold bg-slate-900/60'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <UserCheck className="w-3 h-3 shrink-0 text-indigo-400" />
+                      <span>👥 Committee Review</span>
+                    </div>
+                    {ppsrMeetingsCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        {ppsrMeetingsCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {/* 3. PPSR Register — Coordinator & Admin only */}
+                {canAccessPpsrTab(effectivePpsrRole, 'register') && (
+                  <button
+                    onClick={() => selectSubTab('ppsr', 'register', 'register')}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'ppsr' && activePpsrTab === 'register'
+                        ? 'text-emerald-400 font-bold bg-slate-900/60'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <ClipboardList className="w-3 h-3 shrink-0 text-emerald-400" />
+                      <span>📋 PPSR Register</span>
+                    </div>
+                    {openPpsrCount > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {openPpsrCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                {/* 4. CFT Monthly Best Awards — Coordinator & Admin only */}
+                {canAccessPpsrTab(effectivePpsrRole, 'cft-awards') && (
+                  <button
+                    onClick={() => selectSubTab('ppsr', 'cft-awards', 'cft-awards')}
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'ppsr' && activePpsrTab === 'cft-awards'
+                        ? 'text-amber-400 font-bold bg-slate-900/60'
+                        : 'text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30'
+                    }`}
                   >
                     <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
                     <span>🏆 CFT Best Awards</span>
@@ -612,17 +690,24 @@ export default function Sidebar({
                 <span>ACTIVE</span>
               </span>
             </div>
-            <div className={`px-2.5 py-1.5 rounded-xl border flex items-center space-x-2 ${getRoleBadge(userRole).colorClass}`}>
-              <span className="text-sm">{getRoleBadge(userRole).icon}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[11px] font-bold truncate leading-tight">
-                  {getRoleBadge(userRole).label}
+            {(() => {
+              const currentRole = activeModule === 'ppsr' ? effectivePpsrRole : (kaizenRole || userRole);
+              const currentModuleLabel = activeModule === 'ppsr' ? 'PPSR' : activeModule === 'kaizen' ? 'Kaizen' : undefined;
+              const badge = getRoleBadge(currentRole, currentModuleLabel);
+              return (
+                <div className={`px-2.5 py-1.5 rounded-xl border flex items-center space-x-2 ${badge.colorClass}`}>
+                  <span className="text-sm">{badge.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-bold truncate leading-tight">
+                      {badge.label}
+                    </div>
+                    <div className="text-[9px] opacity-75 truncate leading-tight font-mono">
+                      {badge.description}
+                    </div>
+                  </div>
                 </div>
-                <div className="text-[9px] opacity-75 truncate leading-tight font-mono">
-                  {getRoleBadge(userRole).description}
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 

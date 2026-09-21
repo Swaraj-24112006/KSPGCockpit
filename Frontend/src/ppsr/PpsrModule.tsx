@@ -48,6 +48,7 @@ export default function PpsrModule({
       onInspectReport={onInspectReport}
       meetings={meetings}
       onAddMeeting={onAddMeeting}
+      userRole={userRole}
     />
   );
 }

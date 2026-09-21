@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AuthUser, clearAuth, logout as authLogout, authFetch } from './shared/utils/auth';
+import { AuthUser, clearAuth, logout as authLogout, authFetch, getUser } from './shared/utils/auth';
 import Header from './shared/components/Header';
 import Sidebar from './shared/components/Sidebar';
 import PpsrSheetInspect from './ppsr/PpsrSheetInspect';
@@ -13,7 +13,7 @@ import CftAwardsModule from './cft/CftAwardsModule';
 import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction } from './types';
 import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
-import { RoleCategory, KaizenSubTab, canAccessTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
+import { RoleCategory, KaizenSubTab, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
 import { downloadElementAsPdf } from './shared/utils/pdfExporter';
 
 interface AppProps {
@@ -39,11 +39,15 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   const [activeTab, setActiveTab] = useState<KaizenSubTab>('dashboard');
 
   // Dynamic module-specific role resolution
-  const kaizenRole: RoleCategory = getUserModuleRole(loggedInUser, 'kaizen');
-  const ppsrRole: RoleCategory = getUserModuleRole(loggedInUser, 'ppsr');
+  const effectiveUser = loggedInUser || getUser();
+  const kaizenRole: RoleCategory = getUserModuleRole(effectiveUser, 'kaizen');
+  const ppsrRole: RoleCategory = getUserModuleRole(effectiveUser, 'ppsr');
   const currentModule = activeModule === 'global-dashboard' ? 'kaizen' : activeModule;
-  const activeModuleRole: RoleCategory = getUserModuleRole(loggedInUser, currentModule);
+  const activeModuleRole: RoleCategory = getUserModuleRole(effectiveUser, currentModule);
   const userRole: RoleCategory = activeModuleRole;
+
+  // PPSR internal tab state
+  const [activePpsrTab, setActivePpsrTab] = useState<PpsrSubTab>(ppsrRole === 'committee' ? 'meeting' : 'initiate');
 
   // Auto-guard activeTab on kaizenRole change or initial load
   useEffect(() => {
@@ -51,6 +55,13 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       setActiveTab('dashboard');
     }
   }, [kaizenRole, activeModule, activeTab]);
+
+  // Auto-guard activePpsrTab on ppsrRole change or initial load
+  useEffect(() => {
+    if (!canAccessPpsrTab(ppsrRole, activePpsrTab)) {
+      setActivePpsrTab(ppsrRole === 'committee' ? 'meeting' : 'initiate');
+    }
+  }, [ppsrRole, activePpsrTab]);
 
   // Mobile drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -921,6 +932,12 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         openRedflagsCount={openRedflagsCount}
         draftsCount={drafts.length}
         userRole={userRole}
+        kaizenRole={kaizenRole}
+        ppsrRole={ppsrRole}
+        activePpsrTab={activePpsrTab}
+        setActivePpsrTab={setActivePpsrTab}
+        openPpsrCount={ppsrReports.length}
+        ppsrMeetingsCount={ppsrMeetings.length}
         setInitialRedFlagAction={setInitialRedFlagAction}
         setInitialFiveSAction={setInitialFiveSAction}
         setInitialSafetyAction={setInitialSafetyAction}
@@ -966,15 +983,15 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         <div className="print:hidden shrink-0 bg-slate-900 text-white px-4 py-2 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center space-x-3">
             <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-black text-white uppercase shadow-sm">
-              {loggedInUser?.full_name?.[0] || loggedInUser?.username?.[0] || 'U'}
+              {effectiveUser?.full_name?.[0] || effectiveUser?.username?.[0] || 'U'}
             </div>
             <div className="leading-none flex items-center space-x-2">
               <div>
                 <span className="text-xs font-bold text-slate-200">
-                  {loggedInUser?.full_name || loggedInUser?.username || 'User'}
+                  {effectiveUser?.full_name || effectiveUser?.username || 'User'}
                 </span>
-                {loggedInUser?.employee_id && (
-                  <span className="text-[10px] text-slate-500 font-mono ml-2">#{loggedInUser.employee_id}</span>
+                {effectiveUser?.employee_id && (
+                  <span className="text-[10px] text-slate-500 font-mono ml-2">#{effectiveUser.employee_id}</span>
                 )}
               </div>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center space-x-1 ${getRoleBadge(userRole).colorClass}`}>
@@ -984,7 +1001,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {(loggedInUser?.is_superadmin || loggedInUser?.role_category === 'superadmin') && onNavigateToSuperadmin && (
+            {(effectiveUser?.is_superadmin || effectiveUser?.role_category === 'superadmin') && onNavigateToSuperadmin && (
               <button
                 id="superadmin-portal-btn"
                 type="button"
@@ -1062,6 +1079,9 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                   } else if (mod === 'ppsr') {
                     if (subAction) {
                       setInitialPpsrAction(subAction);
+                      setActivePpsrTab(subAction as PpsrSubTab);
+                    } else {
+                      setActivePpsrTab(ppsrRole === 'committee' ? 'meeting' : 'initiate');
                     }
                   }
                 }}
@@ -1133,6 +1153,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 reports={ppsrReports}
                 kaizens={kaizens}
                 userRole={ppsrRole}
+                activePpsrTab={activePpsrTab}
+                setActivePpsrTab={setActivePpsrTab}
                 onAddReport={handleAddPpsrReport}
                 onUpdateReport={handleUpdatePpsrReport}
                 onUpdateKaizen={handleUpdateKaizen}

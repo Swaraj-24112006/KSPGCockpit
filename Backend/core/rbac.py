@@ -35,9 +35,11 @@ ALL_ROLES = (ROLE_INITIATOR, ROLE_COORDINATOR, ROLE_COMMITTEE, ROLE_ADMIN, ROLE_
 
 DB_ROLE_TO_CATEGORY = {
     'initiator':   ROLE_INITIATOR,
+    'committee':   ROLE_COMMITTEE,     # Committee reviewer
     'reviewer':    ROLE_COMMITTEE,     # Reviewer/Manager = Committee member
     'cft_member':  ROLE_COMMITTEE,     # CFT Member = Committee member
     'verifier':    ROLE_COMMITTEE,     # Verifier = Committee member
+    'coordinator': ROLE_COORDINATOR,   # Coordinator = full module coordinator
     'kaizen_lead': ROLE_COORDINATOR,   # Kaizen Lead = Coordinator (full admin)
     'admin':       ROLE_ADMIN,
     'superadmin':  ROLE_SUPERADMIN,

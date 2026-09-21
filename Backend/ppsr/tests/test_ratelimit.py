@@ -39,11 +39,14 @@ User = get_user_model()
 class PpsrRateLimitTests(TestCase):
     def setUp(self):
         cache.clear()
+        from accounts.models import Role
+        coord_role, _ = Role.objects.get_or_create(name='coordinator')
         self.user_a = User.objects.create_user(
             username='user_qa_engineer',
             password='Password123!',
             email='qa@kspg.com',
             employee_id='EMP001',
+            role=coord_role,
         )
         refresh_a = RefreshToken.for_user(self.user_a)
         self.client_a = APIClient()

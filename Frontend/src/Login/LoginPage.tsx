@@ -189,7 +189,40 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               is_superadmin: isSuper,
               must_change_password: Boolean(rawFromLogin.must_change_password || rawFromLogin.mustChangePassword),
               is_active_employee: rawFromLogin.is_active_employee ?? true,
-              module_roles: rawFromLogin.module_roles || [],
+              module_roles: (() => {
+                const rawRoles = rawFromLogin.moduleRoles || rawFromLogin.module_roles || [];
+                return Array.isArray(rawRoles)
+                  ? rawRoles.map((r: any) => ({
+                      id: r.id,
+                      module_code: r.moduleCode || r.module_code || '',
+                      moduleCode: r.moduleCode || r.module_code || '',
+                      module_display: r.moduleDisplay || r.module_display || '',
+                      role_name: r.roleName || r.role_name || 'initiator',
+                      roleName: r.roleName || r.role_name || 'initiator',
+                      role_display: r.roleDisplay || r.role_display || '',
+                      mini_factory: r.miniFactory || r.mini_factory || 'MF1',
+                      miniFactory: r.miniFactory || r.mini_factory || 'MF1',
+                      assigned_at: r.assignedAt || r.assigned_at,
+                    }))
+                  : [];
+              })(),
+              moduleRoles: (() => {
+                const rawRoles = rawFromLogin.moduleRoles || rawFromLogin.module_roles || [];
+                return Array.isArray(rawRoles)
+                  ? rawRoles.map((r: any) => ({
+                      id: r.id,
+                      module_code: r.moduleCode || r.module_code || '',
+                      moduleCode: r.moduleCode || r.module_code || '',
+                      module_display: r.moduleDisplay || r.module_display || '',
+                      role_name: r.roleName || r.role_name || 'initiator',
+                      roleName: r.roleName || r.role_name || 'initiator',
+                      role_display: r.roleDisplay || r.role_display || '',
+                      mini_factory: r.miniFactory || r.mini_factory || 'MF1',
+                      miniFactory: r.miniFactory || r.mini_factory || 'MF1',
+                      assigned_at: r.assignedAt || r.assigned_at,
+                    }))
+                  : [];
+              })(),
             };
           }
 
