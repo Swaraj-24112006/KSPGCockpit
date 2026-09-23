@@ -87,7 +87,23 @@ class FiveWhysChainSerializer(serializers.ModelSerializer):
         }
 
     def to_internal_value(self, data):
-        if isinstance(data, dict):
+        if isinstance(data, list):
+            c1, c2, c3 = [], [], []
+            if len(data) > 0:
+                it0 = data[0]
+                c1 = it0.get('whys', []) if isinstance(it0, dict) else (it0 if isinstance(it0, list) else [str(it0)])
+            if len(data) > 1:
+                it1 = data[1]
+                c2 = it1.get('whys', []) if isinstance(it1, dict) else (it1 if isinstance(it1, list) else [str(it1)])
+            if len(data) > 2:
+                it2 = data[2]
+                c3 = it2.get('whys', []) if isinstance(it2, dict) else (it2 if isinstance(it2, list) else [str(it2)])
+            data = {
+                'column1': [str(x) for x in c1 if x],
+                'column2': [str(x) for x in c2 if x],
+                'column3': [str(x) for x in c3 if x],
+            }
+        elif isinstance(data, dict):
             normalized = dict(data)
             for i in range(1, 4):
                 col = f'column{i}'
@@ -250,6 +266,7 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 'standardization_list': 'standardization_items',
                 'readAcrossList': 'read_across_items',
                 'read_across_list': 'read_across_items',
+                'fiveWhys': 'five_whys',
                 'fiveWhysList': 'five_whys',
                 'five_whys_list': 'five_whys',
                 'jiraNumber': 'jira_number',
@@ -371,6 +388,26 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                     'column2': [str(x) for x in c2 if x],
                     'column3': [str(x) for x in c3 if x],
                 }
+            elif 'five_whys' in normalized and isinstance(normalized['five_whys'], list):
+                fw_list = normalized['five_whys']
+                c1 = fw_list[0].get('whys', []) if len(fw_list) > 0 and isinstance(fw_list[0], dict) else []
+                c2 = fw_list[1].get('whys', []) if len(fw_list) > 1 and isinstance(fw_list[1], dict) else []
+                c3 = fw_list[2].get('whys', []) if len(fw_list) > 2 and isinstance(fw_list[2], dict) else []
+                normalized['five_whys'] = {
+                    'column1': [str(x) for x in c1 if x],
+                    'column2': [str(x) for x in c2 if x],
+                    'column3': [str(x) for x in c3 if x],
+                }
+                # Preserve custom headings in psq_tree_data
+                headings = {}
+                for i, item in enumerate(fw_list[:3]):
+                    if isinstance(item, dict) and item.get('heading'):
+                        headings[f'column{i+1}'] = item['heading']
+                if headings:
+                    ptd = normalized.get('psq_tree_data') or {}
+                    if isinstance(ptd, dict):
+                        ptd['five_whys_headings'] = headings
+                        normalized['psq_tree_data'] = ptd
 
             # Dual-key facts_analysis
             facts = normalized.get('facts_analysis') or normalized.get('factsAnalysis')
@@ -540,6 +577,20 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
         for k, v in aliases.items():
             if k not in ret and v is not None:
                 ret[k] = v
+
+        # Construct fiveWhysList array with custom branch headings for presentation and sheet inspection
+        fw_inst = getattr(instance, 'five_whys', None)
+        if fw_inst:
+            headings = {}
+            if isinstance(instance.psq_tree_data, dict) and 'five_whys_headings' in instance.psq_tree_data:
+                headings = instance.psq_tree_data['five_whys_headings']
+            fw_list = []
+            for idx, col in enumerate([fw_inst.column1, fw_inst.column2, fw_inst.column3], 1):
+                if col and len(col) > 0:
+                    h = headings.get(f'column{idx}') or f'Root Cause {idx}'
+                    fw_list.append({'heading': h, 'whys': col})
+            if fw_list:
+                ret['fiveWhysList'] = fw_list
 
         # Dual-key ishikawa and fishbone with 6M category variants
         ish = ret.get('ishikawa') or ret.get('fishbone')

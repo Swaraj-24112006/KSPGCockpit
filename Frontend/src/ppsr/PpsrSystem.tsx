@@ -564,6 +564,11 @@ export default function PpsrSystem({
       fiveWhysList: rootCauses
         .filter(rc => rc.heading.trim() || rc.whys.some(w => w.trim()))
         .map(rc => ({ heading: rc.heading, whys: rc.whys.filter(Boolean) })),
+      fiveWhys: {
+        column1: rootCauses[0]?.whys.filter(Boolean) || [],
+        column2: rootCauses[1]?.whys.filter(Boolean) || [],
+        column3: rootCauses[2]?.whys.filter(Boolean) || []
+      },
 
       correctiveActionsList: correctiveActions
         .filter(ca => ca.measure.trim() !== '')
