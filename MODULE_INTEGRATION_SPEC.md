@@ -3,7 +3,7 @@
 > **Target Audience:** Autonomous Coding Agents & Software Engineers building new modules (e.g., *Checklist*, *Inventory*, *TPM Maintenance*, *Quality & Metrology*) intended to plug into the **KSPG Cockpit Enterprise Gateway**.
 > 
 > **Architectural Paradigm:** **Monolithic Unified Frontend + Independent Microservice Backends**  
-> (Single React 18 SPA Shell + Decoupled Django REST Framework services connected via API Gateway/Nginx).
+> (Single React 18 SPA Shell + Decoupled Django REST Framework services connected via Microsoft IIS with Application Request Routing / URL Rewrite).
 
 ---
 
@@ -19,11 +19,11 @@ graph TD
         CHK_FE["New Module Frontend (e.g., Checklist)"]
     end
 
-    subgraph Gateway ["Reverse Proxy / Gateway (Nginx in Prod)"]
-        Nginx["Reverse Proxy / Port Forwarder"]
+    subgraph Gateway ["Windows Server / IIS Gateway"]
+        IIS["Microsoft IIS (URL Rewrite + ARR 3.0)"]
     end
 
-    subgraph Backends ["Independent Microservice Backends (Django)"]
+    subgraph Backends ["Independent Microservice Backends (Django via Waitress)"]
         SFC_BE["SFC Backend (Port 8000)"]
         CHK_BE["New Module Backend (Port 8001+)"]
         Redis[("Shared Redis (Cache / Sessions)")]
@@ -38,11 +38,11 @@ graph TD
     Landing -->|Launches| SFC_FE
     Landing -->|Launches| CHK_FE
 
-    SFC_FE -->|/api/v1/sfc/*| Nginx
-    CHK_FE -->|/api/v1/checklist/*| Nginx
+    SFC_FE -->|/api/v1/sfc/*| IIS
+    CHK_FE -->|/api/v1/checklist/*| IIS
 
-    Nginx -->|Proxy :8000| SFC_BE
-    Nginx -->|Proxy :8001| CHK_BE
+    IIS -->|Reverse Proxy :8000| SFC_BE
+    IIS -->|Reverse Proxy :8001| CHK_BE
 
     SFC_BE --> DB1
     CHK_BE --> DB2
@@ -114,8 +114,8 @@ The decoded token payload passed to your backend contains the following standard
 
 ### Pillar 2: Network Ports, Routing & CORS
 
-#### 2.1 Port Allocation Matrix (Development)
-| Component | Local Development URL | Production Path (Nginx) |
+#### 2.1 Port Allocation Matrix (Development & IIS)
+| Component | Local Development URL | Production Path (IIS / ARR Gateway) |
 |---|---|---|
 | **Cockpit Frontend (Vite SPA)** | `http://localhost:5173` | `https://cockpit.company.com/` |
 | **SFC Core Backend (Django)** | `http://localhost:8000` | `https://cockpit.company.com/api/v1/` |
@@ -311,47 +311,130 @@ export async function fetchChecklists() {
 
 ---
 
-## 4. Production Nginx Gateway Template
+## 4. Production Microsoft IIS Gateway Specification
 
-When deploying multiple backend services on the company server, use this standard Nginx reverse-proxy configuration:
+In a Windows Server environment running **Internet Information Services (IIS)**, IIS acts as both the static file host for the compiled React SPA (`dist/`) and the reverse-proxy gateway routing API traffic to the various Django microservices.
 
-```nginx
-server {
-    listen 80;
-    server_name cockpit.company.com;
+### 4.1 Required IIS Server Modules
+Ensure the following extensions are installed on Windows Server:
+1. **URL Rewrite Module 2.1** (Download from Microsoft IIS downloads)
+2. **Application Request Routing (ARR 3.0)** (Download from Microsoft IIS downloads)
 
-    # 1. Cockpit Frontend SPA
-    location / {
-        root /var/www/cockpit_frontend/dist;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
+#### Enable Proxy in ARR (Crucial One-Time Step):
+1. Open **IIS Manager**.
+2. In the left Connections tree, click the **root server node** (computer name).
+3. In the middle pane, double-click **Application Request Routing Cache**.
+4. In the right **Actions** pane, click **Server Proxy Settings...**.
+5. Check the box **Enable proxy**.
+6. Uncheck **Reverse rewrite host in response headers** (important for preserving custom host headers).
+7. Click **Apply** in the top right.
 
-    # 2. SFC Intelligence Backend (Port 8000)
-    location /api/v1/sfc/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+---
 
-    # 3. Checklist Backend (Port 8001)
-    location /api/v1/checklist/ {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+### 4.2 Production `web.config` Template
 
-    # 4. MinIO Object Storage
-    location /media/ {
-        proxy_pass http://127.0.0.1:9000;
-        proxy_set_header Host $host;
-    }
-}
+Place this `web.config` file inside the root folder of your IIS Website (where the built React `dist/` files reside, e.g., `C:\inetpub\wwwroot\kspg_cockpit\`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <clear />
+
+        <!-- 1. Reverse Proxy: Checklist Backend (Port 8001) -->
+        <rule name="Proxy to Checklist API" stopProcessing="true">
+          <match url="^api/v1/checklist/(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:8001/api/v1/checklist/{R:1}" />
+          <serverVariables>
+            <set name="HTTP_X_FORWARDED_PROTO" value="https" />
+          </serverVariables>
+        </rule>
+
+        <!-- 2. Reverse Proxy: SFC Core Backend (Port 8000) -->
+        <rule name="Proxy to SFC Core API" stopProcessing="true">
+          <match url="^api/v1/(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:8000/api/v1/{R:1}" />
+          <serverVariables>
+            <set name="HTTP_X_FORWARDED_PROTO" value="https" />
+          </serverVariables>
+        </rule>
+
+        <!-- 3. Reverse Proxy: MinIO S3 Storage (Port 9000) -->
+        <rule name="Proxy to MinIO Media" stopProcessing="true">
+          <match url="^media/(.*)" />
+          <action type="Rewrite" url="http://127.0.0.1:9000/{R:1}" />
+        </rule>
+
+        <!-- 4. Client-side SPA Fallback: Routes all other requests to index.html -->
+        <rule name="React SPA Fallback Routes" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+            <add input="{REQUEST_URI}" pattern="^/(api|media)" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/" />
+        </rule>
+
+      </rules>
+    </rewrite>
+
+    <!-- Static Content MIME Types -->
+    <staticContent>
+      <remove fileExtension=".json" />
+      <mimeMap fileExtension=".json" mimeType="application/json" />
+      <remove fileExtension=".woff2" />
+      <mimeMap fileExtension=".woff2" mimeType="font/woff2" />
+    </staticContent>
+
+    <!-- Security Headers -->
+    <httpProtocol>
+      <customHeaders>
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="X-Frame-Options" value="SAMEORIGIN" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>
 ```
+
+---
+
+### 4.3 Running Multiple Django Backends on Windows Server (Waitress + NSSM)
+
+> **Avoid `wfastcgi`:** `wfastcgi` is deprecated, single-threaded, and notoriously unstable with Python 3.11+ / Django 5+.  
+> **Recommended Standard:** Run each Django backend using **Waitress** managed as an automatic background **Windows Service** via **NSSM (Non-Sucking Service Manager)**.
+
+#### Step 1: Install Waitress in each Python virtualenv
+```powershell
+pip install waitress
+```
+
+#### Step 2: Register Services with NSSM
+Download NSSM (`nssm.exe`) to `C:\tools\nssm\`:
+
+1. **Register SFC Backend Service (Port 8000):**
+   ```powershell
+   nssm install KSPG_SFC_Backend "C:\inetpub\kspg_sfc\Backend\venv\Scripts\python.exe" "-m waitress --port=8000 config.wsgi:application"
+   nssm set KSPG_SFC_Backend AppDirectory "C:\inetpub\kspg_sfc\Backend"
+   nssm set KSPG_SFC_Backend Start SERVICE_AUTO_START
+   nssm start KSPG_SFC_Backend
+   ```
+
+2. **Register Checklist Backend Service (Port 8001):**
+   ```powershell
+   nssm install KSPG_Checklist_Backend "C:\inetpub\kspg_checklist\venv\Scripts\python.exe" "-m waitress --port=8001 config.wsgi:application"
+   nssm set KSPG_Checklist_Backend AppDirectory "C:\inetpub\kspg_checklist"
+   nssm set KSPG_Checklist_Backend Start SERVICE_AUTO_START
+   nssm start KSPG_Checklist_Backend
+   ```
+
+3. **Register Future Module N Service (Port 8002+):**
+   Repeat the same command structure for each new module added in the future.
+
+**Result:** When Windows Server reboots or restarts, all Django backend services automatically spin up in the background. IIS receives client traffic and effortlessly proxies it to the respective services.
 
 ---
 

@@ -355,6 +355,10 @@ export interface PpsrReport {
   defectTrendData?: Array<{ date: string; defectsCount: number }>;
   initialDefectTrendData?: Array<{ date: string; defectsCount: number }>;
 
+  // Spec-Limit Trend Graph data
+  initialSpecLimitGraph?: { usl: number; lsl: number; measurements: number[] };
+  effectivenessSpecLimitGraph?: { usl: number; lsl: number; measurements: number[] };
+
   // Committee Presentation & Review Feedback
   presentationFeedback?: PpsrCommitteeFeedback[];
   committeeDecision?: 'Approved' | 'Re-work Needed' | 'In Review';

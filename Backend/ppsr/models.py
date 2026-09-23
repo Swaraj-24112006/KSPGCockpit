@@ -60,6 +60,10 @@ class PpsrReport(models.Model):
     # [{date, defectsCount, stage}, ...]
     initial_defect_trend_data = models.JSONField(default=list, blank=True)
 
+    # Step 1 — Initial Spec-Limit Trend Graph data
+    # {usl: float, lsl: float, measurements: [float, ...]}
+    initial_spec_limit_graph = models.JSONField(default=dict, blank=True)
+
     # Step 3 — Cause localisation approach
     cause_localization_approach = models.CharField(
         max_length=10,
@@ -88,6 +92,10 @@ class PpsrReport(models.Model):
     # [{date, defectsCount, stage}, ...]
     effectiveness_chart_data = models.JSONField(default=list, blank=True)
     # [{name, value}, ...]
+
+    # Step 4 — Effectiveness Spec-Limit Trend Graph data
+    # {usl: float, lsl: float, measurements: [float, ...]}
+    effectiveness_spec_limit_graph = models.JSONField(default=dict, blank=True)
 
     # Step 5 — Read Across explanation
     read_across_explanation = models.TextField(blank=True)

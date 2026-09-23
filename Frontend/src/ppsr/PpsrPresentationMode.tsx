@@ -24,6 +24,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import IshikawaFishbone from './IshikawaFishbone';
 import { PsqEliminationTree, DEFAULT_PSQ_TREE_DATA } from './PsqEliminationTree';
+import SpecLimitTrendGraph from './SpecLimitTrendGraph';
 
 interface PpsrPresentationModeProps {
   report: PpsrReport;
@@ -572,8 +573,8 @@ export default function PpsrPresentationMode({
                   {report.problemStatement || 'No detailed problem statement entered.'}
                 </div>
 
-                {/* Initial Evidence: Baseline Graph & Defect Photo */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                {/* Initial Evidence: Baseline Graph, Spec-Limit Trend Graph, & Defect Photo */}
+                <div className={`grid grid-cols-1 ${report.initialSpecLimitGraph?.measurements && report.initialSpecLimitGraph.measurements.length > 0 ? 'lg:grid-cols-3' : 'md:grid-cols-2'} gap-4 pt-2`}>
                   {/* Option 1: Initial Baseline Chart */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
                     <span className="text-xs font-black uppercase tracking-wider text-emerald-800 font-mono block">
@@ -600,6 +601,30 @@ export default function PpsrPresentationMode({
                       </div>
                     )}
                   </div>
+
+                  {/* Spec-Limit Trend Graph (Initial Baseline) */}
+                  {report.initialSpecLimitGraph && report.initialSpecLimitGraph.measurements && report.initialSpecLimitGraph.measurements.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-1.5">
+                          <TrendingDown className="w-4 h-4 text-teal-600" />
+                          <span>Spec-Limit Trend Graph</span>
+                        </span>
+                        <div className="flex items-center space-x-1 text-[10px] font-mono font-bold">
+                          <span className="text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">USL {report.initialSpecLimitGraph.usl}</span>
+                          <span className="text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">LSL {report.initialSpecLimitGraph.lsl}</span>
+                        </div>
+                      </div>
+                      <div className="h-44 bg-white p-2 rounded-xl border border-slate-200">
+                        <SpecLimitTrendGraph
+                          usl={report.initialSpecLimitGraph.usl}
+                          lsl={report.initialSpecLimitGraph.lsl}
+                          measurements={report.initialSpecLimitGraph.measurements}
+                          height={160}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Option 2: Photo Evidence */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
@@ -942,26 +967,54 @@ export default function PpsrPresentationMode({
                 </div>
               </div>
 
-              {/* Defect Trend Chart */}
-              <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-wider text-indigo-800 font-mono flex items-center space-x-2">
-                  <TrendingDown className="w-5 h-5 text-indigo-600" />
-                  <span>Defect Reduction Trend Chart</span>
-                </h3>
+              {/* Defect Trend Chart & Spec-Limit Trend Graph (Side-by-Side) */}
+              <div className={`grid grid-cols-1 ${report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 ? 'lg:grid-cols-2' : ''} gap-6`}>
+                {/* Defect Trend Chart */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
+                  <h3 className="text-sm font-black uppercase tracking-wider text-indigo-800 font-mono flex items-center space-x-2">
+                    <TrendingDown className="w-5 h-5 text-indigo-600" />
+                    <span>Defect Reduction Trend Chart</span>
+                  </h3>
 
-                <div className="h-80 w-full pt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="name" stroke="#475569" tick={{ fontSize: 13, fontWeight: 600 }} />
-                      <YAxis stroke="#475569" tick={{ fontSize: 13, fontWeight: 600 }} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', color: '#0f172a', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      />
-                      <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={4} dot={{ r: 8, fill: '#059669' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className="h-80 w-full pt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="name" stroke="#475569" tick={{ fontSize: 13, fontWeight: 600 }} />
+                        <YAxis stroke="#475569" tick={{ fontSize: 13, fontWeight: 600 }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', color: '#0f172a', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        />
+                        <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={4} dot={{ r: 8, fill: '#059669' }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
+
+                {/* Spec-Limit Trend Graph (Effectiveness) */}
+                {report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 && (
+                  <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-2">
+                        <TrendingDown className="w-5 h-5 text-teal-600" />
+                        <span>Spec-Limit Verification</span>
+                      </h3>
+                      <div className="flex items-center space-x-2 text-xs font-mono font-bold">
+                        <span className="text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">USL {report.effectivenessSpecLimitGraph.usl}</span>
+                        <span className="text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">LSL {report.effectivenessSpecLimitGraph.lsl}</span>
+                        <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">CL {((report.effectivenessSpecLimitGraph.usl + report.effectivenessSpecLimitGraph.lsl) / 2).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="h-80 w-full pt-2">
+                      <SpecLimitTrendGraph
+                        usl={report.effectivenessSpecLimitGraph.usl}
+                        lsl={report.effectivenessSpecLimitGraph.lsl}
+                        measurements={report.effectivenessSpecLimitGraph.measurements}
+                        height={300}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PpsrReport } from '../types';
 import { X, Printer, Compass, CheckCircle2, AlertCircle, Sparkles, HelpCircle, Download, Loader2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import SpecLimitTrendGraph from './SpecLimitTrendGraph';
 import IshikawaFishbone from './IshikawaFishbone';
 import { PsqEliminationTree, DEFAULT_PSQ_TREE_DATA } from './PsqEliminationTree';
 import { downloadElementAsPdf, triggerA4Print, triggerA3Print } from '../shared/utils/pdfExporter';
@@ -61,6 +62,9 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
       { name: 'Fix', value: 1 },
       { name: 'Current', value: 0.2 }
     ];
+
+  const hasInitialSpec = !!(report.initialSpecLimitGraph?.measurements && report.initialSpecLimitGraph.measurements.length > 0);
+  const hasEffectivenessSpec = !!(report.effectivenessSpecLimitGraph?.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0);
 
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [activeApproach, setActiveApproach] = useState<'both' | 'fishbone' | 'psq'>(
@@ -225,7 +229,7 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
 
               {/* Text & Picture/Chart layout */}
               <div className="grid grid-cols-1 md:grid-cols-12 border-x border-b border-slate-800 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-                <div className="md:col-span-6 p-3 text-xs leading-relaxed space-y-1 bg-white">
+                <div className={`${hasInitialSpec ? 'md:col-span-4' : 'md:col-span-6'} p-3 text-xs leading-relaxed space-y-1 bg-white`}>
                   <span className="text-[8px] font-black text-slate-400 uppercase block font-mono">Problem description:</span>
                   <p className="text-slate-700 font-medium whitespace-pre-wrap">{report.problemStatement}</p>
                 </div>
@@ -255,8 +259,29 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   )}
                 </div>
 
+                {/* Spec-Limit Trend Graph (Initial Baseline) */}
+                {hasInitialSpec && (
+                  <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[8px] font-black text-teal-800 uppercase font-mono">Spec-Limit Trend</span>
+                      <div className="flex items-center space-x-1 text-[7px] font-mono font-bold">
+                        <span className="text-red-600 bg-red-50 px-1 rounded border border-red-200">U:{report.initialSpecLimitGraph!.usl}</span>
+                        <span className="text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">L:{report.initialSpecLimitGraph!.lsl}</span>
+                      </div>
+                    </div>
+                    <div className="h-28 bg-white p-1 rounded border border-slate-200">
+                      <SpecLimitTrendGraph
+                        usl={report.initialSpecLimitGraph!.usl}
+                        lsl={report.initialSpecLimitGraph!.lsl}
+                        measurements={report.initialSpecLimitGraph!.measurements}
+                        height={108}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Option 2: Defect Photo */}
-                <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
+                <div className={`${hasInitialSpec ? 'md:col-span-2' : 'md:col-span-3'} p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]`}>
                   <span className="text-[8px] font-black text-slate-500 uppercase block font-mono mb-1">Option 2: Defect Photo</span>
                   <div className="flex-1 border border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-white p-1">
                     {report.sketchPhoto ? (
@@ -545,7 +570,7 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                 <span className="text-[10px] font-normal text-slate-400 lowercase italic">BE Step 6</span>
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-800 p-4">
+              <div className={`grid grid-cols-1 ${hasEffectivenessSpec ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4 border border-slate-800 p-4`}>
                 {/* Option 1: Defect Reduction Trend Chart */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -581,6 +606,33 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                     {report.effectivenessEvidence || report.validationCheck || 'Defect level decreased systematically following permanent corrective action implementation.'}
                   </p>
                 </div>
+
+                {/* Spec-Limit Trend Graph (Effectiveness Verification) */}
+                {hasEffectivenessSpec && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-black text-teal-800 uppercase font-mono tracking-wider">
+                        🎯 Spec-Limit Verification
+                      </span>
+                      <div className="flex items-center space-x-1 text-[8px] font-mono font-bold">
+                        <span className="text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200">USL: {report.effectivenessSpecLimitGraph!.usl}</span>
+                        <span className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">LSL: {report.effectivenessSpecLimitGraph!.lsl}</span>
+                        <span className="text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">CL: {((report.effectivenessSpecLimitGraph!.usl + report.effectivenessSpecLimitGraph!.lsl) / 2).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div className="h-44 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                      <SpecLimitTrendGraph
+                        usl={report.effectivenessSpecLimitGraph!.usl}
+                        lsl={report.effectivenessSpecLimitGraph!.lsl}
+                        measurements={report.effectivenessSpecLimitGraph!.measurements}
+                        height={160}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-600 font-medium leading-relaxed italic border-l-2 border-teal-500 pl-2">
+                      Process capability verified against specification limits post-PCA.
+                    </p>
+                  </div>
+                )}
 
                 {/* Option 2: Evidence Photo / Visual Link */}
                 <div className="space-y-2">

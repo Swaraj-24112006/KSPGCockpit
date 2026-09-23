@@ -6,6 +6,7 @@ import { PsqEliminationTree, BLANK_PSQ_TREE_DATA, DEFAULT_PSQ_TREE_DATA } from '
 import PpsrPresentationMode from './PpsrPresentationMode';
 import PpsrMonthlyAwards from './PPSRMonthlyAwards';
 import PpsrReviewBoard from './PpsrReviewBoard';
+import SpecLimitInputPanel from './SpecLimitInputPanel';
 import type { RoleCategory, PpsrSubTab } from '../shared/utils/rbac';
 import { canAccessPpsrTab } from '../shared/utils/rbac';
 import {
@@ -351,6 +352,11 @@ export default function PpsrSystem({
     { date: '18-12-2027', defectsCount: 0.1, stage: 'Pre-countermeasure' }
   ]);
 
+  // Step 1 — Initial Spec-Limit Trend Graph state
+  const [initialSpecUsl, setInitialSpecUsl] = useState<number>(7.25);
+  const [initialSpecLsl, setInitialSpecLsl] = useState<number>(5.50);
+  const [initialSpecMeasurements, setInitialSpecMeasurements] = useState<number[]>([6.19, 6.39, 8.24, 6.22, 6.19]);
+
   const handleAddInitialDefectRow = () => {
     const nextNum = initialDefectTrendData.length + 1;
     setInitialDefectTrendData(prev => [
@@ -444,6 +450,11 @@ export default function PpsrSystem({
     { date: 'Day 5 (Current)', defectsCount: 0.1, stage: 'Current Standardized' },
   ]);
 
+  // Step 4 — Effectiveness Spec-Limit Trend Graph state
+  const [effSpecUsl, setEffSpecUsl] = useState<number>(7.25);
+  const [effSpecLsl, setEffSpecLsl] = useState<number>(5.50);
+  const [effSpecMeasurements, setEffSpecMeasurements] = useState<number[]>([6.19, 6.39, 8.24, 6.22, 6.19]);
+
   const handleAddDefectRow = () => {
     const nextNum = defectTrendData.length + 1;
     setDefectTrendData(prev => [
@@ -518,6 +529,7 @@ export default function PpsrSystem({
       sketchPhoto: sketchPhoto || undefined,
       initialEvidenceType,
       initialDefectTrendData,
+      initialSpecLimitGraph: { usl: initialSpecUsl, lsl: initialSpecLsl, measurements: initialSpecMeasurements },
 
       factsAnalysis: {
         whatIs, whatIsNot,
@@ -556,6 +568,7 @@ export default function PpsrSystem({
       effectivenessEvidence,
       evidenceType,
       defectTrendData,
+      effectivenessSpecLimitGraph: { usl: effSpecUsl, lsl: effSpecLsl, measurements: effSpecMeasurements },
       effectivenessChartData: defectTrendData.map(d => ({
         name: d.date,
         value: Number(d.defectsCount) || 0
@@ -595,6 +608,8 @@ export default function PpsrSystem({
     setStandardWorksheet([]);
     setPsqTreeData(BLANK_PSQ_TREE_DATA);
     setEffectivenessEvidence('');
+    setInitialSpecUsl(7.25); setInitialSpecLsl(5.50); setInitialSpecMeasurements([]);
+    setEffSpecUsl(7.25); setEffSpecLsl(5.50); setEffSpecMeasurements([]);
     setLeadOwner('');
     setFormStep(1);
 
@@ -1135,6 +1150,17 @@ export default function PpsrSystem({
                           </ResponsiveContainer>
                         </div>
                       </div>
+
+                      {/* SPEC-LIMIT TREND GRAPH — Initial (Step 1) */}
+                      <SpecLimitInputPanel
+                        usl={initialSpecUsl}
+                        lsl={initialSpecLsl}
+                        measurements={initialSpecMeasurements}
+                        onUslChange={setInitialSpecUsl}
+                        onLslChange={setInitialSpecLsl}
+                        onMeasurementsChange={setInitialSpecMeasurements}
+                        title="Specification-Limit Trend Graph (Initial Baseline)"
+                      />
                     </div>
                   )}
 
@@ -1822,6 +1848,17 @@ export default function PpsrSystem({
                         </ResponsiveContainer>
                       </div>
                     </div>
+
+                    {/* SPEC-LIMIT TREND GRAPH — Effectiveness (Step 4) */}
+                    <SpecLimitInputPanel
+                      usl={effSpecUsl}
+                      lsl={effSpecLsl}
+                      measurements={effSpecMeasurements}
+                      onUslChange={setEffSpecUsl}
+                      onLslChange={setEffSpecLsl}
+                      onMeasurementsChange={setEffSpecMeasurements}
+                      title="Specification-Limit Trend Graph (Effectiveness Verification)"
+                    />
                   </div>
                 )}
 

@@ -278,6 +278,8 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 'committeeDecisionDate': 'committee_decision_date',
                 'steeringCommitteeSign': 'steering_committee_sign',
                 'fishbone': 'ishikawa',
+                'initialSpecLimitGraph': 'initial_spec_limit_graph',
+                'effectivenessSpecLimitGraph': 'effectiveness_spec_limit_graph',
             }
             for camel, snake in mapping.items():
                 if camel in normalized and snake not in normalized:
@@ -453,6 +455,8 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
             'evidenceType': ret.get('evidence_type'),
             'defectTrendData': ret.get('defect_trend_data'),
             'effectivenessChartData': ret.get('effectiveness_chart_data'),
+            'initialSpecLimitGraph': ret.get('initial_spec_limit_graph'),
+            'effectivenessSpecLimitGraph': ret.get('effectiveness_spec_limit_graph'),
             'readAcrossExplanation': ret.get('read_across_explanation'),
             'completionSignatures': ret.get('completion_signatures'),
             'containmentActionsList': ret.get('containment_actions'),
