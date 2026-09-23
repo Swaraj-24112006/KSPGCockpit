@@ -35,11 +35,19 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
     measurement: rawIshikawa.measurement || rawIshikawa.measurements || []
   };
 
-  const fiveWhys = report.fiveWhysList || {
-    column1: report.rootCauseAnalysis ? report.rootCauseAnalysis.split('\n') : [],
-    column2: [],
-    column3: []
-  };
+  // Migrate old column-based format to new array format
+  const rawFiveWhys = report.fiveWhysList;
+  const fiveWhys: Array<{ heading: string; whys: string[] }> = Array.isArray(rawFiveWhys)
+    ? rawFiveWhys
+    : rawFiveWhys && typeof rawFiveWhys === 'object' && ('column1' in rawFiveWhys || 'column2' in rawFiveWhys || 'column3' in rawFiveWhys)
+      ? [
+          ...((rawFiveWhys as any).column1?.length ? [{ heading: 'Root Cause 1', whys: (rawFiveWhys as any).column1 }] : []),
+          ...((rawFiveWhys as any).column2?.length ? [{ heading: 'Root Cause 2', whys: (rawFiveWhys as any).column2 }] : []),
+          ...((rawFiveWhys as any).column3?.length ? [{ heading: 'Root Cause 3', whys: (rawFiveWhys as any).column3 }] : []),
+        ]
+      : report.rootCauseAnalysis
+        ? [{ heading: 'Root Cause 1', whys: report.rootCauseAnalysis.split('\n') }]
+        : [];
 
   const correctiveList = report.correctiveActionsList || (report.permanentCorrectiveAction ? [
     { no: 1, measure: report.permanentCorrectiveAction, responsible: report.leadOwner || 'TBD', deadline: report.targetDate || '', status: 'completed' as const }
@@ -229,7 +237,7 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
 
               {/* Text & Picture/Chart layout */}
               <div className="grid grid-cols-1 md:grid-cols-12 border-x border-b border-slate-800 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-                <div className={`${hasInitialSpec ? 'md:col-span-4' : 'md:col-span-6'} p-3 text-xs leading-relaxed space-y-1 bg-white`}>
+                <div className="md:col-span-6 p-3 text-xs leading-relaxed space-y-1 bg-white">
                   <span className="text-[8px] font-black text-slate-400 uppercase block font-mono">Problem description:</span>
                   <p className="text-slate-700 font-medium whitespace-pre-wrap">{report.problemStatement}</p>
                 </div>
@@ -259,16 +267,18 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   )}
                 </div>
 
-                {/* Spec-Limit Trend Graph (Initial Baseline) */}
-                {hasInitialSpec && (
-                  <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] font-black text-teal-800 uppercase font-mono">Spec-Limit Trend</span>
+                {/* Specification-Limit Trend Graph (Replaced Option 2 Defect Photo) */}
+                <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[8px] font-black text-teal-800 uppercase font-mono">Specification-Limit Trend</span>
+                    {hasInitialSpec && (
                       <div className="flex items-center space-x-1 text-[7px] font-mono font-bold">
                         <span className="text-red-600 bg-red-50 px-1 rounded border border-red-200">U:{report.initialSpecLimitGraph!.usl}</span>
                         <span className="text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">L:{report.initialSpecLimitGraph!.lsl}</span>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  {hasInitialSpec ? (
                     <div className="h-28 bg-white p-1 rounded border border-slate-200">
                       <SpecLimitTrendGraph
                         usl={report.initialSpecLimitGraph!.usl}
@@ -277,22 +287,11 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                         height={108}
                       />
                     </div>
-                  </div>
-                )}
-
-                {/* Option 2: Defect Photo */}
-                <div className={`${hasInitialSpec ? 'md:col-span-2' : 'md:col-span-3'} p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]`}>
-                  <span className="text-[8px] font-black text-slate-500 uppercase block font-mono mb-1">Option 2: Defect Photo</span>
-                  <div className="flex-1 border border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-white p-1">
-                    {report.sketchPhoto ? (
-                      <img src={report.sketchPhoto} alt="Problem Evidence" className="max-h-24 object-contain rounded" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="text-center p-2 text-slate-400">
-                        <Compass className="w-6 h-6 text-slate-300 mx-auto animate-pulse" />
-                        <span className="text-[8px] font-mono uppercase block mt-1">Defect Diagram</span>
-                      </div>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="h-28 bg-white/60 border border-dashed border-slate-300 rounded flex items-center justify-center text-center p-2 text-[9px] text-slate-400 font-mono">
+                      No spec-limit data
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -460,58 +459,33 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                 <span className="text-[10px] font-normal text-slate-400 lowercase italic">BE Step 4b</span>
               </h3>
 
-              <div className="border border-slate-800 grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-800 font-mono text-[9px]">
+              <div className={`border border-slate-800 grid grid-cols-1 ${fiveWhys.length === 2 ? 'md:grid-cols-2' : fiveWhys.length >= 3 ? 'md:grid-cols-3' : ''} divide-y md:divide-y-0 md:divide-x divide-slate-800 font-mono text-[9px]`}>
 
-                {/* Column 1 */}
-                <div className="p-3 bg-white space-y-2.5">
-                  <span className="block text-[8px] font-black text-indigo-700 uppercase tracking-widest border-b pb-1 font-mono">Why Chain A (Primary)</span>
-                  <div className="space-y-2">
-                    {fiveWhys.column1 && fiveWhys.column1.length > 0 ? (
-                      fiveWhys.column1.map((w, idx) => (
-                        <div key={idx} className="flex items-start space-x-1">
-                          <span className="font-bold text-slate-400 select-none">W{idx + 1}:</span>
-                          <span className="text-slate-700 font-medium">{w}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-slate-400 italic">No analysis loaded</span>
-                    )}
+                {fiveWhys.length > 0 ? (
+                  fiveWhys.map((rc, idx) => (
+                    <div key={idx} className={`p-3 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/55'} space-y-2.5`}>
+                      <span className="block text-[8px] font-black text-indigo-700 uppercase tracking-widest border-b pb-1 font-mono">
+                        {rc.heading || `Root Cause ${idx + 1}`}
+                      </span>
+                      <div className="space-y-2">
+                        {rc.whys && rc.whys.length > 0 ? (
+                          rc.whys.map((w, wIdx) => (
+                            <div key={wIdx} className="flex items-start space-x-1">
+                              <span className="font-bold text-slate-400 select-none">W{wIdx + 1}:</span>
+                              <span className="text-slate-700 font-medium">{w}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-slate-400 italic">No analysis loaded</span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-3 bg-white text-slate-400 italic text-center col-span-full">
+                    No root cause analysis recorded.
                   </div>
-                </div>
-
-                {/* Column 2 */}
-                <div className="p-3 bg-slate-50/55 space-y-2.5">
-                  <span className="block text-[8px] font-black text-indigo-700 uppercase tracking-widest border-b pb-1 font-mono">Why Chain B (Process)</span>
-                  <div className="space-y-2">
-                    {fiveWhys.column2 && fiveWhys.column2.length > 0 ? (
-                      fiveWhys.column2.map((w, idx) => (
-                        <div key={idx} className="flex items-start space-x-1">
-                          <span className="font-bold text-slate-400 select-none">W{idx + 1}:</span>
-                          <span className="text-slate-700 font-medium">{w}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-slate-400 italic text-[8px]">No comparative why chain logged.</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Column 3 */}
-                <div className="p-3 bg-white space-y-2.5">
-                  <span className="block text-[8px] font-black text-indigo-700 uppercase tracking-widest border-b pb-1 font-mono">Why Chain C (Systemic)</span>
-                  <div className="space-y-2">
-                    {fiveWhys.column3 && fiveWhys.column3.length > 0 ? (
-                      fiveWhys.column3.map((w, idx) => (
-                        <div key={idx} className="flex items-start space-x-1">
-                          <span className="font-bold text-slate-400 select-none">W{idx + 1}:</span>
-                          <span className="text-slate-700 font-medium">{w}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <span className="text-slate-400 italic text-[8px]">No systemic why chain logged.</span>
-                    )}
-                  </div>
-                </div>
+                )}
 
               </div>
             </div>
@@ -566,11 +540,11 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
             {/* Section 6: Effectiveness & Evidence Options */}
             <div className="space-y-2">
               <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest font-mono border-b border-slate-800 pb-1 flex items-center justify-between">
-                <span>6 Effectiveness Evidence (Option 1: Data Graph & Option 2: Photo)</span>
+                <span>6 Effectiveness Evidence (Defect Reduction & Specification-Limit Verification)</span>
                 <span className="text-[10px] font-normal text-slate-400 lowercase italic">BE Step 6</span>
               </h3>
 
-              <div className={`grid grid-cols-1 ${hasEffectivenessSpec ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4 border border-slate-800 p-4`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-800 p-4">
                 {/* Option 1: Defect Reduction Trend Chart */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -607,19 +581,21 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   </p>
                 </div>
 
-                {/* Spec-Limit Trend Graph (Effectiveness Verification) */}
-                {hasEffectivenessSpec && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-teal-800 uppercase font-mono tracking-wider">
-                        🎯 Spec-Limit Verification
-                      </span>
+                {/* Specification-Limit Trend Graph (Replaced Option 2 Photo) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-black text-teal-800 uppercase font-mono tracking-wider">
+                      🎯 Specification-Limit Verification
+                    </span>
+                    {hasEffectivenessSpec && (
                       <div className="flex items-center space-x-1 text-[8px] font-mono font-bold">
                         <span className="text-red-600 bg-red-50 px-1 py-0.5 rounded border border-red-200">USL: {report.effectivenessSpecLimitGraph!.usl}</span>
                         <span className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-200">LSL: {report.effectivenessSpecLimitGraph!.lsl}</span>
                         <span className="text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">CL: {((report.effectivenessSpecLimitGraph!.usl + report.effectivenessSpecLimitGraph!.lsl) / 2).toFixed(2)}</span>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  {hasEffectivenessSpec ? (
                     <div className="h-44 bg-slate-50 p-2 rounded-xl border border-slate-200">
                       <SpecLimitTrendGraph
                         usl={report.effectivenessSpecLimitGraph!.usl}
@@ -628,35 +604,15 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                         height={160}
                       />
                     </div>
-                    <p className="text-[10px] text-slate-600 font-medium leading-relaxed italic border-l-2 border-teal-500 pl-2">
-                      Process capability verified against specification limits post-PCA.
-                    </p>
-                  </div>
-                )}
-
-                {/* Option 2: Evidence Photo / Visual Link */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-indigo-700 uppercase font-mono tracking-wider">
-                      📷 Option 2: Visual Photo Evidence
-                    </span>
-                    <span className="text-[8px] font-mono text-slate-500">
-                      Physical Inspection
-                    </span>
-                  </div>
-                  {report.sketchPhoto ? (
-                    <div className="h-44 rounded-xl border border-slate-200 overflow-hidden bg-slate-100 flex items-center justify-center p-1">
-                      <img src={report.sketchPhoto} alt="Evidence Photo" className="w-full h-full object-contain rounded-lg" />
-                    </div>
                   ) : (
-                    <div className="h-44 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 flex flex-col items-center justify-center p-4 text-center">
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center mb-2">
-                        📷
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-600 font-mono">No Image Uploaded</span>
-                      <p className="text-[9px] text-slate-400 mt-1">Photo upload is optional when Defect Reduction Data chart is provided.</p>
+                    <div className="h-44 bg-slate-50 p-2 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center text-center">
+                      <span className="text-[10px] font-bold text-slate-500 font-mono">No Spec-Limit Data Logged</span>
+                      <p className="text-[9px] text-slate-400 mt-1">Process measurements against USL/LSL.</p>
                     </div>
                   )}
+                  <p className="text-[10px] text-slate-600 font-medium leading-relaxed italic border-l-2 border-teal-500 pl-2">
+                    Process capability verified against specification limits post-PCA.
+                  </p>
                 </div>
               </div>
             </div>

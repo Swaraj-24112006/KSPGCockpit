@@ -411,24 +411,30 @@ export default function PpsrSystem({
   const [ishikawaMilieu, setIshikawaMilieu] = useState('');
   const [ishikawaMeasurement, setIshikawaMeasurement] = useState('');
 
-  // Step 4b: 5-Whys
-  const [why1_col1, setWhy1_col1] = useState('');
-  const [why2_col1, setWhy2_col1] = useState('');
-  const [why3_col1, setWhy3_col1] = useState('');
-  const [why4_col1, setWhy4_col1] = useState('');
-  const [why5_col1, setWhy5_col1] = useState('');
+  // Step 4b: 5-Whys (Dynamic root causes with user-defined headings)
+  const [rootCauses, setRootCauses] = useState<Array<{ heading: string; whys: string[] }>>([
+    { heading: '', whys: ['', '', '', '', ''] }
+  ]);
 
-  const [why1_col2, setWhy1_col2] = useState('');
-  const [why2_col2, setWhy2_col2] = useState('');
-  const [why3_col2, setWhy3_col2] = useState('');
-  const [why4_col2, setWhy4_col2] = useState('');
-  const [why5_col2, setWhy5_col2] = useState('');
+  const handleAddRootCause = () => {
+    setRootCauses(prev => [...prev, { heading: '', whys: ['', '', '', '', ''] }]);
+  };
 
-  const [why1_col3, setWhy1_col3] = useState('');
-  const [why2_col3, setWhy2_col3] = useState('');
-  const [why3_col3, setWhy3_col3] = useState('');
-  const [why4_col3, setWhy4_col3] = useState('');
-  const [why5_col3, setWhy5_col3] = useState('');
+  const handleRemoveRootCause = (index: number) => {
+    if (rootCauses.length > 1) {
+      setRootCauses(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleUpdateRootCauseHeading = (index: number, heading: string) => {
+    setRootCauses(prev => prev.map((rc, i) => i === index ? { ...rc, heading } : rc));
+  };
+
+  const handleUpdateRootCauseWhy = (rcIndex: number, whyIndex: number, value: string) => {
+    setRootCauses(prev => prev.map((rc, i) =>
+      i === rcIndex ? { ...rc, whys: rc.whys.map((w, wi) => wi === whyIndex ? value : w) } : rc
+    ));
+  };
 
   // Step 5: Corrective actions
   const [correctiveActions, setCorrectiveActions] = useState<Array<{ measure: string, responsible: string, deadline: string, status: 'planned' | 'in-progress' | 'completed' | 'proven' }>>([
@@ -512,7 +518,7 @@ export default function PpsrSystem({
       leadOwner,
       status: 'Open',
       targetDate: discoveredOn,
-      rootCauseAnalysis: why1_col1 ? `1. Why? ${why1_col1}\n2. Why? ${why2_col1}\n3. Why? ${why3_col1}\n4. Why? ${why4_col1}\n5. Why? ${why5_col1}` : 'Root cause analysis in progress.',
+      rootCauseAnalysis: rootCauses[0]?.whys[0] ? rootCauses.map((rc, i) => `[${rc.heading || `Root Cause ${i+1}`}] ${rc.whys.filter(Boolean).map((w, wi) => `${wi+1}. Why? ${w}`).join(' → ')}`).join('\n') : 'Root cause analysis in progress.',
       containmentAction: containmentActions[0]?.action || 'Containment action pending.',
       permanentCorrectiveAction: correctiveActions[0]?.measure || 'Corrective actions scheduled.',
       validationCheck: effectivenessEvidence || 'Validation check scheduled.',
@@ -555,11 +561,9 @@ export default function PpsrSystem({
       standardWorksheet,
       psqTreeData,
 
-      fiveWhysList: {
-        column1: [why1_col1, why2_col1, why3_col1, why4_col1, why5_col1].filter(Boolean),
-        column2: [why1_col2, why2_col2, why3_col2, why4_col2, why5_col2].filter(Boolean),
-        column3: [why1_col3, why2_col3, why3_col3, why4_col3, why5_col3].filter(Boolean)
-      },
+      fiveWhysList: rootCauses
+        .filter(rc => rc.heading.trim() || rc.whys.some(w => w.trim()))
+        .map(rc => ({ heading: rc.heading, whys: rc.whys.filter(Boolean) })),
 
       correctiveActionsList: correctiveActions
         .filter(ca => ca.measure.trim() !== '')
@@ -604,7 +608,7 @@ export default function PpsrSystem({
     setWhenIs(''); setWhenIsNot('');
     setIshikawaMan(''); setIshikawaMachine(''); setIshikawaMaterial('');
     setIshikawaMethods(''); setIshikawaMilieu(''); setIshikawaMeasurement('');
-    setWhy1_col1(''); setWhy2_col1(''); setWhy3_col1(''); setWhy4_col1(''); setWhy5_col1('');
+    setRootCauses([{ heading: '', whys: ['', '', '', '', ''] }]);
     setStandardWorksheet([]);
     setPsqTreeData(BLANK_PSQ_TREE_DATA);
     setEffectivenessEvidence('');
@@ -1552,41 +1556,91 @@ export default function PpsrSystem({
                 </div>
               )}
 
-              {/* Step 3.2: 5-Whys Flow */}
+              {/* Step 3.2: 5-Whys Flow (Dynamic Root Causes) */}
               <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                <h4 className="text-xs font-black text-violet-600 uppercase tracking-widest font-mono border-b pb-2 flex items-center gap-1.5">
-                  <span>⛓️ Step 3.2: Root Cause Analysis (5-Whys Chain)</span>
-                </h4>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h4 className="text-xs font-black text-violet-600 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <span>⛓️ Step 3.2: Root Cause Analysis (5-Whys Chain)</span>
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleAddRootCause}
+                    className="bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs px-3 py-1.5 rounded-lg font-black uppercase font-mono transition flex items-center space-x-1 border border-violet-100"
+                  >
+                    <span>+ Add Root Cause</span>
+                  </button>
+                </div>
 
-                <div className="max-w-xl mx-auto space-y-3">
-                  {[
-                    { label: "Why 1 (The Defect)", value: why1_col1, setter: setWhy1_col1, placeholder: "e.g. Micro-dust particles on the side door surface" },
-                    { label: "Why 2 (Immediate Cause)", value: why2_col1, setter: setWhy2_col1, placeholder: "e.g. Air flow blower introduced ambient airborne particles" },
-                    { label: "Why 3 (Process Cause)", value: why3_col1, setter: setWhy3_col1, placeholder: "e.g. HEPA intake pre-filter media was torn" },
-                    { label: "Why 4 (Technical Root)", value: why4_col1, setter: setWhy4_col1, placeholder: "e.g. Filter pressure differential check was not carried out" },
-                    { label: "Why 5 (Systemic Root)", value: why5_col1, setter: setWhy5_col1, placeholder: "e.g. Preventative Maintenance schedule did not have the task logged" }
-                  ].map((w, idx) => (
-                    <div key={idx} className="flex flex-col items-center">
-                      <div className="w-full bg-white p-3 rounded-xl border border-slate-200 shadow-3xs flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0">
-                          W{idx + 1}
+                <div className="space-y-6">
+                  {rootCauses.map((rc, rcIdx) => (
+                    <div key={rcIdx} className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4 relative group">
+                      {/* Remove button */}
+                      {rootCauses.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveRootCause(rcIdx)}
+                          className="absolute right-3 top-3 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* Root Cause Heading Input */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-violet-100 border border-violet-200 text-violet-700 flex items-center justify-center font-black text-xs shrink-0">
+                          {rcIdx + 1}
                         </div>
                         <div className="flex-1">
-                          <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">{w.label}</label>
+                          <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">
+                            Root Cause Heading
+                          </label>
                           <input
                             type="text"
-                            value={w.value}
-                            onChange={(e) => w.setter(e.target.value)}
-                            placeholder={w.placeholder}
-                            className="w-full bg-slate-50/40 border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 font-semibold"
+                            value={rc.heading}
+                            onChange={(e) => handleUpdateRootCauseHeading(rcIdx, e.target.value)}
+                            placeholder={`e.g. Process / Method, Machine / Tooling, Detection System...`}
+                            className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-violet-200 focus:border-violet-400 transition"
                           />
                         </div>
                       </div>
-                      {idx < 4 && (
-                        <div className="my-1 text-slate-400 font-bold font-mono animate-bounce text-[10px]">
-                          ↓ Why?
-                        </div>
-                      )}
+
+                      {/* 5-Why Chain */}
+                      <div className="max-w-xl mx-auto space-y-3 pt-2">
+                        {[
+                          "Why 1 (The Defect)",
+                          "Why 2 (Immediate Cause)",
+                          "Why 3 (Process Cause)",
+                          "Why 4 (Technical Root)",
+                          "Why 5 (Systemic Root)"
+                        ].map((label, wIdx) => (
+                          <div key={wIdx} className="flex flex-col items-center">
+                            <div className="w-full bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex items-center gap-4">
+                              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0">
+                                W{wIdx + 1}
+                              </div>
+                              <div className="flex-1">
+                                <label className="block text-[8px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</label>
+                                <input
+                                  type="text"
+                                  value={rc.whys[wIdx] || ''}
+                                  onChange={(e) => handleUpdateRootCauseWhy(rcIdx, wIdx, e.target.value)}
+                                  placeholder={wIdx === 0 ? "e.g. Micro-dust particles on the side door surface" :
+                                    wIdx === 1 ? "e.g. Air flow blower introduced ambient airborne particles" :
+                                    wIdx === 2 ? "e.g. HEPA intake pre-filter media was torn" :
+                                    wIdx === 3 ? "e.g. Filter pressure differential check was not carried out" :
+                                    "e.g. Preventative Maintenance schedule did not have the task logged"}
+                                  className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 font-semibold"
+                                />
+                              </div>
+                            </div>
+                            {wIdx < 4 && (
+                              <div className="my-1 text-slate-400 font-bold font-mono animate-bounce text-[10px]">
+                                ↓ Why?
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -208,6 +208,16 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
     };
   };
 
+  // Migrate old { column1, column2, column3 } five-whys format to new array format
+  const migrateOldFiveWhys = (old: any): Array<{ heading: string; whys: string[] }> => {
+    if (!old) return [];
+    const result: Array<{ heading: string; whys: string[] }> = [];
+    if (old.column1 && old.column1.length > 0) result.push({ heading: 'Root Cause 1', whys: old.column1 });
+    if (old.column2 && old.column2.length > 0) result.push({ heading: 'Root Cause 2', whys: old.column2 });
+    if (old.column3 && old.column3.length > 0) result.push({ heading: 'Root Cause 3', whys: old.column3 });
+    return result;
+  };
+
   const normalizePpsrReport = (p: any): PpsrReport => {
     return {
       ...p,
@@ -243,7 +253,9 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       ishikawa: p.ishikawa || {},
       psqTreeData: p.psqTreeData || p.psq_tree_data || {},
       standardWorksheet: p.standardWorksheet || p.standard_worksheet || [],
-      fiveWhysList: p.fiveWhysList || p.five_whys || { column1: [], column2: [], column3: [] },
+      fiveWhysList: Array.isArray(p.fiveWhysList || p.five_whys)
+        ? (p.fiveWhysList || p.five_whys)
+        : migrateOldFiveWhys(p.fiveWhysList || p.five_whys),
       correctiveActionsList: p.correctiveActionsList || p.corrective_actions || [],
       effectivenessEvidence: p.effectivenessEvidence || p.effectiveness_evidence || '',
       evidenceType: p.evidenceType || p.evidence_type || 'data',

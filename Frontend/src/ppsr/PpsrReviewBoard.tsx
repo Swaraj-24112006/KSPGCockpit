@@ -33,6 +33,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import IshikawaFishbone from './IshikawaFishbone';
 import { PsqEliminationTree, DEFAULT_PSQ_TREE_DATA } from './PsqEliminationTree';
 import PpsrPresentationMode from './PpsrPresentationMode';
+import SpecLimitTrendGraph from './SpecLimitTrendGraph';
 import { formatIndianRupees } from '../utils';
 import { downloadElementAsPdf } from '../shared/utils/pdfExporter';
 
@@ -711,6 +712,16 @@ export default function PpsrReviewBoard({
               <div className="flex items-center space-x-2">
                 <button
                   type="button"
+                  onClick={() => setPresentingReport(selectedReport)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase font-mono px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                  title="Launch Committee Presentation Mode"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Present Mode</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => openReviewModal(selectedReport)}
                   className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-black uppercase font-mono px-4 py-2 rounded-xl transition flex items-center space-x-1.5 shadow-xs cursor-pointer"
                 >
@@ -806,6 +817,70 @@ export default function PpsrReviewBoard({
 
               </div>
 
+              {/* Step 1 Visual Process Evidence: Baseline Graph & Specification-Limit Trend Graph */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Block 1: Initial Baseline Chart */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <span className="text-[10px] font-black uppercase font-mono text-emerald-700 flex items-center gap-1.5">
+                      <TrendingDown className="w-3.5 h-3.5" />
+                      <span>Option 1: Initial Defect Baseline Chart</span>
+                    </span>
+                    <span className="text-[8px] font-mono font-bold text-slate-500">Initial State</span>
+                  </div>
+                  {selectedReport.initialDefectTrendData && selectedReport.initialDefectTrendData.length > 0 ? (
+                    <div className="h-40 bg-white p-2 rounded-xl border border-slate-200">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={selectedReport.initialDefectTrendData.map(d => ({
+                          name: d.date || (d as any).name || (d as any).stage || 'Stage',
+                          value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+                        }))} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <YAxis tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <Tooltip contentStyle={{ fontSize: '10px', backgroundColor: '#0f172a', color: '#fff', borderRadius: '8px' }} />
+                          <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={2.5} dot={{ r: 4, fill: '#059669' }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-40 bg-white/70 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400 font-mono">
+                      No baseline trend data recorded
+                    </div>
+                  )}
+                </div>
+
+                {/* Block 2: Specification-Limit Trend Graph (Replaced Option 2 Photo) */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <span className="text-[10px] font-black uppercase font-mono text-teal-800 flex items-center gap-1.5">
+                      <TrendingDown className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Specification-Limit Trend Graph</span>
+                    </span>
+                    {selectedReport.initialSpecLimitGraph && selectedReport.initialSpecLimitGraph.measurements && selectedReport.initialSpecLimitGraph.measurements.length > 0 && (
+                      <div className="flex items-center space-x-1.5 text-[8px] font-mono font-bold">
+                        <span className="text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">USL {selectedReport.initialSpecLimitGraph.usl}</span>
+                        <span className="text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">LSL {selectedReport.initialSpecLimitGraph.lsl}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedReport.initialSpecLimitGraph && selectedReport.initialSpecLimitGraph.measurements && selectedReport.initialSpecLimitGraph.measurements.length > 0 ? (
+                    <div className="h-40 bg-white p-2 rounded-xl border border-slate-200">
+                      <SpecLimitTrendGraph
+                        usl={selectedReport.initialSpecLimitGraph.usl}
+                        lsl={selectedReport.initialSpecLimitGraph.lsl}
+                        measurements={selectedReport.initialSpecLimitGraph.measurements}
+                        height={150}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-40 bg-white/70 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400 font-mono">
+                      No specification limit data recorded
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Step 3: Root Cause Analysis */}
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3">
                 <h4 className="text-xs font-black text-slate-800 uppercase font-mono border-b pb-1">
@@ -868,6 +943,72 @@ export default function PpsrReviewBoard({
                   </div>
                 </div>
 
+              </div>
+
+              {/* Step 4/6 Effectiveness Verification: Defect Reduction & Specification-Limit Verification */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Block 1: Defect Reduction Trend Chart */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <span className="text-[10px] font-black uppercase font-mono text-indigo-700 flex items-center gap-1.5">
+                      <TrendingDown className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Option 1: Defect Reduction Trend Chart</span>
+                    </span>
+                    <span className="text-[8px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Verified Data
+                    </span>
+                  </div>
+                  {selectedReport.defectTrendData && selectedReport.defectTrendData.length > 0 ? (
+                    <div className="h-40 bg-white p-2 rounded-xl border border-slate-200">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={selectedReport.defectTrendData.map(d => ({
+                          name: d.date || (d as any).name || (d as any).stage || 'Stage',
+                          value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
+                        }))} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <YAxis tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <Tooltip contentStyle={{ fontSize: '10px', backgroundColor: '#0f172a', color: '#fff', borderRadius: '8px' }} />
+                          <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={2.5} dot={{ r: 4, fill: '#059669' }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-40 bg-white/70 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400 font-mono">
+                      No defect reduction data recorded
+                    </div>
+                  )}
+                </div>
+
+                {/* Block 2: Specification-Limit Trend Graph (Replaced Option 2 Photo) */}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between border-b pb-1">
+                    <span className="text-[10px] font-black uppercase font-mono text-teal-800 flex items-center gap-1.5">
+                      <TrendingDown className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Specification-Limit Verification</span>
+                    </span>
+                    {selectedReport.effectivenessSpecLimitGraph && selectedReport.effectivenessSpecLimitGraph.measurements && selectedReport.effectivenessSpecLimitGraph.measurements.length > 0 && (
+                      <div className="flex items-center space-x-1.5 text-[8px] font-mono font-bold">
+                        <span className="text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">USL {selectedReport.effectivenessSpecLimitGraph.usl}</span>
+                        <span className="text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">LSL {selectedReport.effectivenessSpecLimitGraph.lsl}</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedReport.effectivenessSpecLimitGraph && selectedReport.effectivenessSpecLimitGraph.measurements && selectedReport.effectivenessSpecLimitGraph.measurements.length > 0 ? (
+                    <div className="h-40 bg-white p-2 rounded-xl border border-slate-200">
+                      <SpecLimitTrendGraph
+                        usl={selectedReport.effectivenessSpecLimitGraph.usl}
+                        lsl={selectedReport.effectivenessSpecLimitGraph.lsl}
+                        measurements={selectedReport.effectivenessSpecLimitGraph.measurements}
+                        height={150}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-40 bg-white/70 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400 font-mono">
+                      No effectiveness specification limit data recorded
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Signatures Box */}

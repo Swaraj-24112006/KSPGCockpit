@@ -153,11 +153,19 @@ export default function PpsrPresentationMode({
     measurement: rawIshikawa.measurement || rawIshikawa.measurements || []
   };
 
-  const fiveWhys = report.fiveWhysList || {
-    column1: report.rootCauseAnalysis ? report.rootCauseAnalysis.split('\n') : [],
-    column2: [],
-    column3: []
-  };
+  // Migrate old column-based format to new array format
+  const rawFiveWhys = report.fiveWhysList;
+  const fiveWhys: Array<{ heading: string; whys: string[] }> = Array.isArray(rawFiveWhys)
+    ? rawFiveWhys
+    : rawFiveWhys && typeof rawFiveWhys === 'object' && ('column1' in rawFiveWhys || 'column2' in rawFiveWhys || 'column3' in rawFiveWhys)
+      ? [
+          ...((rawFiveWhys as any).column1?.length ? [{ heading: 'Root Cause 1', whys: (rawFiveWhys as any).column1 }] : []),
+          ...((rawFiveWhys as any).column2?.length ? [{ heading: 'Root Cause 2', whys: (rawFiveWhys as any).column2 }] : []),
+          ...((rawFiveWhys as any).column3?.length ? [{ heading: 'Root Cause 3', whys: (rawFiveWhys as any).column3 }] : []),
+        ]
+      : report.rootCauseAnalysis
+        ? [{ heading: 'Root Cause 1', whys: report.rootCauseAnalysis.split('\n') }]
+        : [];
 
   const correctiveList = report.correctiveActionsList || (report.permanentCorrectiveAction ? [
     { no: 1, measure: report.permanentCorrectiveAction, responsible: report.leadOwner || 'TBD', deadline: report.targetDate || '', status: 'completed' as const }
@@ -573,8 +581,8 @@ export default function PpsrPresentationMode({
                   {report.problemStatement || 'No detailed problem statement entered.'}
                 </div>
 
-                {/* Initial Evidence: Baseline Graph, Spec-Limit Trend Graph, & Defect Photo */}
-                <div className={`grid grid-cols-1 ${report.initialSpecLimitGraph?.measurements && report.initialSpecLimitGraph.measurements.length > 0 ? 'lg:grid-cols-3' : 'md:grid-cols-2'} gap-4 pt-2`}>
+                {/* Initial Evidence: Baseline Graph & Spec-Limit Trend Graph (Side-by-Side) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   {/* Option 1: Initial Baseline Chart */}
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
                     <span className="text-xs font-black uppercase tracking-wider text-emerald-800 font-mono block">
@@ -602,19 +610,22 @@ export default function PpsrPresentationMode({
                     )}
                   </div>
 
-                  {/* Spec-Limit Trend Graph (Initial Baseline) */}
-                  {report.initialSpecLimitGraph && report.initialSpecLimitGraph.measurements && report.initialSpecLimitGraph.measurements.length > 0 && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-1.5">
-                          <TrendingDown className="w-4 h-4 text-teal-600" />
-                          <span>Spec-Limit Trend Graph</span>
-                        </span>
+                  {/* Specification-Limit Trend Graph (Replaced Option 2 Photo) */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-1.5">
+                        <TrendingDown className="w-4 h-4 text-teal-600" />
+                        <span>Specification-Limit Trend Graph</span>
+                      </span>
+                      {report.initialSpecLimitGraph && report.initialSpecLimitGraph.measurements && report.initialSpecLimitGraph.measurements.length > 0 && (
                         <div className="flex items-center space-x-1 text-[10px] font-mono font-bold">
                           <span className="text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">USL {report.initialSpecLimitGraph.usl}</span>
                           <span className="text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">LSL {report.initialSpecLimitGraph.lsl}</span>
+                          <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">CL {((report.initialSpecLimitGraph.usl + report.initialSpecLimitGraph.lsl) / 2).toFixed(2)}</span>
                         </div>
-                      </div>
+                      )}
+                    </div>
+                    {report.initialSpecLimitGraph && report.initialSpecLimitGraph.measurements && report.initialSpecLimitGraph.measurements.length > 0 ? (
                       <div className="h-44 bg-white p-2 rounded-xl border border-slate-200">
                         <SpecLimitTrendGraph
                           usl={report.initialSpecLimitGraph.usl}
@@ -623,21 +634,9 @@ export default function PpsrPresentationMode({
                           height={160}
                         />
                       </div>
-                    </div>
-                  )}
-
-                  {/* Option 2: Photo Evidence */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-indigo-800 font-mono block">
-                      📷 Option 2: Defect Photo Evidence
-                    </span>
-                    {report.sketchPhoto ? (
-                      <div className="h-44 bg-white rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center p-2">
-                        <img src={report.sketchPhoto} alt="Defect Evidence" className="max-h-40 object-contain rounded-lg" />
-                      </div>
                     ) : (
                       <div className="h-44 bg-white/70 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-400 font-mono">
-                        No photo uploaded
+                        No specification limit data recorded
                       </div>
                     )}
                   </div>
@@ -841,31 +840,31 @@ export default function PpsrPresentationMode({
                   <span>5-Why Root Cause Drilldown</span>
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {[
-                    { title: 'Pathway 1 (Process / Method)', items: fiveWhys.column1 },
-                    { title: 'Pathway 2 (Machine / Tooling)', items: fiveWhys.column2 },
-                    { title: 'Pathway 3 (Detection System)', items: fiveWhys.column3 }
-                  ].map((col, idx) => (
-                    <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-3">
-                      <h4 className="text-xs font-black text-indigo-900 font-mono uppercase border-b border-slate-300 pb-2">
-                        {col.title}
-                      </h4>
-                      <div className="space-y-2">
-                        {col.items && col.items.length > 0 ? (
-                          col.items.map((why, wIdx) => (
-                            <div key={wIdx} className="text-sm p-3 bg-white rounded-lg border border-slate-200 text-slate-900 font-medium shadow-2xs">
-                              <span className="font-mono text-indigo-700 font-extrabold mr-2">Why {wIdx + 1}:</span>
-                              {why}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-slate-500 italic p-3">No 5-why entries logged.</div>
-                        )}
+                {fiveWhys.length > 0 ? (
+                  <div className={`grid grid-cols-1 ${fiveWhys.length === 1 ? 'md:grid-cols-1 max-w-xl' : fiveWhys.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-5`}>
+                    {fiveWhys.map((rc, idx) => (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-3">
+                        <h4 className="text-xs font-black text-indigo-900 font-mono uppercase border-b border-slate-300 pb-2">
+                          {rc.heading || `Root Cause ${idx + 1}`}
+                        </h4>
+                        <div className="space-y-2">
+                          {rc.whys && rc.whys.length > 0 ? (
+                            rc.whys.map((why, wIdx) => (
+                              <div key={wIdx} className="text-sm p-3 bg-white rounded-lg border border-slate-200 text-slate-900 font-medium shadow-2xs">
+                                <span className="font-mono text-indigo-700 font-extrabold mr-2">Why {wIdx + 1}:</span>
+                                {why}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-xs text-slate-500 italic p-3">No 5-why entries logged.</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 italic p-4 text-center">No root cause analysis recorded.</div>
+                )}
               </div>
             </div>
           )}
@@ -968,7 +967,7 @@ export default function PpsrPresentationMode({
               </div>
 
               {/* Defect Trend Chart & Spec-Limit Trend Graph (Side-by-Side) */}
-              <div className={`grid grid-cols-1 ${report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 ? 'lg:grid-cols-2' : ''} gap-6`}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Defect Trend Chart */}
                 <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
                   <h3 className="text-sm font-black uppercase tracking-wider text-indigo-800 font-mono flex items-center space-x-2">
@@ -991,20 +990,22 @@ export default function PpsrPresentationMode({
                   </div>
                 </div>
 
-                {/* Spec-Limit Trend Graph (Effectiveness) */}
-                {report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 && (
-                  <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-2">
-                        <TrendingDown className="w-5 h-5 text-teal-600" />
-                        <span>Spec-Limit Verification</span>
-                      </h3>
+                {/* Spec-Limit Trend Graph (Effectiveness Verification) */}
+                <div className="bg-white border border-slate-300 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-wider text-teal-800 font-mono flex items-center space-x-2">
+                      <TrendingDown className="w-5 h-5 text-teal-600" />
+                      <span>Specification-Limit Verification</span>
+                    </h3>
+                    {report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 && (
                       <div className="flex items-center space-x-2 text-xs font-mono font-bold">
                         <span className="text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded">USL {report.effectivenessSpecLimitGraph.usl}</span>
                         <span className="text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">LSL {report.effectivenessSpecLimitGraph.lsl}</span>
                         <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">CL {((report.effectivenessSpecLimitGraph.usl + report.effectivenessSpecLimitGraph.lsl) / 2).toFixed(2)}</span>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                  {report.effectivenessSpecLimitGraph && report.effectivenessSpecLimitGraph.measurements && report.effectivenessSpecLimitGraph.measurements.length > 0 ? (
                     <div className="h-80 w-full pt-2">
                       <SpecLimitTrendGraph
                         usl={report.effectivenessSpecLimitGraph.usl}
@@ -1013,8 +1014,12 @@ export default function PpsrPresentationMode({
                         height={300}
                       />
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <div className="h-80 w-full flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-xl bg-slate-50/50 text-slate-400 font-mono text-xs">
+                      No effectiveness specification limit data recorded
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}

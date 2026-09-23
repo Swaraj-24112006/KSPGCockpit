@@ -275,11 +275,10 @@ export interface PpsrReport {
     measurement: string[];
   };
 
-  fiveWhysList?: {
-    column1: string[];
-    column2: string[];
-    column3: string[];
-  };
+  fiveWhysList?: Array<{
+    heading: string;
+    whys: string[];
+  }>;
 
   correctiveActionsList?: Array<{
     no: number;
