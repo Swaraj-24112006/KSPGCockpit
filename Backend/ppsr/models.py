@@ -75,6 +75,10 @@ class PpsrReport(models.Model):
     # {man:[], machine:[], material:[], methods:[], milieu:[], measurement:[]}
     ishikawa = models.JSONField(default=dict, blank=True)
 
+    # Step 3 — Ishikawa root causes (highlighted by initiator)
+    # [{category: "man", text: "Operator fatigue"}, ...]
+    ishikawa_root_causes = models.JSONField(default=list, blank=True)
+
     # Step 3 — PSQ Elimination Tree full data (complex nested JSON)
     psq_tree_data = models.JSONField(default=dict, blank=True)
 

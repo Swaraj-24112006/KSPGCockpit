@@ -24,9 +24,13 @@ interface IshikawaData {
 interface IshikawaFishboneProps {
   ishikawa?: IshikawaData;
   problemTitle: string;
+  rootCauses?: Array<{ category: string; text: string }>;
 }
 
-export default function IshikawaFishbone({ ishikawa, problemTitle }: IshikawaFishboneProps) {
+export default function IshikawaFishbone({ ishikawa, problemTitle, rootCauses = [] }: IshikawaFishboneProps) {
+  const isRootCause = (catKey: string, causeText: string) => {
+    return rootCauses.some(rc => rc.category === catKey && rc.text === causeText);
+  };
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -384,20 +388,21 @@ export default function IshikawaFishbone({ ishikawa, problemTitle }: IshikawaFis
                         y1={Yt}
                         x2={Xb}
                         y2={Yt}
-                        stroke={isHighlighted ? cat.color : '#cbd5e1'}
-                        strokeWidth={isHighlighted ? '1.5' : '1'}
-                        strokeDasharray="2 1"
+                        stroke={isRootCause(cat.key, cause) ? '#dc2626' : isHighlighted ? cat.color : '#cbd5e1'}
+                        strokeWidth={isRootCause(cat.key, cause) ? '2' : isHighlighted ? '1.5' : '1'}
+                        strokeDasharray={isRootCause(cat.key, cause) ? undefined : '2 1'}
                         className="transition-all duration-300"
                       />
 
-                      {/* Small joint anchor circle */}
+                      {/* Small joint anchor circle — red if root cause */}
                       <circle
                         cx={Xt}
                         cy={Yt}
-                        r={isHighlighted ? '3.5' : '2'}
-                        fill={isHighlighted ? '#ffffff' : '#94a3b8'}
-                        stroke={cat.color}
-                        strokeWidth="1"
+                        r={isRootCause(cat.key, cause) ? '4.5' : isHighlighted ? '3.5' : '2'}
+                        fill={isRootCause(cat.key, cause) ? '#dc2626' : isHighlighted ? '#ffffff' : '#94a3b8'}
+                        stroke={isRootCause(cat.key, cause) ? '#991b1b' : cat.color}
+                        strokeWidth={isRootCause(cat.key, cause) ? '2' : '1'}
+                        className={isRootCause(cat.key, cause) ? 'animate-pulse' : ''}
                       />
 
                       {/* Floating Text tag for the cause */}
@@ -409,10 +414,13 @@ export default function IshikawaFishbone({ ishikawa, problemTitle }: IshikawaFis
                       >
                         <div
                           xmlns="http://www.w3.org/1999/xhtml"
-                          className={`text-[8px] leading-[9.5px] text-right pr-2 select-none font-semibold overflow-hidden text-ellipsis line-clamp-3 transition-colors duration-200 ${isHighlighted ? 'text-indigo-950 font-black' : 'text-slate-600 group-hover/cause:text-slate-900'
+                          className={`text-[8px] leading-[9.5px] text-right pr-2 select-none overflow-hidden text-ellipsis line-clamp-3 transition-colors duration-200 ${
+                            isRootCause(cat.key, cause)
+                              ? 'text-red-700 font-black'
+                              : isHighlighted ? 'text-indigo-950 font-black' : 'text-slate-600 font-semibold group-hover/cause:text-slate-900'
                             }`}
                         >
-                          {cause}
+                          {isRootCause(cat.key, cause) && '🔴 '}{cause}
                         </div>
                       </foreignObject>
                     </g>
@@ -570,11 +578,15 @@ export default function IshikawaFishbone({ ishikawa, problemTitle }: IshikawaFis
                 </div>
                 {hasCauses ? (
                   <div className="space-y-1 max-h-20 overflow-y-auto pr-1">
-                    {cat.list.map((cause, idx) => (
-                      <div key={idx} className="text-[8px] text-slate-600 font-sans leading-tight bg-slate-50 p-1 rounded-md border border-slate-100 truncate">
-                        • {cause}
-                      </div>
-                    ))}
+                    {cat.list.map((cause, idx) => {
+                      const isCauseRC = isRootCause(cat.key, cause);
+                      return (
+                        <div key={idx} className={`text-[8px] font-sans leading-tight p-1 rounded-md border truncate flex items-center gap-1 ${isCauseRC ? 'bg-red-50 border-red-200 text-red-700 font-bold' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
+                          {isCauseRC && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+                          • {cause}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <span className="text-[8px] text-slate-400 font-mono italic">No causes logged</span>

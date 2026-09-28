@@ -403,13 +403,75 @@ export default function PpsrSystem({
   const [standardWorksheet, setStandardWorksheet] = useState<StandardWorksheetRow[]>([]);
   const [psqTreeData, setPsqTreeData] = useState<PsqTreeData>(BLANK_PSQ_TREE_DATA);
 
-  // Ishikawa state
-  const [ishikawaMan, setIshikawaMan] = useState('');
-  const [ishikawaMachine, setIshikawaMachine] = useState('');
-  const [ishikawaMaterial, setIshikawaMaterial] = useState('');
-  const [ishikawaMethods, setIshikawaMethods] = useState('');
-  const [ishikawaMilieu, setIshikawaMilieu] = useState('');
-  const [ishikawaMeasurement, setIshikawaMeasurement] = useState('');
+  // Ishikawa state — point-based input per category
+  const [ishikawaPoints, setIshikawaPoints] = useState<Record<string, string[]>>({
+    man: [], machine: [], material: [], methods: [], milieu: [], measurement: []
+  });
+  const [ishikawaRootCauses, setIshikawaRootCauses] = useState<Array<{ category: string; text: string }>>([]);
+
+  const handleAddIshikawaPoint = (category: string) => {
+    setIshikawaPoints(prev => ({ ...prev, [category]: [...(prev[category] || []), ''] }));
+  };
+
+  const handleUpdateIshikawaPoint = (category: string, index: number, value: string) => {
+    setIshikawaPoints(prev => ({
+      ...prev,
+      [category]: (prev[category] || []).map((p, i) => i === index ? value : p)
+    }));
+    // If this point was a root cause, update its text in rootCauses too
+    const oldText = ishikawaPoints[category]?.[index];
+    if (oldText) {
+      setIshikawaRootCauses(prev =>
+        prev.map(rc => rc.category === category && rc.text === oldText ? { ...rc, text: value } : rc)
+      );
+      // Also update the matching 5-Whys heading
+      setRootCauses(prevRC =>
+        prevRC.map(rc => rc.heading === `[${category.toUpperCase()}] ${oldText}` ? { ...rc, heading: `[${category.toUpperCase()}] ${value}` } : rc)
+      );
+    }
+  };
+
+  const handleRemoveIshikawaPoint = (category: string, index: number) => {
+    const removedText = ishikawaPoints[category]?.[index];
+    setIshikawaPoints(prev => ({
+      ...prev,
+      [category]: (prev[category] || []).filter((_, i) => i !== index)
+    }));
+    // Also remove from root causes if it was selected
+    if (removedText) {
+      setIshikawaRootCauses(prev => prev.filter(rc => !(rc.category === category && rc.text === removedText)));
+      // Remove matching 5-Whys entry
+      setRootCauses(prevRC => {
+        const filtered = prevRC.filter(rc => rc.heading !== `[${category.toUpperCase()}] ${removedText}`);
+        return filtered.length > 0 ? filtered : [{ heading: '', whys: ['', '', '', '', ''] }];
+      });
+    }
+  };
+
+  const handleToggleRootCause = (category: string, text: string) => {
+    if (!text.trim()) return;
+    const exists = ishikawaRootCauses.some(rc => rc.category === category && rc.text === text);
+    if (exists) {
+      // Remove from root causes
+      setIshikawaRootCauses(prev => prev.filter(rc => !(rc.category === category && rc.text === text)));
+      // Remove matching 5-Whys entry
+      setRootCauses(prevRC => {
+        const filtered = prevRC.filter(rc => rc.heading !== `[${category.toUpperCase()}] ${text}`);
+        return filtered.length > 0 ? filtered : [{ heading: '', whys: ['', '', '', '', ''] }];
+      });
+    } else {
+      // Add to root causes
+      setIshikawaRootCauses(prev => [...prev, { category, text }]);
+      // Auto-add 5-Whys entry with heading pre-filled
+      setRootCauses(prevRC => {
+        const hasEmpty = prevRC.length === 1 && !prevRC[0].heading && prevRC[0].whys.every(w => !w);
+        if (hasEmpty) {
+          return [{ heading: `[${category.toUpperCase()}] ${text}`, whys: ['', '', '', '', ''] }];
+        }
+        return [...prevRC, { heading: `[${category.toUpperCase()}] ${text}`, whys: ['', '', '', '', ''] }];
+      });
+    }
+  };
 
   // Step 4b: 5-Whys (Dynamic root causes with user-defined headings)
   const [rootCauses, setRootCauses] = useState<Array<{ heading: string; whys: string[] }>>([
@@ -422,7 +484,14 @@ export default function PpsrSystem({
 
   const handleRemoveRootCause = (index: number) => {
     if (rootCauses.length > 1) {
+      const removed = rootCauses[index];
       setRootCauses(prev => prev.filter((_, i) => i !== index));
+      // If the removed heading matches a root cause, also unmark it
+      if (removed?.heading) {
+        setIshikawaRootCauses(prev =>
+          prev.filter(rc => `[${rc.category.toUpperCase()}] ${rc.text}` !== removed.heading)
+        );
+      }
     }
   };
 
@@ -435,6 +504,7 @@ export default function PpsrSystem({
       i === rcIndex ? { ...rc, whys: rc.whys.map((w, wi) => wi === whyIndex ? value : w) } : rc
     ));
   };
+
 
   // Step 5: Corrective actions
   const [correctiveActions, setCorrectiveActions] = useState<Array<{ measure: string, responsible: string, deadline: string, status: 'planned' | 'in-progress' | 'completed' | 'proven' }>>([
@@ -549,13 +619,16 @@ export default function PpsrSystem({
         .map((c, i) => ({ no: i + 1, ...c })),
 
       ishikawa: {
-        man: ishikawaMan ? ishikawaMan.split(',').map(s => s.trim()) : [],
-        machine: ishikawaMachine ? ishikawaMachine.split(',').map(s => s.trim()) : [],
-        material: ishikawaMaterial ? ishikawaMaterial.split(',').map(s => s.trim()) : [],
-        methods: ishikawaMethods ? ishikawaMethods.split(',').map(s => s.trim()) : [],
-        milieu: ishikawaMilieu ? ishikawaMilieu.split(',').map(s => s.trim()) : [],
-        measurement: ishikawaMeasurement ? ishikawaMeasurement.split(',').map(s => s.trim()) : []
+        man: (ishikawaPoints.man || []).filter(Boolean),
+        machine: (ishikawaPoints.machine || []).filter(Boolean),
+        material: (ishikawaPoints.material || []).filter(Boolean),
+        methods: (ishikawaPoints.methods || []).filter(Boolean),
+        milieu: (ishikawaPoints.milieu || []).filter(Boolean),
+        measurement: (ishikawaPoints.measurement || []).filter(Boolean)
       },
+
+      ishikawaRootCauses: ishikawaRootCauses.filter(rc => rc.text.trim()),
+
 
       causeLocalizationApproach,
       standardWorksheet,
@@ -611,8 +684,8 @@ export default function PpsrSystem({
     setWhereIs(''); setWhereIsNot('');
     setHowIs(''); setHowIsNot('');
     setWhenIs(''); setWhenIsNot('');
-    setIshikawaMan(''); setIshikawaMachine(''); setIshikawaMaterial('');
-    setIshikawaMethods(''); setIshikawaMilieu(''); setIshikawaMeasurement('');
+    setIshikawaPoints({ man: [], machine: [], material: [], methods: [], milieu: [], measurement: [] });
+    setIshikawaRootCauses([]);
     setRootCauses([{ heading: '', whys: ['', '', '', '', ''] }]);
     setStandardWorksheet([]);
     setPsqTreeData(BLANK_PSQ_TREE_DATA);
@@ -1493,73 +1566,100 @@ export default function PpsrSystem({
               {(causeLocalizationApproach === 'fishbone' || causeLocalizationApproach === 'both') && (
                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-4">
                   <h4 className="text-xs font-black text-violet-600 uppercase tracking-widest font-mono border-b pb-2 flex items-center gap-1.5">
-                    <span>📐 Step 3.1: Ishikawa 6M Localization categories (Separate causes by commas)</span>
+                    <span>📐 Step 3.1: Ishikawa 6M Localization Categories</span>
                   </h4>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 ring-2 ring-red-200" />
+                    <span><strong>Tip:</strong> Click the dot (●) next to any point to mark it as a <strong className="text-red-600">Root Cause</strong>. It will auto-appear in Step 3.2 below.</span>
+                  </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-indigo-600 font-mono">👷 MAN (People)</label>
-                      <textarea
-                        value={ishikawaMan}
-                        onChange={(e) => setIshikawaMan(e.target.value)}
-                        placeholder="e.g. Operator fatigue, lack of spray SOP check, rushing"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-emerald-600 font-mono">⚙️ MACHINE (Hardware)</label>
-                      <textarea
-                        value={ishikawaMachine}
-                        onChange={(e) => setIshikawaMachine(e.target.value)}
-                        placeholder="e.g. Ruptured pre-filter box, spray gun residue"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-amber-600 font-mono">📦 MATERIAL (Stock)</label>
-                      <textarea
-                        value={ishikawaMaterial}
-                        onChange={(e) => setIshikawaMaterial(e.target.value)}
-                        placeholder="e.g. High static doors attracting dust particles"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-violet-600 font-mono">📋 METHODS (SOPs)</label>
-                      <textarea
-                        value={ishikawaMethods}
-                        onChange={(e) => setIshikawaMethods(e.target.value)}
-                        placeholder="e.g. PMC maintenance schedule skipped, no checklist"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-rose-600 font-mono">🌍 MILIEU (Environment)</label>
-                      <textarea
-                        value={ishikawaMilieu}
-                        onChange={(e) => setIshikawaMilieu(e.target.value)}
-                        placeholder="e.g. Ambient draft in paint zone, static charge levels"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
-                      <label className="block text-[9px] font-black uppercase text-cyan-600 font-mono">📏 MEASUREMENT</label>
-                      <textarea
-                        value={ishikawaMeasurement}
-                        onChange={(e) => setIshikawaMeasurement(e.target.value)}
-                        placeholder="e.g. Visual inspection only, missing automated scanner"
-                        rows={2}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-xs focus:bg-white"
-                      />
-                    </div>
+                    {[
+                      { key: 'man', label: '👷 MAN (People)', color: 'indigo', placeholder: 'e.g. Operator fatigue' },
+                      { key: 'machine', label: '⚙️ MACHINE (Hardware)', color: 'emerald', placeholder: 'e.g. Ruptured pre-filter' },
+                      { key: 'material', label: '📦 MATERIAL (Stock)', color: 'amber', placeholder: 'e.g. High static doors' },
+                      { key: 'methods', label: '📋 METHODS (SOPs)', color: 'violet', placeholder: 'e.g. PMC schedule skipped' },
+                      { key: 'milieu', label: '🌍 MILIEU (Environment)', color: 'rose', placeholder: 'e.g. Ambient draft' },
+                      { key: 'measurement', label: '📏 MEASUREMENT', color: 'cyan', placeholder: 'e.g. Visual inspection only' },
+                    ].map(cat => {
+                      const points = ishikawaPoints[cat.key] || [];
+                      return (
+                        <div key={cat.key} className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className={`block text-[9px] font-black uppercase text-${cat.color}-600 font-mono`}>{cat.label}</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAddIshikawaPoint(cat.key)}
+                              className={`text-[9px] font-bold text-${cat.color}-600 hover:text-${cat.color}-800 bg-${cat.color}-50 hover:bg-${cat.color}-100 px-2 py-0.5 rounded-md border border-${cat.color}-200 transition font-mono`}
+                            >
+                              + Point
+                            </button>
+                          </div>
+
+                          {points.length === 0 ? (
+                            <div className="text-[10px] text-slate-400 italic font-mono py-2 text-center border border-dashed border-slate-200 rounded-lg">
+                              No points added yet. Click "+ Point" above.
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {points.map((point, pIdx) => {
+                                const isRootCause = ishikawaRootCauses.some(rc => rc.category === cat.key && rc.text === point);
+                                return (
+                                  <div key={pIdx} className={`flex items-center gap-1.5 group rounded-lg p-1 transition-colors ${isRootCause ? 'bg-red-50 border border-red-200' : 'hover:bg-slate-50'}`}>
+                                    {/* Root cause toggle dot */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleRootCause(cat.key, point)}
+                                      className={`w-3.5 h-3.5 rounded-full shrink-0 border-2 transition-all cursor-pointer ${
+                                        isRootCause
+                                          ? 'bg-red-500 border-red-600 ring-2 ring-red-200 scale-110'
+                                          : 'bg-slate-200 border-slate-300 hover:bg-slate-400 hover:border-slate-500'
+                                      }`}
+                                      title={isRootCause ? 'Unmark as root cause' : 'Mark as root cause'}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={point}
+                                      onChange={(e) => handleUpdateIshikawaPoint(cat.key, pIdx, e.target.value)}
+                                      placeholder={cat.placeholder}
+                                      className={`flex-1 bg-transparent border-0 border-b text-xs px-1 py-0.5 focus:outline-none focus:border-${cat.color}-400 transition ${
+                                        isRootCause ? 'border-red-300 text-red-800 font-bold' : 'border-slate-200 text-slate-700'
+                                      }`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveIshikawaPoint(cat.key, pIdx)}
+                                      className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition shrink-0"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  {/* Root Cause Summary */}
+                  {ishikawaRootCauses.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                      <span className="text-[9px] font-black uppercase text-red-700 font-mono">🎯 Identified Root Causes ({ishikawaRootCauses.length})</span>
+                      <div className="flex flex-wrap gap-2">
+                        {ishikawaRootCauses.map((rc, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold font-mono px-2 py-1 rounded-lg">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            [{rc.category.toUpperCase()}] {rc.text}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
 
               {/* Step 3.2: 5-Whys Flow (Dynamic Root Causes) */}
               <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-4">

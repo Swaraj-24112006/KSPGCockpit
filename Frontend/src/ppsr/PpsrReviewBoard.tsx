@@ -886,6 +886,33 @@ export default function PpsrReviewBoard({
                 <h4 className="text-xs font-black text-slate-800 uppercase font-mono border-b pb-1">
                   3. Cause Localization & Root Cause Analysis
                 </h4>
+
+                {/* Ishikawa Fishbone Diagram */}
+                {selectedReport.ishikawa && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 overflow-x-auto">
+                    <IshikawaFishbone
+                      ishikawa={selectedReport.ishikawa}
+                      problemTitle={selectedReport.title}
+                      rootCauses={selectedReport.ishikawaRootCauses || []}
+                    />
+                  </div>
+                )}
+
+                {/* Root Cause Summary Badges */}
+                {selectedReport.ishikawaRootCauses && selectedReport.ishikawaRootCauses.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                    <span className="text-[9px] font-black uppercase text-red-700 font-mono">🎯 Identified Root Causes ({selectedReport.ishikawaRootCauses.length})</span>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedReport.ishikawaRootCauses.map((rc: any, idx: number) => (
+                        <span key={idx} className="inline-flex items-center gap-1 bg-red-100 border border-red-300 text-red-800 text-[10px] font-bold font-mono px-2 py-1 rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          [{rc.category?.toUpperCase()}] {rc.text}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-white p-3 rounded-xl border border-slate-200">
                   <span className="text-[10px] font-bold uppercase font-mono text-slate-400 block mb-1">Primary Identified Technical Root Cause:</span>
                   <p className="text-xs font-bold text-slate-800 font-mono">{selectedReport.rootCauseAnalysis || 'Investigation complete.'}</p>

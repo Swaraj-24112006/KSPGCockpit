@@ -275,6 +275,8 @@ export interface PpsrReport {
     measurement: string[];
   };
 
+  ishikawaRootCauses?: Array<{ category: string; text: string }>;
+
   fiveWhysList?: Array<{
     heading: string;
     whys: string[];

@@ -35,6 +35,8 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
     measurement: rawIshikawa.measurement || rawIshikawa.measurements || []
   };
 
+  const ishikawaRootCauses = report.ishikawaRootCauses || [];
+
   // Migrate old column-based format to new array format
   const rawFiveWhys = report.fiveWhysList;
   const fiveWhys: Array<{ heading: string; whys: string[] }> = Array.isArray(rawFiveWhys)
@@ -430,7 +432,22 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                       Approach 1: Ishikawa 6M Cause-and-Effect Skeleton
                     </span>
                   )}
-                  <IshikawaFishbone ishikawa={ishikawa} problemTitle={report.title} />
+                  <IshikawaFishbone ishikawa={ishikawa} problemTitle={report.title} rootCauses={ishikawaRootCauses} />
+
+                  {/* Root Cause Summary Badges */}
+                  {ishikawaRootCauses.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 space-y-1">
+                      <span className="text-[8px] font-black uppercase text-red-700 font-mono">🎯 Root Causes ({ishikawaRootCauses.length})</span>
+                      <div className="flex flex-wrap gap-1">
+                        {ishikawaRootCauses.map((rc, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-0.5 bg-red-100 border border-red-300 text-red-800 text-[8px] font-bold font-mono px-1.5 py-0.5 rounded">
+                            <span className="w-1 h-1 rounded-full bg-red-500" />
+                            [{rc.category.toUpperCase()}] {rc.text}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

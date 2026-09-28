@@ -329,6 +329,37 @@
             text-indent: -6px;
         }
 
+        .ishikawa-item.root-cause {
+            color: #b91c1c;
+            font-weight: 700;
+        }
+
+        .ishikawa-item.root-cause::before {
+            content: '\25CF ';
+            color: #dc2626;
+            font-size: 6pt;
+        }
+
+        .root-cause-summary {
+            margin-top: 4px;
+            padding: 4px 6px;
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 4px;
+        }
+
+        .root-cause-badge {
+            display: inline-block;
+            background-color: #fee2e2;
+            border: 1px solid #fca5a5;
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-size: 6.5pt;
+            font-weight: 700;
+            color: #991b1b;
+            margin: 1px 2px;
+        }
+
         /* 5-Whys Grid */
         .whys-grid {
             width: 100%;
@@ -599,7 +630,11 @@
                 <td>
                     <span class="ishikawa-title">1. Man (People)</span>
                     {% for item in report.ishikawa.man %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
@@ -607,7 +642,11 @@
                 <td>
                     <span class="ishikawa-title">2. Machine (Equipment)</span>
                     {% for item in report.ishikawa.machine %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
@@ -615,7 +654,11 @@
                 <td>
                     <span class="ishikawa-title">3. Material</span>
                     {% for item in report.ishikawa.material %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
@@ -625,7 +668,11 @@
                 <td>
                     <span class="ishikawa-title">4. Method (Process)</span>
                     {% for item in report.ishikawa.methods %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
@@ -633,7 +680,11 @@
                 <td>
                     <span class="ishikawa-title">5. Milieu (Environment)</span>
                     {% for item in report.ishikawa.milieu %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
@@ -641,13 +692,28 @@
                 <td>
                     <span class="ishikawa-title">6. Measurement</span>
                     {% for item in report.ishikawa.measurement %}
-                        <div class="ishikawa-item">• {{ item }}</div>
+                        {% if item in root_cause_texts %}
+                            <div class="ishikawa-item root-cause">{{ item }}</div>
+                        {% else %}
+                            <div class="ishikawa-item">• {{ item }}</div>
+                        {% endif %}
                     {% empty %}
                         <span class="empty-text">No causes logged</span>
                     {% endfor %}
                 </td>
             </tr>
         </table>
+
+        {% if report.ishikawa_root_causes %}
+        <div class="root-cause-summary">
+            <span style="font-size: 6.5pt; font-weight: 800; text-transform: uppercase; color: #991b1b;">🎯 Identified Root Causes ({{ report.ishikawa_root_causes|length }})</span>
+            <div style="margin-top: 2px;">
+                {% for rc in report.ishikawa_root_causes %}
+                    <span class="root-cause-badge">{{ rc.category|upper }}: {{ rc.text }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Section 4b: Root Cause Analysis (5-Whys Drilldown) -->

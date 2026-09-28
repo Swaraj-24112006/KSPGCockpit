@@ -33,8 +33,18 @@ def generate_ppsr_pdf(self, report_id: str) -> str:
 
     logger.info(f"Generating PDF for PPSR {report.ppsr_no} ({report.id})...")
 
+    # Build flat set of root cause texts for template highlighting
+    root_cause_texts = set()
+    if isinstance(report.ishikawa_root_causes, list):
+        for rc in report.ishikawa_root_causes:
+            if isinstance(rc, dict) and rc.get('text'):
+                root_cause_texts.add(rc['text'])
+
     # Render Django HTML template
-    html_content = render_to_string('ppsr/sheet.html', {'report': report})
+    html_content = render_to_string('ppsr/sheet.html', {
+        'report': report,
+        'root_cause_texts': root_cause_texts,
+    })
 
     # Prepare export destination
     pdf_rel_path = f'ppsr/exports/{report.ppsr_no}.pdf'

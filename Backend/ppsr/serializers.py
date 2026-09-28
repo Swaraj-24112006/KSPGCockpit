@@ -295,6 +295,7 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 'committeeDecisionDate': 'committee_decision_date',
                 'steeringCommitteeSign': 'steering_committee_sign',
                 'fishbone': 'ishikawa',
+                'ishikawaRootCauses': 'ishikawa_root_causes',
                 'initialSpecLimitGraph': 'initial_spec_limit_graph',
                 'effectivenessSpecLimitGraph': 'effectiveness_spec_limit_graph',
             }
@@ -525,6 +526,7 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
             'qtyMonthAfterRejPct': ret.get('qty_month_after_rej_pct'),
             'qtyMonthSavedRejPct': ret.get('qty_month_saved_rej_pct'),
             'perSetRejectionCost': ret.get('per_set_rejection_cost'),
+            'ishikawaRootCauses': ret.get('ishikawa_root_causes'),
             'createdAt': ret.get('created_at'),
             'updatedAt': ret.get('updated_at'),
         }
