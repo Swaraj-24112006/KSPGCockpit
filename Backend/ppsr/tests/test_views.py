@@ -108,7 +108,7 @@ class PpsrViewsTestCase(TestCase):
         }
         response = self.client.post('/api/ppsr/reports/', payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(response.data['ppsr_no'].startswith('BE-'))
+        self.assertTrue(response.data['ppsr_no'].startswith('PPSR/'))
         self.assertEqual(response.data['title'], 'Smart Sensor Pin Misalignment')
 
     def test_retrieve_report(self):

@@ -206,7 +206,7 @@ class PpsrInitiatorE2ETestCase(TestCase):
         self.assertIsNotNone(report_in_db, "PPSR record must exist in the database.")
 
         # 3. Check all general fields saved in database
-        self.assertTrue(report_in_db.ppsr_no.startswith('BE-2026-'), f"Invalid PPSR number: {report_in_db.ppsr_no}")
+        self.assertTrue(report_in_db.ppsr_no.startswith('PPSR/'), f"Invalid PPSR number: {report_in_db.ppsr_no}")
         self.assertEqual(report_in_db.title, 'High Noise and Vibration in Hydraulic Power Unit')
         self.assertEqual(report_in_db.problem_statement, 'Acoustic levels exceeding 85dB at Line 2 Station 4 during pump cycle.')
         self.assertEqual(report_in_db.plant, 'Pune Assembly & Paint Complex')

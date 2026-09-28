@@ -18,27 +18,33 @@ logger = logging.getLogger(__name__)
 
 def generate_ppsr_number() -> str:
     """
-    Atomically generate the next PPSR number for the current calendar year.
-    Format: BE-YYYY-NNN (zero-padded to 3 digits, resets each year).
+    Atomically generate the next PPSR number for the current calendar month.
+    Format: PPSR/YYYY/MMM/NN (e.g. PPSR/2026/JUL/03).
+    MMM = uppercase 3-letter month abbreviation.
+    NN  = zero-padded sequential number within that month, resets each month.
     Uses select_for_update to prevent duplicates under concurrent requests.
     """
-    year = datetime.now().year
+    now = datetime.now()
+    year = now.year
+    month_abbr = now.strftime('%b').upper()  # e.g. JAN, FEB, JUL
+    prefix = f'PPSR/{year}/{month_abbr}/'
+
     with transaction.atomic():
         last = (
             PpsrReport.objects
-            .filter(ppsr_no__startswith=f'BE-{year}-')
+            .filter(ppsr_no__startswith=prefix)
             .select_for_update()
             .order_by('-ppsr_no')
             .first()
         )
         if last:
             try:
-                seq = int(last.ppsr_no.split('-')[-1]) + 1
+                seq = int(last.ppsr_no.split('/')[-1]) + 1
             except (ValueError, IndexError):
                 seq = 1
         else:
             seq = 1
-        return f'BE-{year}-{seq:03d}'
+        return f'{prefix}{seq:02d}'
 
 
 def calculate_spreadsheet_metrics(

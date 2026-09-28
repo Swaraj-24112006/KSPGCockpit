@@ -12,10 +12,15 @@ from ppsr.services import (
 
 class PpsrServicesTestCase(TestCase):
     def test_generate_ppsr_number_sequence(self):
-        year = date.today().year
+        from datetime import datetime
+        now = datetime.now()
+        year = now.year
+        month_abbr = now.strftime('%b').upper()
+        prefix = f"PPSR/{year}/{month_abbr}/"
+
         # Initial number
         num1 = generate_ppsr_number()
-        self.assertEqual(num1, f"BE-{year}-001")
+        self.assertEqual(num1, f"{prefix}01")
 
         # Create record with num1
         PpsrReport.objects.create(
@@ -28,7 +33,7 @@ class PpsrServicesTestCase(TestCase):
 
         # Next number increments
         num2 = generate_ppsr_number()
-        self.assertEqual(num2, f"BE-{year}-002")
+        self.assertEqual(num2, f"{prefix}02")
 
     def test_calculate_spreadsheet_metrics(self):
         created_at = date(2026, 8, 1)

@@ -169,7 +169,7 @@ class PpsrSerializersTestCase(TestCase):
         new_report = serializer.save()
 
         # Check auto-generated PPSR number
-        self.assertTrue(new_report.ppsr_no.startswith('BE-'))
+        self.assertTrue(new_report.ppsr_no.startswith('PPSR/'))
         self.assertEqual(new_report.containment_actions.count(), 1)
         self.assertEqual(new_report.containment_actions.first().action, '100% sorting')
         self.assertEqual(new_report.corrective_actions.count(), 1)

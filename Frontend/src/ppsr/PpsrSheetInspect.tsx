@@ -237,28 +237,29 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                 </div>
               </div>
 
-              {/* Text & Picture/Chart layout */}
-              <div className="grid grid-cols-1 md:grid-cols-12 border-x border-b border-slate-800 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-                <div className="md:col-span-6 p-3 text-xs leading-relaxed space-y-1 bg-white">
+              {/* Text & Picture/Chart layout — Stacked vertically for clarity */}
+              <div className="border-x border-b border-slate-800 bg-white">
+                {/* Problem description — full width */}
+                <div className="p-3 text-xs leading-relaxed space-y-1 border-b border-slate-800">
                   <span className="text-[8px] font-black text-slate-400 uppercase block font-mono">Problem description:</span>
                   <p className="text-slate-700 font-medium whitespace-pre-wrap">{report.problemStatement}</p>
                 </div>
 
-                {/* Option 1: Initial Baseline Graph */}
-                <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
+                {/* Option 1: Initial Baseline Graph — full width */}
+                <div className="p-3 bg-slate-50 border-b border-slate-800">
                   <span className="text-[8px] font-black text-slate-500 uppercase block font-mono mb-1">Option 1: Initial Baseline Graph</span>
                   {report.initialDefectTrendData && report.initialDefectTrendData.length > 0 ? (
-                    <div className="h-28 bg-white p-1 rounded border border-slate-200">
+                    <div className="h-44 bg-white p-2 rounded border border-slate-200">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={report.initialDefectTrendData.map(d => ({
                           name: d.date || (d as any).name || (d as any).stage || 'Stage',
                           value: Number(d.defectsCount ?? (d as any).defects_count ?? (d as any).value ?? 0)
-                        }))} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                        }))} margin={{ top: 5, right: 15, left: -15, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 7, fill: '#64748b' }} />
-                          <YAxis tick={{ fontSize: 7, fill: '#64748b' }} />
-                          <Tooltip contentStyle={{ fontSize: '8px', padding: '2px 4px' }} />
-                          <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={2} dot={{ r: 3 }} />
+                          <XAxis dataKey="name" tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <YAxis tick={{ fontSize: 8, fill: '#64748b' }} />
+                          <Tooltip contentStyle={{ fontSize: '10px', padding: '4px 8px', borderRadius: '6px' }} />
+                          <Line type="monotone" dataKey="value" stroke="#059669" strokeWidth={2} dot={{ r: 4 }} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -269,8 +270,8 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                   )}
                 </div>
 
-                {/* Specification-Limit Trend Graph (Replaced Option 2 Defect Photo) */}
-                <div className="md:col-span-3 p-2 bg-slate-50 flex flex-col justify-between min-h-[140px]">
+                {/* Specification-Limit Trend Graph — full width */}
+                <div className="p-3 bg-slate-50">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[8px] font-black text-teal-800 uppercase font-mono">Specification-Limit Trend</span>
                     {hasInitialSpec && (
@@ -281,12 +282,12 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                     )}
                   </div>
                   {hasInitialSpec ? (
-                    <div className="h-28 bg-white p-1 rounded border border-slate-200">
+                    <div className="h-44 bg-white p-2 rounded border border-slate-200">
                       <SpecLimitTrendGraph
                         usl={report.initialSpecLimitGraph!.usl}
                         lsl={report.initialSpecLimitGraph!.lsl}
                         measurements={report.initialSpecLimitGraph!.measurements}
-                        height={108}
+                        height={160}
                       />
                     </div>
                   ) : (
@@ -561,7 +562,7 @@ export default function PpsrSheetInspect({ report, onClose }: PpsrSheetInspectPr
                 <span className="text-[10px] font-normal text-slate-400 lowercase italic">BE Step 6</span>
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-slate-800 p-4">
+              <div className="grid grid-cols-1 gap-4 border border-slate-800 p-4">
                 {/* Option 1: Defect Reduction Trend Chart */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
