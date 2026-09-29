@@ -27,6 +27,7 @@ import {
 interface LandingPageProps {
   currentUser?: AuthUser | null;
   onLaunchSFC: () => void;
+  onLaunchDWM: () => void;
   onLogout?: () => void;
   onNavigateToSuperadmin?: () => void;
 }
@@ -34,6 +35,7 @@ interface LandingPageProps {
 export default function LandingPage({
   currentUser,
   onLaunchSFC,
+  onLaunchDWM,
   onLogout,
   onNavigateToSuperadmin
 }: LandingPageProps) {
@@ -244,7 +246,62 @@ export default function LandingPage({
             </button>
           </div>
 
-          {/* Module Card 2: Inventory Management */}
+          {/* Module Card 2: DWM — Daily Work Management (ACTIVE) */}
+          <div className="bg-[#191B40]/90 backdrop-blur-2xl p-7 relative group flex flex-col h-full rounded-2xl border-2 border-emerald-500 shadow-[0_16px_50px_rgba(14,22,38,0.8),0_0_35px_rgba(16,185,129,0.25)] hover:shadow-[0_20px_60px_rgba(16,185,129,0.35)] transition-all duration-300 hover:-translate-y-1">
+            {/* HUD Corner Brackets */}
+            <div className="absolute top-0 left-0 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-500 rounded-tl" />
+            <div className="absolute top-0 right-0 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-500 rounded-tr" />
+            <div className="absolute bottom-0 left-0 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-500 rounded-bl" />
+            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-500 rounded-br" />
+
+            <div className="flex justify-between items-start mb-5 border-b border-[#F2F2F2]/10 pb-4">
+              <div>
+                <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-md border border-emerald-500/30 mb-2 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  ACTIVE MODULE • READY
+                </span>
+                <h2 className="text-xl md:text-2xl font-black text-[#F2F2F2] font-['Hanken_Grotesk'] mt-1">
+                  DWM — Daily Work Management
+                </h2>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-[#F2F2F2] transition-colors duration-300 shadow-md shadow-emerald-500/10">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+            </div>
+
+            <p className="text-[#F2F2F2]/80 text-sm flex-grow mb-6 leading-relaxed">
+              Operator machine &amp; pokayoke verification checklists with photo evidence capture, GPS geofencing, deviation management, and real-time compliance dashboards.
+            </p>
+
+            {/* Feature pill row */}
+            <div className="grid grid-cols-2 gap-2 mb-6 font-mono text-[10px]">
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Machine Checks</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                <span>Pokayoke Verify</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span>Deviation Logs</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                <span>Photo Evidence</span>
+              </div>
+            </div>
+
+            <button
+              id="launch-dwm-btn"
+              onClick={onLaunchDWM}
+              className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-emerald-500/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
+            >
+              <span>LAUNCH SEQUENCE</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
 
 
           {/* Module Card 3: Quality & Metrology */}

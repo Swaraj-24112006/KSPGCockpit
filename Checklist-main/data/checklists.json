@@ -1,0 +1,1679 @@
+[
+  {
+    "id": "st-mf1-101",
+    "stationId": "st-mf1-101",
+    "stationNumber": "101",
+    "stationName": "CNC Base Machining",
+    "minifactoryId": "MF1",
+    "lineId": "MF1-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.808Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf1-102",
+    "stationId": "st-mf1-102",
+    "stationNumber": "102",
+    "stationName": "Boring & Reaming Station",
+    "minifactoryId": "MF1",
+    "lineId": "MF1-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.808Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf1-103",
+    "stationId": "st-mf1-103",
+    "stationNumber": "103",
+    "stationName": "Washing & Deburring",
+    "minifactoryId": "MF1",
+    "lineId": "MF1-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf1-201",
+    "stationId": "st-mf1-201",
+    "stationNumber": "201",
+    "stationName": "Block Milling & Drilling",
+    "minifactoryId": "MF1",
+    "lineId": "MF1-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf2-110",
+    "stationId": "st-mf2-110",
+    "stationNumber": "110",
+    "stationName": "Sub-Assembly & Bearing Pressing",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf2-120",
+    "stationId": "st-mf2-120",
+    "stationNumber": "120",
+    "stationName": "Shaft Insertion & O-Ring Fitment",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-110",
+    "stationId": "st-110",
+    "stationNumber": "110",
+    "stationName": "Pump Housing Prep",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-120",
+    "stationId": "st-120",
+    "stationNumber": "120",
+    "stationName": "Impeller & Seal Fitting",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-130",
+    "stationId": "st-130",
+    "stationNumber": "130",
+    "stationName": "Main Pump Assembly & Pokayoke Verification",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.809Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-140",
+    "stationId": "st-140",
+    "stationNumber": "140",
+    "stationName": "Pneumatic Leakage & Pressure Test",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.810Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-150",
+    "stationId": "st-150",
+    "stationNumber": "150",
+    "stationName": "Final Barcode & Packaging",
+    "minifactoryId": "MF2",
+    "lineId": "MF2-LINE2",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.810Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf3-101",
+    "stationId": "st-mf3-101",
+    "stationNumber": "101",
+    "stationName": "Stator Insertion",
+    "minifactoryId": "MF3",
+    "lineId": "MF3-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.810Z",
+    "updatedBy": "System Seed"
+  },
+  {
+    "id": "st-mf3-102",
+    "stationId": "st-mf3-102",
+    "stationNumber": "102",
+    "stationName": "Rotor Shaft Alignment",
+    "minifactoryId": "MF3",
+    "lineId": "MF3-LINE1",
+    "machineCheckpoints": [
+      {
+        "id": "m1",
+        "sn": 1,
+        "checkPoint": "Ensure & Clean the work station/Fixture",
+        "model": "Panther WP VP",
+        "standard": "No dust",
+        "freq": "Per shift/ Setup (After 4 Hrs)",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m2",
+        "sn": 2,
+        "checkPoint": "Check main air pressure",
+        "model": "Panther WP VP",
+        "standard": "4 - 6 bar",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m3",
+        "sn": 3,
+        "checkPoint": "Check for empty red box",
+        "model": "Panther WP VP",
+        "standard": "Empty",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m4",
+        "sn": 4,
+        "checkPoint": "Check safety curtain is working",
+        "model": "Panther WP VP",
+        "standard": "operation stops",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "m5",
+        "sn": 5,
+        "checkPoint": "Check the free rotation cylinder down pressure",
+        "model": "Panther WP VP",
+        "standard": "0.2 - 0.4 Mpa",
+        "freq": "Per shift/ Setup",
+        "photoRequired": true,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "pokayokeCheckpoints": [
+      {
+        "id": "pA",
+        "sn": "A",
+        "pokayoke": "Sensor for Part Presence",
+        "model": "Panther VP",
+        "verifyMethod": "Skip part loading",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Before and after photo",
+        "requiredPhotoCount": 2,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pB",
+        "sn": "B",
+        "pokayoke": "Sensor for manual part lock clamp",
+        "model": "Panther WP",
+        "verifyMethod": "Skip lock locking",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pC",
+        "sn": "C",
+        "pokayoke": "Sensor for Screwing Gun Home position",
+        "model": "Panther WP",
+        "verifyMethod": "change gun home position",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pD",
+        "sn": "D",
+        "pokayoke": "Station interlock with red bin",
+        "model": "ALL model",
+        "verifyMethod": "Verify the sensor working",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Yes",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      },
+      {
+        "id": "pE",
+        "sn": "E",
+        "pokayoke": "Barcode interlink with station",
+        "model": "ALL model",
+        "verifyMethod": "Read the barcode on next station without current station operation",
+        "freq": "Per shift/ Setup",
+        "photoRequirementLabel": "Manual",
+        "requiredPhotoCount": 1,
+        "status": "PENDING",
+        "photos": []
+      }
+    ],
+    "updatedAt": "2026-09-13T13:37:15.810Z",
+    "updatedBy": "System Seed"
+  }
+]

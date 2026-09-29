@@ -588,7 +588,7 @@ export default function PpsrSystem({
       leadOwner,
       status: 'Open',
       targetDate: discoveredOn,
-      rootCauseAnalysis: rootCauses[0]?.whys[0] ? rootCauses.map((rc, i) => `[${rc.heading || `Root Cause ${i+1}`}] ${rc.whys.filter(Boolean).map((w, wi) => `${wi+1}. Why? ${w}`).join(' → ')}`).join('\n') : 'Root cause analysis in progress.',
+      rootCauseAnalysis: rootCauses[0]?.whys[0] ? rootCauses.map((rc, i) => `[${rc.heading || `Root Cause ${i + 1}`}] ${rc.whys.filter(Boolean).map((w, wi) => `${wi + 1}. Why? ${w}`).join(' → ')}`).join('\n') : 'Root cause analysis in progress.',
       containmentAction: containmentActions[0]?.action || 'Containment action pending.',
       permanentCorrectiveAction: correctiveActions[0]?.measure || 'Corrective actions scheduled.',
       validationCheck: effectivenessEvidence || 'Validation check scheduled.',
@@ -714,8 +714,8 @@ export default function PpsrSystem({
               id="tab-ppsr-initiate"
               onClick={() => handleSetTab('initiate')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'initiate'
-                  ? 'bg-violet-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-violet-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <PlusCircle className="w-3.5 h-3.5 shrink-0 text-violet-300" />
@@ -729,8 +729,8 @@ export default function PpsrSystem({
               id="tab-ppsr-meeting"
               onClick={() => handleSetTab('meeting')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'meeting'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <Users className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
@@ -750,8 +750,8 @@ export default function PpsrSystem({
               id="tab-ppsr-awards"
               onClick={() => handleSetTab('cft-awards')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'cft-awards'
-                  ? 'bg-amber-500 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <Trophy className="w-3.5 h-3.5 shrink-0 text-amber-200" />
@@ -765,8 +765,8 @@ export default function PpsrSystem({
               id="tab-ppsr-register"
               onClick={() => handleSetTab('register')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'register'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
             >
               <ClipboardList className="w-3.5 h-3.5 shrink-0 text-blue-300" />
@@ -895,8 +895,8 @@ export default function PpsrSystem({
                       </td>
                       <td className="p-3 text-center">
                         <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase font-mono ${r.status === 'Open' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                            r.status === 'In-Progress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                              'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          r.status === 'In-Progress' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                            'bg-emerald-50 text-emerald-700 border border-emerald-100'
                           }`}>
                           {r.status}
                         </span>
@@ -973,8 +973,8 @@ export default function PpsrSystem({
                   className="flex items-center space-x-1.5 min-w-[120px] shrink-0 cursor-pointer hover:opacity-95"
                 >
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${isPassed ? 'bg-emerald-600 text-white' :
-                      isActive ? 'bg-violet-600 text-white shadow-xs ring-2 ring-violet-200' :
-                        'bg-slate-200 text-slate-500'
+                    isActive ? 'bg-violet-600 text-white shadow-xs ring-2 ring-violet-200' :
+                      'bg-slate-200 text-slate-500'
                     }`}>
                     {isPassed ? "✓" : step.num}
                   </div>
@@ -1017,9 +1017,7 @@ export default function PpsrSystem({
                       onChange={(e) => setPlant(e.target.value)}
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-none font-semibold text-slate-700"
                     >
-                      <option value="Pune Assembly & Paint Complex">Pune Assembly & Paint Complex</option>
-                      <option value="Chennai Main frame Plant">Chennai Main frame Plant</option>
-                      <option value="Hosur Machining Section C">Hosur Machining Section C</option>
+                      <option value="Division Power System Takwe Pune">Division Power System Takwe Pune</option>
                     </select>
                   </div>
                 </div>
@@ -1108,8 +1106,8 @@ export default function PpsrSystem({
                         type="button"
                         onClick={() => setInitialEvidenceType('data')}
                         className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${initialEvidenceType === 'data'
-                            ? 'bg-emerald-600 text-white shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-emerald-600 text-white shadow-xs font-black'
+                          : 'text-slate-600 hover:text-slate-900'
                           }`}
                       >
                         <TrendingDown className="w-3.5 h-3.5" />
@@ -1120,8 +1118,8 @@ export default function PpsrSystem({
                         type="button"
                         onClick={() => setInitialEvidenceType('photo')}
                         className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${initialEvidenceType === 'photo'
-                            ? 'bg-indigo-600 text-white shadow-xs font-black'
-                            : 'text-slate-600 hover:text-slate-900'
+                          ? 'bg-indigo-600 text-white shadow-xs font-black'
+                          : 'text-slate-600 hover:text-slate-900'
                           }`}
                       >
                         <Camera className="w-3.5 h-3.5" />
@@ -1508,8 +1506,8 @@ export default function PpsrSystem({
                       type="button"
                       onClick={() => setCauseLocalizationApproach('fishbone')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${causeLocalizationApproach === 'fishbone'
-                          ? 'bg-violet-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-violet-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                       🐟 Ishikawa (6M)
@@ -1518,8 +1516,8 @@ export default function PpsrSystem({
                       type="button"
                       onClick={() => setCauseLocalizationApproach('psq')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${causeLocalizationApproach === 'psq'
-                          ? 'bg-violet-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-violet-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                       🌳 PSQ Elimination Tree
@@ -1528,8 +1526,8 @@ export default function PpsrSystem({
                       type="button"
                       onClick={() => setCauseLocalizationApproach('both')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition cursor-pointer ${causeLocalizationApproach === 'both'
-                          ? 'bg-violet-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-violet-600 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                       🔄 Both Approaches
@@ -1610,11 +1608,10 @@ export default function PpsrSystem({
                                     <button
                                       type="button"
                                       onClick={() => handleToggleRootCause(cat.key, point)}
-                                      className={`w-3.5 h-3.5 rounded-full shrink-0 border-2 transition-all cursor-pointer ${
-                                        isRootCause
+                                      className={`w-3.5 h-3.5 rounded-full shrink-0 border-2 transition-all cursor-pointer ${isRootCause
                                           ? 'bg-red-500 border-red-600 ring-2 ring-red-200 scale-110'
                                           : 'bg-slate-200 border-slate-300 hover:bg-slate-400 hover:border-slate-500'
-                                      }`}
+                                        }`}
                                       title={isRootCause ? 'Unmark as root cause' : 'Mark as root cause'}
                                     />
                                     <input
@@ -1622,9 +1619,8 @@ export default function PpsrSystem({
                                       value={point}
                                       onChange={(e) => handleUpdateIshikawaPoint(cat.key, pIdx, e.target.value)}
                                       placeholder={cat.placeholder}
-                                      className={`flex-1 bg-transparent border-0 border-b text-xs px-1 py-0.5 focus:outline-none focus:border-${cat.color}-400 transition ${
-                                        isRootCause ? 'border-red-300 text-red-800 font-bold' : 'border-slate-200 text-slate-700'
-                                      }`}
+                                      className={`flex-1 bg-transparent border-0 border-b text-xs px-1 py-0.5 focus:outline-none focus:border-${cat.color}-400 transition ${isRootCause ? 'border-red-300 text-red-800 font-bold' : 'border-slate-200 text-slate-700'
+                                        }`}
                                     />
                                     <button
                                       type="button"
@@ -1731,9 +1727,9 @@ export default function PpsrSystem({
                                   onChange={(e) => handleUpdateRootCauseWhy(rcIdx, wIdx, e.target.value)}
                                   placeholder={wIdx === 0 ? "e.g. Micro-dust particles on the side door surface" :
                                     wIdx === 1 ? "e.g. Air flow blower introduced ambient airborne particles" :
-                                    wIdx === 2 ? "e.g. HEPA intake pre-filter media was torn" :
-                                    wIdx === 3 ? "e.g. Filter pressure differential check was not carried out" :
-                                    "e.g. Preventative Maintenance schedule did not have the task logged"}
+                                      wIdx === 2 ? "e.g. HEPA intake pre-filter media was torn" :
+                                        wIdx === 3 ? "e.g. Filter pressure differential check was not carried out" :
+                                          "e.g. Preventative Maintenance schedule did not have the task logged"}
                                   className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs text-slate-800 font-semibold"
                                 />
                               </div>
@@ -1872,8 +1868,8 @@ export default function PpsrSystem({
                       type="button"
                       onClick={() => setEvidenceType('data')}
                       className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${evidenceType === 'data'
-                          ? 'bg-emerald-600 text-white shadow-xs font-black'
-                          : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-emerald-600 text-white shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                       <TrendingDown className="w-3.5 h-3.5" />
@@ -1884,8 +1880,8 @@ export default function PpsrSystem({
                       type="button"
                       onClick={() => setEvidenceType('photo')}
                       className={`px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5 ${evidenceType === 'photo'
-                          ? 'bg-indigo-600 text-white shadow-xs font-black'
-                          : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-indigo-600 text-white shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                       <Camera className="w-3.5 h-3.5" />

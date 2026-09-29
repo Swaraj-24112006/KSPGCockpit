@@ -282,6 +282,12 @@ export interface PpsrReport {
     whys: string[];
   }>;
 
+  fiveWhys?: {
+    column1: string[];
+    column2: string[];
+    column3: string[];
+  };
+
   correctiveActionsList?: Array<{
     no: number;
     measure: string;

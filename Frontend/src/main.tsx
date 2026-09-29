@@ -4,13 +4,14 @@ import App from './App.tsx';
 import LoginPage from './Login/LoginPage.tsx';
 import LandingPage from './LandingPage/LandingPage.tsx';
 import SuperAdminDashboard from './SuperAdmin/SuperAdminDashboard.tsx';
+import ChecklistModule from './checklist/ChecklistModule.tsx';
 import { isAuthenticated, AuthUser, getUser, saveUser } from './shared/utils/auth.ts';
 import './index.css';
 
 function Root() {
   const [loggedIn, setLoggedIn] = useState<boolean>(() => isAuthenticated());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getUser());
-  const [currentView, setCurrentView] = useState<'landing' | 'sfc' | 'superadmin'>(() => {
+  const [currentView, setCurrentView] = useState<'landing' | 'sfc' | 'dwm' | 'superadmin'>(() => {
     const user = getUser();
     if (user?.is_superadmin || user?.role_category === 'superadmin') {
       return 'superadmin';
@@ -68,6 +69,18 @@ function Root() {
       <LandingPage 
         currentUser={currentUser} 
         onLaunchSFC={() => setCurrentView('sfc')} 
+        onLaunchDWM={() => setCurrentView('dwm')}
+        onLogout={handleSessionEnd}
+        onNavigateToSuperadmin={() => setCurrentView('superadmin')}
+      />
+    );
+  }
+
+  if (currentView === 'dwm') {
+    return (
+      <ChecklistModule
+        currentUser={currentUser}
+        onBackToLanding={() => setCurrentView('landing')}
         onLogout={handleSessionEnd}
         onNavigateToSuperadmin={() => setCurrentView('superadmin')}
       />

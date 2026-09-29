@@ -32,7 +32,14 @@ export default defineConfig(() => {
       host: true,
       allowedHosts: true as const,
       proxy: {
-        // Proxy Django REST API & media endpoints
+        // Proxy Checklist/DWM Backend API (port 8001) — MUST be before generic /api/v1
+        '/api/v1/checklist': {
+          target: 'http://127.0.0.1:8001',
+          changeOrigin: true,
+          secure: false,
+          cookieDomainRewrite: 'localhost',
+        },
+        // Proxy SFC Django REST API & media endpoints (port 8000)
         '/api/v1': {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,

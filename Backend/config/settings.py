@@ -359,7 +359,8 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-DEFAULT_FILE_STORAGE = 'core.storage.MinioMediaStorage'
+# Note: DEFAULT_FILE_STORAGE is NOT set here because Django 4.2+ uses STORAGES["default"] above.
+# Setting both causes ImproperlyConfigured: DEFAULT_FILE_STORAGE/STORAGES are mutually exclusive.
 
 
 # =============================================================================
