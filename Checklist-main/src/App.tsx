@@ -173,8 +173,14 @@ export default function App() {
     }, 2500);
   };
 
+  const [selectedStationNav, setSelectedStationNav] = useState<{
+    lineId?: string;
+    stationId?: string;
+  }>({});
+
   const handleNavigateToChecklist = (minifactoryId: string, lineId: string, stationId: string) => {
     setSelectedMinifactoryId(minifactoryId);
+    setSelectedStationNav({ lineId, stationId });
     setCurrentView('operator');
   };
 
@@ -218,6 +224,8 @@ export default function App() {
             selectedMinifactoryId={selectedMinifactoryId}
             onMinifactoryChange={setSelectedMinifactoryId}
             onSubmitSuccess={handleStationSubmitSuccess}
+            initialLineId={selectedStationNav.lineId}
+            initialStationId={selectedStationNav.stationId}
           />
         )}
       </main>

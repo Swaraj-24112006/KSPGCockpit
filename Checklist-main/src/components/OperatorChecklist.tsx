@@ -39,6 +39,8 @@ interface OperatorChecklistProps {
   selectedMinifactoryId: string;
   onMinifactoryChange: (id: string) => void;
   onSubmitSuccess: (updatedStation: Station, submissionHash: string) => void;
+  initialLineId?: string;
+  initialStationId?: string;
 }
 
 // Simple shuffle utility
@@ -56,17 +58,21 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
   selectedMinifactoryId,
   onMinifactoryChange,
   onSubmitSuccess,
+  initialLineId,
+  initialStationId,
 }) => {
   const currentMf =
     minifactories.find((m) => m.id === selectedMinifactoryId) || minifactories[1] || minifactories[0];
   const lines = currentMf?.lines || [];
 
-  const [selectedLineId, setSelectedLineId] = useState<string>(lines[0]?.id || 'MF2-LINE2');
+  const [selectedLineId, setSelectedLineId] = useState<string>(
+    initialLineId || lines[0]?.id || 'MF2-LINE2'
+  );
   const currentLine = lines.find((l) => l.id === selectedLineId) || lines[0] || { id: '', name: '', stations: [] };
   const stations = currentLine?.stations || [];
 
   const [selectedStationId, setSelectedStationId] = useState<string>(
-    stations.find((s) => s.number === '130')?.id || stations[0]?.id || 'st-130'
+    initialStationId || stations.find((s) => s.number === '130')?.id || stations[0]?.id || 'st-130'
   );
   const activeStation = stations.find((s) => s.id === selectedStationId) || stations[0] || {
     id: 'st-130',
@@ -74,6 +80,55 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     name: 'Main Station',
     machineCheckpoints: [],
     pokayokeCheckpoints: [],
+  };
+
+  // Sync selectedLineId when currentMf or lines change
+  useEffect(() => {
+    if (lines.length > 0) {
+      if (!lines.some((l) => l.id === selectedLineId)) {
+        const nextLine = lines[0];
+        setSelectedLineId(nextLine.id);
+        if (nextLine.stations?.length > 0) {
+          setSelectedStationId(nextLine.stations[0].id);
+        }
+      }
+    }
+  }, [selectedMinifactoryId, lines, selectedLineId]);
+
+  // Sync selectedStationId when line's stations change
+  useEffect(() => {
+    if (stations.length > 0) {
+      if (!stations.some((s) => s.id === selectedStationId)) {
+        setSelectedStationId(stations[0].id);
+      }
+    }
+  }, [selectedLineId, stations, selectedStationId]);
+
+  // Sync external navigation props
+  useEffect(() => {
+    if (initialLineId && lines.some((l) => l.id === initialLineId)) {
+      setSelectedLineId(initialLineId);
+    }
+  }, [initialLineId, lines]);
+
+  useEffect(() => {
+    if (initialStationId && stations.some((s) => s.id === initialStationId)) {
+      setSelectedStationId(initialStationId);
+    }
+  }, [initialStationId, stations]);
+
+  const handleLineChange = (newLineId: string) => {
+    setSelectedLineId(newLineId);
+    const targetLine = lines.find((l) => l.id === newLineId);
+    if (targetLine && targetLine.stations?.length > 0) {
+      setSelectedStationId(targetLine.stations[0].id);
+    }
+    handleClearAllInputs();
+  };
+
+  const handleStationChange = (newStationId: string) => {
+    setSelectedStationId(newStationId);
+    handleClearAllInputs();
   };
 
   // Operator Info
@@ -184,10 +239,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
       fetch(`http://localhost:3001/api/master/checklists/${selectedStationId}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data?.template?.machineCheckpoints) {
+          if (data?.template?.machineCheckpoints && data.template.machineCheckpoints.length > 0) {
             applyCheckpoints(data.template.machineCheckpoints, data.template.pokayokeCheckpoints || []);
-          } else {
-            applyCheckpoints(activeStation.machineCheckpoints || [], activeStation.pokayokeCheckpoints || []);
+          } else if (activeStation.machineCheckpoints && activeStation.machineCheckpoints.length > 0) {
+            applyCheckpoints(activeStation.machineCheckpoints, activeStation.pokayokeCheckpoints || []);
           }
         })
         .catch(() => {
@@ -577,25 +632,58 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     <div className="max-w-4xl mx-auto px-3 sm:px-6 py-2 sm:py-4 space-y-4">
       {/* 1. LEAN TOOLBAR HEADER */}
       <div className="bg-white border border-slate-200/90 rounded-2xl px-4 py-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
-        {/* Left: Station info & Quick Switcher */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="font-extrabold text-sm sm:text-base text-slate-900">
-              Station {activeStation.number}
-            </span>
-            <span className="text-xs text-slate-400 font-medium hidden sm:inline">•</span>
-            <span className="text-xs text-slate-600 font-medium hidden sm:inline">
-              {currentLine.name}
-            </span>
+        {/* Left: Interactive Line & Station Selectors */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Line Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200">
+            <label htmlFor="operator-line-select" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              Line:
+            </label>
+            <select
+              id="operator-line-select"
+              value={selectedLineId}
+              onChange={(e) => handleLineChange(e.target.value)}
+              className="bg-white text-xs font-bold text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-xs focus:ring-2 focus:ring-amber-400 focus:outline-none cursor-pointer transition-all hover:border-slate-300"
+              title="Change Production Line"
+            >
+              {lines.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
           </div>
 
+          {/* Station Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-100/90 px-2.5 py-1 rounded-xl border border-slate-200">
+            <label htmlFor="operator-station-select" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
+              Station:
+            </label>
+            <select
+              id="operator-station-select"
+              value={selectedStationId}
+              onChange={(e) => handleStationChange(e.target.value)}
+              className="bg-white text-xs font-bold text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-200 shadow-xs focus:ring-2 focus:ring-amber-400 focus:outline-none cursor-pointer transition-all hover:border-slate-300"
+              title="Change Inspection Station"
+            >
+              {stations.map((s) => (
+                <option key={s.id} value={s.id}>
+                  Station {s.number} — {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Operator Setup Quick Button */}
           <button
             type="button"
             onClick={handleOpenSetupModal}
-            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Change Station or Operator"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors shadow-xs"
+            title="Configure Operator, Shift & Line Setup"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <User className="w-3.5 h-3.5 text-slate-500" />
+            <span className="hidden md:inline font-mono">{operatorName}</span>
+            <SlidersHorizontal className="w-3 h-3 text-slate-400 ml-0.5" />
           </button>
         </div>
 
@@ -1105,9 +1193,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                     setModalMfId(id);
                     const mf = minifactories.find((m) => m.id === id);
                     if (mf?.lines?.length) {
-                      setModalLineId(mf.lines[0].id);
-                      if (mf.lines[0].stations?.length) {
-                        setModalStationId(mf.lines[0].stations[0].id);
+                      const firstLine = mf.lines[0];
+                      setModalLineId(firstLine.id);
+                      if (firstLine.stations?.length) {
+                        setModalStationId(firstLine.stations[0].id);
                       }
                     }
                   }}
@@ -1116,6 +1205,31 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                   {minifactories.map((mf) => (
                     <option key={mf.id} value={mf.id}>
                       {mf.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Line</label>
+                <select
+                  value={modalLineId}
+                  onChange={(e) => {
+                    const lId = e.target.value;
+                    setModalLineId(lId);
+                    const mf = minifactories.find((m) => m.id === modalMfId);
+                    const line = mf?.lines?.find((l) => l.id === lId);
+                    if (line?.stations?.length) {
+                      setModalStationId(line.stations[0].id);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800"
+                >
+                  {(
+                    minifactories.find((m) => m.id === modalMfId)?.lines || []
+                  ).map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
                     </option>
                   ))}
                 </select>

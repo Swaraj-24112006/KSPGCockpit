@@ -303,6 +303,23 @@ export const INITIAL_MINIFACTORIES: Minifactory[] = [
             machineCheckpoints: DEFAULT_STATION_130_MACHINE_CHECKPOINTS.map(c => ({ ...c, status: 'PENDING', photos: [] })),
             pokayokeCheckpoints: DEFAULT_STATION_130_POKAYOKE_CHECKPOINTS.map(c => ({ ...c, status: 'PENDING', photos: [] })),
             deviations: [],
+          },
+          {
+            id: 'st-mf2-130',
+            number: '130',
+            name: 'Pneumatic Leakage & Pressure Test',
+            minifactoryId: 'MF2',
+            lineId: 'MF2-LINE1',
+            lineName: 'Pump Assembly Line - 1',
+            status: 'PENDING',
+            operatorName: 'Ravi Verma',
+            operatorId: 'OP-1109',
+            lastSubmittedAt: undefined,
+            shift: 'Shift 1 (06:00 - 14:00)',
+            completionPercentage: 0,
+            machineCheckpoints: DEFAULT_STATION_130_MACHINE_CHECKPOINTS.map(c => ({ ...c, status: 'PENDING', photos: [] })),
+            pokayokeCheckpoints: DEFAULT_STATION_130_POKAYOKE_CHECKPOINTS.map(c => ({ ...c, status: 'PENDING', photos: [] })),
+            deviations: [],
           }
         ]
       },

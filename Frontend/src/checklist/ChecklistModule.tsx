@@ -87,7 +87,12 @@ export default function ChecklistModule({
           if (structRes.ok) {
             const structData = await structRes.json();
             if (structData.minifactories && structData.minifactories.length > 0) {
-              setMinifactories(structData.minifactories);
+              const hasStations = structData.minifactories.some((m: any) =>
+                m.lines?.some((l: any) => l.stations && l.stations.length > 0)
+              );
+              if (hasStations) {
+                setMinifactories(structData.minifactories);
+              }
             }
           }
         } catch {
@@ -186,8 +191,14 @@ export default function ChecklistModule({
     }, 2500);
   };
 
+  const [selectedStationNav, setSelectedStationNav] = useState<{
+    lineId?: string;
+    stationId?: string;
+  }>({});
+
   const handleNavigateToChecklist = (minifactoryId: string, lineId: string, stationId: string) => {
     setSelectedMinifactoryId(minifactoryId);
+    setSelectedStationNav({ lineId, stationId });
     setCurrentView('operator');
   };
 
@@ -262,6 +273,8 @@ export default function ChecklistModule({
               selectedMinifactoryId={selectedMinifactoryId}
               onMinifactoryChange={setSelectedMinifactoryId}
               onSubmitSuccess={handleStationSubmitSuccess}
+              initialLineId={selectedStationNav.lineId}
+              initialStationId={selectedStationNav.stationId}
             />
           )}
         </main>

@@ -92,8 +92,8 @@ def health_view(request):
 # ─── 3. GET /api/minifactories ──────────────────────────────────────
 @api_view(['GET'])
 def minifactories_view(request):
-    # Ensure hierarchy exists
-    if not Minifactory.objects.exists():
+    # Ensure hierarchy and stations exist
+    if not Minifactory.objects.exists() or not Station.objects.exists():
         seed_clean_hierarchy()
 
     mfs = Minifactory.objects.prefetch_related('lines__stations').all()
@@ -527,7 +527,7 @@ def ai_verify_gauge_view(request):
 # ─── 12. GET /api/master/structure ──────────────────────────────────
 @api_view(['GET'])
 def master_structure_view(request):
-    if not Minifactory.objects.exists():
+    if not Minifactory.objects.exists() or not Station.objects.exists():
         seed_clean_hierarchy()
 
     mfs = Minifactory.objects.prefetch_related('lines__stations').all()
