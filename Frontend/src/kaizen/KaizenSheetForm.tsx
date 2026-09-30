@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Kaizen } from '../types';
-import { Upload, HelpCircle, Check, Eye, Trash2, Camera, Save, Send, Clock, FileEdit, AlertCircle } from 'lucide-react';
+import { Upload, HelpCircle, Check, Eye, Trash2, Camera, Save, Send, Clock, FileEdit, AlertCircle, Clipboard } from 'lucide-react';
 import CameraModal from '../shared/components/CameraModal';
 
 interface KaizenSheetFormProps {
@@ -80,6 +80,9 @@ export default function KaizenSheetForm({
   const [photoBeforeFile, setPhotoBeforeFile] = useState<File | null>(null);
   const [photoAfterFile, setPhotoAfterFile] = useState<File | null>(null);
   const [cameraTarget, setCameraTarget] = useState<'before' | 'after' | null>(null);
+  const [hoveredPhotoTarget, setHoveredPhotoTarget] = useState<'before' | 'after' | null>(null);
+  const [focusedPhotoTarget, setFocusedPhotoTarget] = useState<'before' | 'after' | null>(null);
+  const [pasteFeedback, setPasteFeedback] = useState<{ target: 'before' | 'after'; message: string; type: 'success' | 'info' } | null>(null);
 
   // Synchronize state if initialData changes externally (e.g. when reopening a saved draft)
   useEffect(() => {
@@ -174,25 +177,161 @@ export default function KaizenSheetForm({
   // Benefits explanation tags shown when AI generates analysis
   const [benefitsReasons, setBenefitsReasons] = useState<Record<string, string>>({});
 
+  // Common function to process and store an image (from file picker, paste, drag-and-drop)
+  const processPhotoFile = (file: File, target: 'before' | 'after', sourceLabel = 'Pasted') => {
+    if (!file.type.startsWith('image/')) return false;
+
+    // Ensure meaningful filename if it came from clipboard/blob
+    let processedFile = file;
+    if (!file.name || file.name === 'image.png' || file.name === 'blob') {
+      const ext = file.type.split('/')[1] || 'png';
+      processedFile = new File([file], `${target}_kaizen_${Date.now()}.${ext}`, { type: file.type });
+    }
+
+    if (target === 'before') {
+      setPhotoBeforeFile(processedFile);
+    } else {
+      setPhotoAfterFile(processedFile);
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        if (target === 'before') setPhotoBefore(reader.result);
+        else setPhotoAfter(reader.result);
+      }
+    };
+    reader.readAsDataURL(processedFile);
+
+    setPasteFeedback({
+      target,
+      message: `${sourceLabel} image attached to ${target.toUpperCase()}!`,
+      type: 'success',
+    });
+    setTimeout(() => {
+      setPasteFeedback(null);
+    }, 3000);
+
+    return true;
+  };
+
   // File Upload Handler — stores both base64 preview AND the raw File object
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'before' | 'after') => {
     const file = e.target.files?.[0];
     if (file) {
-      // Store the raw File for backend upload
-      if (target === 'before') setPhotoBeforeFile(file);
-      else setPhotoAfterFile(file);
-
-      // Generate base64 preview for immediate display in the form
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          if (target === 'before') setPhotoBefore(reader.result);
-          else setPhotoAfter(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      processPhotoFile(file, target, 'Uploaded');
     }
   };
+
+  // Direct paste handler on photo containers
+  const handlePasteImage = (e: React.ClipboardEvent, target: 'before' | 'after') => {
+    const items = e.clipboardData?.items;
+    if (!items) return false;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          e.stopPropagation();
+          processPhotoFile(file, target, 'Pasted');
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // Programmatic paste from clipboard via button click
+  const handlePasteClipboardClick = async (target: 'before' | 'after') => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          const imageType = item.types.find(t => t.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const ext = imageType.split('/')[1] || 'png';
+            const file = new File([blob], `${target}_clipboard_${Date.now()}.${ext}`, { type: imageType });
+            processPhotoFile(file, target, 'Clipboard');
+            return;
+          }
+        }
+        setPasteFeedback({
+          target,
+          message: 'No image found on clipboard. Copy an image first, then paste.',
+          type: 'info',
+        });
+        setTimeout(() => setPasteFeedback(null), 3000);
+      } else {
+        setPasteFeedback({
+          target,
+          message: 'Press Ctrl+V to paste your copied image.',
+          type: 'info',
+        });
+        setTimeout(() => setPasteFeedback(null), 3000);
+      }
+    } catch {
+      setPasteFeedback({
+        target,
+        message: 'Click this box and press Ctrl+V to paste your image.',
+        type: 'info',
+      });
+      setTimeout(() => setPasteFeedback(null), 3000);
+    }
+  };
+
+  // Global Ctrl+V listener so users can paste without strictly focusing the dropzone
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // Don't intercept if user is typing inside a text input or textarea
+      const activeEl = document.activeElement;
+      const tagName = activeEl?.tagName.toLowerCase();
+      const isTextInput = (tagName === 'input' && (activeEl as HTMLInputElement).type !== 'file') || 
+                          tagName === 'textarea' || 
+                          (activeEl as HTMLElement)?.isContentEditable;
+
+      // If user is focused on a standard text field and not one of our photo containers, let standard text paste happen
+      if (isTextInput && activeEl?.id !== 'photo-box-before' && activeEl?.id !== 'photo-box-after') {
+        return;
+      }
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      let imageFile: File | null = null;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          imageFile = items[i].getAsFile();
+          break;
+        }
+      }
+
+      if (!imageFile) return;
+
+      // Decide which target to paste into
+      let target: 'before' | 'after' = 'before';
+      if (focusedPhotoTarget) {
+        target = focusedPhotoTarget;
+      } else if (hoveredPhotoTarget) {
+        target = hoveredPhotoTarget;
+      } else if (!photoBefore) {
+        target = 'before';
+      } else if (!photoAfter) {
+        target = 'after';
+      } else {
+        target = 'before';
+      }
+
+      e.preventDefault();
+      processPhotoFile(imageFile, target, 'Pasted');
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => {
+      window.removeEventListener('paste', handleGlobalPaste);
+    };
+  }, [focusedPhotoTarget, hoveredPhotoTarget, photoBefore, photoAfter]);
 
   const loadMockPreset = (presetType: 'airleak' | 'toolrack') => {
     if (presetType === 'airleak') {
@@ -605,10 +744,16 @@ export default function KaizenSheetForm({
         {/* Photos Block (Attachment 1 style) */}
         <div className="border border-slate-200 rounded-xl p-5 bg-slate-50 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-2 gap-2">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
-              <span>📸 BEFORE & AFTER VISUAL PROOF DOCUMENTATION</span>
-              <span className="text-red-500 font-bold text-sm">*</span>
-            </h3>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
+                <span>📸 BEFORE & AFTER VISUAL PROOF DOCUMENTATION</span>
+                <span className="text-red-500 font-bold text-sm">*</span>
+              </h3>
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded">
+                <Clipboard className="w-3 h-3 text-indigo-600" />
+                Paste images with <kbd className="px-1 py-0.5 text-[10px] font-mono bg-white rounded border border-slate-300 font-bold">Ctrl+V</kbd>
+              </span>
+            </div>
             <span className="text-[10px] font-bold text-red-700 bg-red-100 border border-red-200 px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider">
               Compulsory Photos Required
             </span>
@@ -631,11 +776,38 @@ export default function KaizenSheetForm({
                     </span>
                   )}
                 </div>
+                {(hoveredPhotoTarget === 'before' || focusedPhotoTarget === 'before') && (
+                  <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded animate-fade-in flex items-center gap-1">
+                    <Clipboard className="w-3 h-3" /> Ready for Ctrl+V
+                  </span>
+                )}
               </div>
-              <div className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition ${photoBefore
-                  ? 'border-emerald-300 ring-2 ring-emerald-500/10'
-                  : 'border-slate-300 bg-slate-50'
-                }`}>
+              <div
+                id="photo-box-before"
+                tabIndex={0}
+                onMouseEnter={() => setHoveredPhotoTarget('before')}
+                onMouseLeave={() => setHoveredPhotoTarget(null)}
+                onFocus={() => setFocusedPhotoTarget('before')}
+                onBlur={() => setFocusedPhotoTarget(null)}
+                onPaste={(e) => handlePasteImage(e, 'before')}
+                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${
+                  focusedPhotoTarget === 'before' || hoveredPhotoTarget === 'before'
+                    ? 'border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/20'
+                    : photoBefore
+                    ? 'border-emerald-300 ring-2 ring-emerald-500/10'
+                    : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+                }`}
+              >
+                {/* Floating feedback alert */}
+                {pasteFeedback && pasteFeedback.target === 'before' && (
+                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${
+                    pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
+                  }`}>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{pasteFeedback.message}</span>
+                  </div>
+                )}
+
                 {photoBefore ? (
                   <>
                     <img
@@ -644,16 +816,33 @@ export default function KaizenSheetForm({
                       className="max-h-full max-w-full object-contain rounded"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-wrap items-center justify-center gap-2 p-3 transition-all backdrop-blur-[1px]">
                       <button
                         type="button"
-                        onClick={() => setCameraTarget('before')}
-                        className="text-xs text-white font-bold bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg border border-white/20 mr-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteClipboardClick('before');
+                        }}
+                        className="text-xs text-white font-bold bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                        title="Paste new image from clipboard (Ctrl+V)"
                       >
-                        Retake Photo
+                        <Clipboard className="w-3.5 h-3.5" /> Paste (Ctrl+V)
                       </button>
-                      <label className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20">
-                        Replace Photo
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCameraTarget('before');
+                        }}
+                        className="text-xs text-white font-bold bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Retake Photo
+                      </button>
+                      <label 
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Replace Photo
                         <input
                           type="file"
                           accept="image/*"
@@ -664,18 +853,42 @@ export default function KaizenSheetForm({
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full h-full">
-                    <Camera className="w-10 h-10 text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-500 text-center">No photo yet</p>
-                    <div className="flex gap-2">
+                  <div className="flex flex-col items-center justify-center gap-2.5 text-slate-400 w-full h-full p-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">No before photo attached</p>
+                      <p className="text-[11px] text-slate-400">
+                        Paste copied image with <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-200">Ctrl+V</span> or choose:
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
                       <button
                         type="button"
-                        onClick={() => setCameraTarget('before')}
-                        className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteClipboardClick('before');
+                        }}
+                        className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                        title="Paste image directly from clipboard (Ctrl+V)"
                       >
-                        <Camera className="w-3.5 h-3.5" /> Take Photo
+                        <Clipboard className="w-3.5 h-3.5 text-indigo-600" /> Paste (Ctrl+V)
                       </button>
-                      <label className="cursor-pointer text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCameraTarget('before');
+                        }}
+                        className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Camera
+                      </button>
+                      <label 
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                      >
                         <Upload className="w-3.5 h-3.5" /> Upload
                         <input
                           type="file"
@@ -705,11 +918,38 @@ export default function KaizenSheetForm({
                     </span>
                   )}
                 </div>
+                {(hoveredPhotoTarget === 'after' || focusedPhotoTarget === 'after') && (
+                  <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded animate-fade-in flex items-center gap-1">
+                    <Clipboard className="w-3 h-3" /> Ready for Ctrl+V
+                  </span>
+                )}
               </div>
-              <div className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition ${photoAfter
-                  ? 'border-emerald-300 ring-2 ring-emerald-500/10'
-                  : 'border-slate-300 bg-slate-50'
-                }`}>
+              <div
+                id="photo-box-after"
+                tabIndex={0}
+                onMouseEnter={() => setHoveredPhotoTarget('after')}
+                onMouseLeave={() => setHoveredPhotoTarget(null)}
+                onFocus={() => setFocusedPhotoTarget('after')}
+                onBlur={() => setFocusedPhotoTarget(null)}
+                onPaste={(e) => handlePasteImage(e, 'after')}
+                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${
+                  focusedPhotoTarget === 'after' || hoveredPhotoTarget === 'after'
+                    ? 'border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/20'
+                    : photoAfter
+                    ? 'border-emerald-300 ring-2 ring-emerald-500/10'
+                    : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+                }`}
+              >
+                {/* Floating feedback alert */}
+                {pasteFeedback && pasteFeedback.target === 'after' && (
+                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${
+                    pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
+                  }`}>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{pasteFeedback.message}</span>
+                  </div>
+                )}
+
                 {photoAfter ? (
                   <>
                     <img
@@ -718,16 +958,33 @@ export default function KaizenSheetForm({
                       className="max-h-full max-w-full object-contain rounded"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-wrap items-center justify-center gap-2 p-3 transition-all backdrop-blur-[1px]">
                       <button
                         type="button"
-                        onClick={() => setCameraTarget('after')}
-                        className="text-xs text-white font-bold bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg border border-white/20 mr-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteClipboardClick('after');
+                        }}
+                        className="text-xs text-white font-bold bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                        title="Paste new image from clipboard (Ctrl+V)"
                       >
-                        Retake Photo
+                        <Clipboard className="w-3.5 h-3.5" /> Paste (Ctrl+V)
                       </button>
-                      <label className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20">
-                        Replace Photo
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCameraTarget('after');
+                        }}
+                        className="text-xs text-white font-bold bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Retake Photo
+                      </button>
+                      <label 
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Replace Photo
                         <input
                           type="file"
                           accept="image/*"
@@ -738,18 +995,42 @@ export default function KaizenSheetForm({
                     </div>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center gap-3 text-slate-400 w-full h-full">
-                    <Camera className="w-10 h-10 text-slate-300" />
-                    <p className="text-xs font-semibold text-slate-500 text-center">No photo yet</p>
-                    <div className="flex gap-2">
+                  <div className="flex flex-col items-center justify-center gap-2.5 text-slate-400 w-full h-full p-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 group-hover:border-indigo-200 transition">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">No after photo attached</p>
+                      <p className="text-[11px] text-slate-400">
+                        Paste copied image with <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-200">Ctrl+V</span> or choose:
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 mt-1">
                       <button
                         type="button"
-                        onClick={() => setCameraTarget('after')}
-                        className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteClipboardClick('after');
+                        }}
+                        className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                        title="Paste image directly from clipboard (Ctrl+V)"
                       >
-                        <Camera className="w-3.5 h-3.5" /> Take Photo
+                        <Clipboard className="w-3.5 h-3.5 text-indigo-600" /> Paste (Ctrl+V)
                       </button>
-                      <label className="cursor-pointer text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCameraTarget('after');
+                        }}
+                        className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Camera
+                      </button>
+                      <label 
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
+                      >
                         <Upload className="w-3.5 h-3.5" /> Upload
                         <input
                           type="file"
