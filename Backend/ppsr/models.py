@@ -18,19 +18,24 @@ class PpsrReport(models.Model):
     """
     # Identity
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
-    ppsr_no = models.CharField(max_length=30, unique=True)  # e.g. BE-2026-001
-    title = models.CharField(max_length=300)
-    problem_statement = models.TextField()
+    ppsr_no = models.CharField(max_length=30, unique=True, blank=True)  # e.g. PPSR/2026/SEP/01
+    title = models.CharField(max_length=300, blank=True, default='')
+    problem_statement = models.TextField(blank=True, default='')
     status = models.CharField(
         max_length=20,
-        choices=[('Open', 'Open'), ('In-Progress', 'In-Progress'), ('Closed', 'Closed')],
+        choices=[
+            ('Draft', 'Draft'),
+            ('Open', 'Open'),
+            ('In-Progress', 'In-Progress'),
+            ('Closed', 'Closed'),
+        ],
         default='Open'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     # Step 1 — General Parameters
-    plant = models.CharField(max_length=150)
+    plant = models.CharField(max_length=150, blank=True, default='')
     line_station = models.CharField(max_length=100, blank=True)
     product_component = models.CharField(max_length=200, blank=True)
     amount_defects = models.CharField(max_length=100, blank=True)
@@ -47,7 +52,10 @@ class PpsrReport(models.Model):
         choices=[('data', 'data'), ('photo', 'photo'), ('both', 'both')],
         default='data'
     )
-    lead_owner = models.CharField(max_length=200)
+    lead_owner = models.CharField(max_length=200, blank=True, default='')
+
+    # Draft tracking — which form step was the user on when they saved
+    last_saved_step = models.PositiveSmallIntegerField(default=1)
     project_leader = models.CharField(max_length=200, blank=True)
     team_members = models.TextField(blank=True)
     target_date = models.DateField(null=True, blank=True)

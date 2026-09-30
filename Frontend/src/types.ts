@@ -234,10 +234,12 @@ export interface PpsrReport {
   containmentAction: string; // fallback string
   permanentCorrectiveAction: string; // fallback string
   validationCheck: string; // fallback string
-  status: 'Open' | 'In-Progress' | 'Closed';
+  status: 'Draft' | 'Open' | 'In-Progress' | 'Closed';
   targetDate: string;
   leadOwner: string;
   createdAt: string;
+  updatedAt?: string;
+  lastSavedStep?: number;
 
   // Expanded BE detailed fields
   projectLeader?: string;

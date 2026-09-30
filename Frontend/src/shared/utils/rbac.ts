@@ -36,6 +36,7 @@ export type KaizenSubTab =
 
 export type PpsrSubTab = 
   | 'initiate' 
+  | 'drafts'
   | 'meeting' 
   | 'cft-awards' 
   | 'register';
@@ -78,6 +79,7 @@ export const KAIZEN_TAB_PERMISSIONS: Record<KaizenSubTab, RoleCategory[]> = {
  */
 export const PPSR_TAB_PERMISSIONS: Record<PpsrSubTab, RoleCategory[]> = {
   'initiate': ['initiator', 'coordinator', 'admin', 'superadmin'],
+  'drafts': ['initiator', 'coordinator', 'admin', 'superadmin'],
   'meeting': ['committee', 'coordinator', 'admin', 'superadmin'],
   'cft-awards': ['coordinator', 'admin', 'superadmin'],
   'register': ['coordinator', 'admin', 'superadmin'],

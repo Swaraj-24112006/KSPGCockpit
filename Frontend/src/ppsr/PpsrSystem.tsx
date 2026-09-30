@@ -6,6 +6,7 @@ import { PsqEliminationTree, BLANK_PSQ_TREE_DATA, DEFAULT_PSQ_TREE_DATA } from '
 import PpsrPresentationMode from './PpsrPresentationMode';
 import PpsrMonthlyAwards from './PPSRMonthlyAwards';
 import PpsrReviewBoard from './PpsrReviewBoard';
+import PpsrMyDrafts from './PpsrMyDrafts';
 import SpecLimitInputPanel from './SpecLimitInputPanel';
 import type { RoleCategory, PpsrSubTab } from '../shared/utils/rbac';
 import { canAccessPpsrTab } from '../shared/utils/rbac';
@@ -47,7 +48,9 @@ import {
   Upload,
   PlusCircle,
   ClipboardList,
-  Trophy
+  Trophy,
+  Save,
+  FileEdit
 } from 'lucide-react';
 import { PpsrMeetingLog } from '../types';
 
@@ -65,6 +68,11 @@ interface PpsrSystemProps {
   meetings?: PpsrMeetingLog[];
   onAddMeeting?: (data: Partial<PpsrMeetingLog>) => void;
   userRole?: RoleCategory;
+  // Draft support
+  drafts?: PpsrReport[];
+  onSaveDraft?: (data: Partial<PpsrReport>) => void;
+  onUpdateDraft?: (id: string, data: Partial<PpsrReport>) => void;
+  onDeleteDraft?: (id: string) => void;
 }
 
 export default function PpsrSystem({
@@ -80,7 +88,11 @@ export default function PpsrSystem({
   onInspectReport,
   meetings,
   onAddMeeting,
-  userRole = 'initiator'
+  userRole = 'initiator',
+  drafts = [],
+  onSaveDraft,
+  onUpdateDraft,
+  onDeleteDraft,
 }: PpsrSystemProps) {
 
   const resolvedRole: RoleCategory = userRole || 'initiator';
@@ -107,6 +119,7 @@ export default function PpsrSystem({
 
   const [selectedReport, setSelectedReport] = useState<PpsrReport | null>(null);
   const [presentingReport, setPresentingReport] = useState<PpsrReport | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 
   // Trigger from sidebar menu navigation or global dashboard links
   useEffect(() => {
@@ -574,107 +587,96 @@ export default function PpsrSystem({
   const [leadOwner, setLeadOwner] = useState('');
   const [steeringCommittee, setSteeringCommittee] = useState('Rajesh Patil (Supervisor)');
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !problemStatement || !leadOwner) {
-      alert("Please enter a Title, Problem description and Lead Owner (Project Leader) to initiate the BE report.");
-      return;
-    }
+  // ── Shared payload builder (used by both Submit and Save Draft) ──
+  const buildPayload = (): Partial<PpsrReport> => ({
+    title,
+    problemStatement,
+    leadOwner,
+    targetDate: discoveredOn,
+    rootCauseAnalysis: rootCauses[0]?.whys[0] ? rootCauses.map((rc, i) => `[${rc.heading || `Root Cause ${i + 1}`}] ${rc.whys.filter(Boolean).map((w, wi) => `${wi + 1}. Why? ${w}`).join(' → ')}`).join('\n') : '',
+    containmentAction: containmentActions[0]?.action || '',
+    permanentCorrectiveAction: correctiveActions[0]?.measure || '',
+    validationCheck: effectivenessEvidence || '',
 
-    // Assemble complex BE structure
-    const ppsrPayload: Partial<PpsrReport> = {
-      title,
-      problemStatement,
-      leadOwner,
-      status: 'Open',
-      targetDate: discoveredOn,
-      rootCauseAnalysis: rootCauses[0]?.whys[0] ? rootCauses.map((rc, i) => `[${rc.heading || `Root Cause ${i + 1}`}] ${rc.whys.filter(Boolean).map((w, wi) => `${wi + 1}. Why? ${w}`).join(' → ')}`).join('\n') : 'Root cause analysis in progress.',
-      containmentAction: containmentActions[0]?.action || 'Containment action pending.',
-      permanentCorrectiveAction: correctiveActions[0]?.measure || 'Corrective actions scheduled.',
-      validationCheck: effectivenessEvidence || 'Validation check scheduled.',
+    projectLeader: leadOwner,
+    teamMembers: 'Rahul Sharma, Sunita Rao (Assigned Quality Team)',
+    plant,
+    lineStation,
+    productComponent,
+    amountDefects,
+    discoveredOn,
+    discoveredBy,
+    repeatCase,
+    sketchPhoto: sketchPhoto || undefined,
+    initialEvidenceType,
+    initialDefectTrendData,
+    initialSpecLimitGraph: { usl: initialSpecUsl, lsl: initialSpecLsl, measurements: initialSpecMeasurements },
 
+    factsAnalysis: {
+      whatIs, whatIsNot,
+      whereIs, whereIsNot,
+      howIs, howIsNot,
+      whenIs, whenIsNot
+    },
+
+    containmentActionsList: containmentActions
+      .filter(c => c.action.trim() !== '')
+      .map((c, i) => ({ no: i + 1, ...c })),
+
+    ishikawa: {
+      man: (ishikawaPoints.man || []).filter(Boolean),
+      machine: (ishikawaPoints.machine || []).filter(Boolean),
+      material: (ishikawaPoints.material || []).filter(Boolean),
+      methods: (ishikawaPoints.methods || []).filter(Boolean),
+      milieu: (ishikawaPoints.milieu || []).filter(Boolean),
+      measurement: (ishikawaPoints.measurement || []).filter(Boolean)
+    },
+
+    ishikawaRootCauses: ishikawaRootCauses.filter(rc => rc.text.trim()),
+
+    causeLocalizationApproach,
+    standardWorksheet,
+    psqTreeData,
+
+    fiveWhysList: rootCauses
+      .filter(rc => rc.heading.trim() || rc.whys.some(w => w.trim()))
+      .map(rc => ({ heading: rc.heading, whys: rc.whys.filter(Boolean) })),
+    fiveWhys: {
+      column1: rootCauses[0]?.whys.filter(Boolean) || [],
+      column2: rootCauses[1]?.whys.filter(Boolean) || [],
+      column3: rootCauses[2]?.whys.filter(Boolean) || []
+    },
+
+    correctiveActionsList: correctiveActions
+      .filter(ca => ca.measure.trim() !== '')
+      .map((ca, i) => ({ no: i + 1, ...ca })),
+
+    effectivenessEvidence,
+    evidenceType,
+    defectTrendData,
+    effectivenessSpecLimitGraph: { usl: effSpecUsl, lsl: effSpecLsl, measurements: effSpecMeasurements },
+    effectivenessChartData: defectTrendData.map(d => ({
+      name: d.date,
+      value: Number(d.defectsCount) || 0
+    })),
+
+    standardizationList: standardizationActions
+      .filter(s => s.measure.trim() !== '')
+      .map((s, i) => ({ no: i + 1, ...s, status: 'completed' })),
+
+    readAcrossList: readAcrossActions
+      .filter(r => r.proposal.trim() !== ''),
+    readAcrossExplanation,
+
+    completionSignatures: {
       projectLeader: leadOwner,
-      teamMembers: 'Rahul Sharma, Sunita Rao (Assigned Quality Team)',
-      plant,
-      lineStation,
-      productComponent,
-      amountDefects,
-      discoveredOn,
-      discoveredBy,
-      repeatCase,
-      sketchPhoto: sketchPhoto || undefined,
-      initialEvidenceType,
-      initialDefectTrendData,
-      initialSpecLimitGraph: { usl: initialSpecUsl, lsl: initialSpecLsl, measurements: initialSpecMeasurements },
+      steeringCommittee,
+      completedOn: new Date().toISOString().split('T')[0]
+    }
+  });
 
-      factsAnalysis: {
-        whatIs, whatIsNot,
-        whereIs, whereIsNot,
-        howIs, howIsNot,
-        whenIs, whenIsNot
-      },
-
-      containmentActionsList: containmentActions
-        .filter(c => c.action.trim() !== '')
-        .map((c, i) => ({ no: i + 1, ...c })),
-
-      ishikawa: {
-        man: (ishikawaPoints.man || []).filter(Boolean),
-        machine: (ishikawaPoints.machine || []).filter(Boolean),
-        material: (ishikawaPoints.material || []).filter(Boolean),
-        methods: (ishikawaPoints.methods || []).filter(Boolean),
-        milieu: (ishikawaPoints.milieu || []).filter(Boolean),
-        measurement: (ishikawaPoints.measurement || []).filter(Boolean)
-      },
-
-      ishikawaRootCauses: ishikawaRootCauses.filter(rc => rc.text.trim()),
-
-
-      causeLocalizationApproach,
-      standardWorksheet,
-      psqTreeData,
-
-      fiveWhysList: rootCauses
-        .filter(rc => rc.heading.trim() || rc.whys.some(w => w.trim()))
-        .map(rc => ({ heading: rc.heading, whys: rc.whys.filter(Boolean) })),
-      fiveWhys: {
-        column1: rootCauses[0]?.whys.filter(Boolean) || [],
-        column2: rootCauses[1]?.whys.filter(Boolean) || [],
-        column3: rootCauses[2]?.whys.filter(Boolean) || []
-      },
-
-      correctiveActionsList: correctiveActions
-        .filter(ca => ca.measure.trim() !== '')
-        .map((ca, i) => ({ no: i + 1, ...ca })),
-
-      effectivenessEvidence,
-      evidenceType,
-      defectTrendData,
-      effectivenessSpecLimitGraph: { usl: effSpecUsl, lsl: effSpecLsl, measurements: effSpecMeasurements },
-      effectivenessChartData: defectTrendData.map(d => ({
-        name: d.date,
-        value: Number(d.defectsCount) || 0
-      })),
-
-      standardizationList: standardizationActions
-        .filter(s => s.measure.trim() !== '')
-        .map((s, i) => ({ no: i + 1, ...s, status: 'completed' })),
-
-      readAcrossList: readAcrossActions
-        .filter(r => r.proposal.trim() !== ''),
-      readAcrossExplanation,
-
-      completionSignatures: {
-        projectLeader: leadOwner,
-        steeringCommittee,
-        completedOn: new Date().toISOString().split('T')[0]
-      }
-    };
-
-    onAddReport(ppsrPayload);
-    alert('SUCCESS: Practical Problem Solving Report (PPSR) initiated and logged to server!');
-
-    // Clear states
+  // ── Reset form to blank state ──
+  const resetFormState = () => {
     setTitle('');
     setLineStation('');
     setProductComponent('');
@@ -687,13 +689,188 @@ export default function PpsrSystem({
     setIshikawaPoints({ man: [], machine: [], material: [], methods: [], milieu: [], measurement: [] });
     setIshikawaRootCauses([]);
     setRootCauses([{ heading: '', whys: ['', '', '', '', ''] }]);
+    setContainmentActions([{ action: '', responsible: '', date: new Date().toISOString().split('T')[0], status: 'implemented' }]);
+    setCorrectiveActions([{ measure: '', responsible: '', deadline: new Date().toISOString().split('T')[0], status: 'completed' }]);
+    setStandardizationActions([{ measure: '', responsible: '', date: new Date().toISOString().split('T')[0], status: 'completed' }]);
+    setReadAcrossActions([{ proposal: '', responsible: '', deadline: new Date().toISOString().split('T')[0] }]);
+    setReadAcrossExplanation('');
     setStandardWorksheet([]);
     setPsqTreeData(BLANK_PSQ_TREE_DATA);
     setEffectivenessEvidence('');
     setInitialSpecUsl(7.25); setInitialSpecLsl(5.50); setInitialSpecMeasurements([]);
     setEffSpecUsl(7.25); setEffSpecLsl(5.50); setEffSpecMeasurements([]);
     setLeadOwner('');
+    setPlant('Pune Assembly & Paint Complex');
+    setDiscoveredBy('');
+    setDiscoveredOn(new Date().toISOString().split('T')[0]);
+    setRepeatCase('no');
+    setSketchPhoto('');
     setFormStep(1);
+    setEditingDraftId(null);
+  };
+
+  // ── Save Draft handler ──
+  const handleSaveDraft = () => {
+    const draftPayload: Partial<PpsrReport> = {
+      ...buildPayload(),
+      status: 'Draft',
+      lastSavedStep: formStep,
+    };
+
+    if (editingDraftId) {
+      // Update existing draft
+      onUpdateDraft?.(editingDraftId, draftPayload);
+      alert('Draft updated successfully!');
+    } else {
+      // Create new draft
+      onSaveDraft?.(draftPayload);
+      alert('Draft saved successfully!');
+    }
+
+    resetFormState();
+    handleSetTab('drafts');
+  };
+
+  // ── Continue Editing a draft ──
+  const handleContinueEditing = (draft: PpsrReport) => {
+    setEditingDraftId(draft.id);
+    setTitle(draft.title || '');
+    setProblemStatement(draft.problemStatement || '');
+    setLeadOwner(draft.leadOwner || '');
+    setPlant(draft.plant || 'Pune Assembly & Paint Complex');
+    setLineStation(draft.lineStation || '');
+    setProductComponent(draft.productComponent || '');
+    setAmountDefects(draft.amountDefects || '');
+    setDiscoveredBy(draft.discoveredBy || '');
+    setDiscoveredOn(draft.discoveredOn || new Date().toISOString().split('T')[0]);
+    setRepeatCase(draft.repeatCase || 'no');
+    setSketchPhoto(draft.sketchPhoto || '');
+
+    // Facts analysis
+    if (draft.factsAnalysis) {
+      setWhatIs(draft.factsAnalysis.whatIs || '');
+      setWhatIsNot(draft.factsAnalysis.whatIsNot || '');
+      setWhereIs(draft.factsAnalysis.whereIs || '');
+      setWhereIsNot(draft.factsAnalysis.whereIsNot || '');
+      setHowIs(draft.factsAnalysis.howIs || '');
+      setHowIsNot(draft.factsAnalysis.howIsNot || '');
+      setWhenIs(draft.factsAnalysis.whenIs || '');
+      setWhenIsNot(draft.factsAnalysis.whenIsNot || '');
+    }
+
+    // Ishikawa
+    if (draft.ishikawa && typeof draft.ishikawa === 'object') {
+      setIshikawaPoints(draft.ishikawa as Record<string, string[]>);
+    }
+    if (draft.ishikawaRootCauses) {
+      setIshikawaRootCauses(draft.ishikawaRootCauses);
+    }
+
+    // 5-Whys
+    if (draft.fiveWhysList && draft.fiveWhysList.length > 0) {
+      setRootCauses(draft.fiveWhysList.map(fw => ({
+        heading: fw.heading || '',
+        whys: [...(fw.whys || []), '', '', '', '', ''].slice(0, 5)
+      })));
+    }
+
+    // Containment actions
+    if (draft.containmentActionsList && draft.containmentActionsList.length > 0) {
+      setContainmentActions(draft.containmentActionsList.map(c => ({
+        action: c.action || '',
+        responsible: c.responsible || '',
+        date: c.date || new Date().toISOString().split('T')[0],
+        status: (c.status as any) || 'implemented'
+      })));
+    }
+
+    // Corrective actions
+    if (draft.correctiveActionsList && draft.correctiveActionsList.length > 0) {
+      setCorrectiveActions(draft.correctiveActionsList.map(ca => ({
+        measure: ca.measure || '',
+        responsible: ca.responsible || '',
+        deadline: ca.deadline || new Date().toISOString().split('T')[0],
+        status: (ca.status as any) || 'completed'
+      })));
+    }
+
+    // Standardization
+    if (draft.standardizationList && draft.standardizationList.length > 0) {
+      setStandardizationActions(draft.standardizationList.map(s => ({
+        measure: s.measure || '',
+        responsible: s.responsible || '',
+        date: s.date || new Date().toISOString().split('T')[0],
+        status: 'completed' as const
+      })));
+    }
+
+    // Read across
+    if (draft.readAcrossList && draft.readAcrossList.length > 0) {
+      setReadAcrossActions(draft.readAcrossList.map(r => ({
+        proposal: r.proposal || '',
+        responsible: r.responsible || '',
+        deadline: r.deadline || new Date().toISOString().split('T')[0]
+      })));
+    }
+    setReadAcrossExplanation(draft.readAcrossExplanation || '');
+
+    // Effectiveness evidence
+    setEffectivenessEvidence(draft.effectivenessEvidence || '');
+
+    // Spec limit graphs
+    if (draft.initialSpecLimitGraph) {
+      setInitialSpecUsl(draft.initialSpecLimitGraph.usl);
+      setInitialSpecLsl(draft.initialSpecLimitGraph.lsl);
+      setInitialSpecMeasurements(draft.initialSpecLimitGraph.measurements || []);
+    }
+    if (draft.effectivenessSpecLimitGraph) {
+      setEffSpecUsl(draft.effectivenessSpecLimitGraph.usl);
+      setEffSpecLsl(draft.effectivenessSpecLimitGraph.lsl);
+      setEffSpecMeasurements(draft.effectivenessSpecLimitGraph.measurements || []);
+    }
+
+    // Defect trend data
+    if (draft.initialDefectTrendData && draft.initialDefectTrendData.length > 0) {
+      setInitialDefectTrendData(draft.initialDefectTrendData);
+    }
+    if (draft.defectTrendData && draft.defectTrendData.length > 0) {
+      setDefectTrendData(draft.defectTrendData);
+    }
+
+    // PSQ / standard worksheet
+    if (draft.psqTreeData) setPsqTreeData(draft.psqTreeData);
+    if (draft.standardWorksheet) setStandardWorksheet(draft.standardWorksheet);
+    if (draft.causeLocalizationApproach) setCauseLocalizationApproach(draft.causeLocalizationApproach as any);
+
+    // Set form step and switch to initiate tab
+    setFormStep(draft.lastSavedStep || 1);
+    handleSetTab('initiate');
+  };
+
+  // ── Submit handler ──
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !problemStatement || !leadOwner) {
+      alert("Please enter a Title, Problem description and Lead Owner (Project Leader) to initiate the BE report.");
+      return;
+    }
+
+    const ppsrPayload: Partial<PpsrReport> = {
+      ...buildPayload(),
+      status: 'Open',
+    };
+
+    if (editingDraftId) {
+      // Submitting a draft — update it with status: Open
+      onUpdateReport(editingDraftId, ppsrPayload);
+      alert('SUCCESS: Draft submitted! PPSR report initiated and logged to server.');
+    } else {
+      // Brand new submission
+      onAddReport(ppsrPayload);
+      alert('SUCCESS: Practical Problem Solving Report (PPSR) initiated and logged to server!');
+    }
+
+    resetFormState();
 
     if (canAccessPpsrTab(resolvedRole, 'register')) {
       handleSetTab('register');
@@ -720,6 +897,27 @@ export default function PpsrSystem({
             >
               <PlusCircle className="w-3.5 h-3.5 shrink-0 text-violet-300" />
               <span>1. Initiate PPSR</span>
+            </button>
+          )}
+
+          {/* 1b. My Saved Drafts — Initiator, Coordinator, Admin */}
+          {canAccessPpsrTab(resolvedRole, 'drafts') && (
+            <button
+              id="tab-ppsr-drafts"
+              onClick={() => handleSetTab('drafts')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${currentTab === 'drafts'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+            >
+              <FileEdit className="w-3.5 h-3.5 shrink-0 text-amber-300" />
+              <span>My Drafts</span>
+              {drafts.length > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${currentTab === 'drafts' ? 'bg-amber-700 text-amber-100' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                  {drafts.length}
+                </span>
+              )}
             </button>
           )}
 
@@ -940,11 +1138,28 @@ export default function PpsrSystem({
       {currentTab === 'initiate' && canAccessPpsrTab(resolvedRole, 'initiate') && (
         <form onSubmit={handleFormSubmit} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4 max-w-4xl mx-auto text-left" id="ppsr-initiate-form-wizard">
 
+          {/* Draft Editing Banner */}
+          {editingDraftId && (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+              <div className="flex items-center space-x-2 text-xs text-amber-800 font-medium">
+                <FileEdit className="w-4 h-4 text-amber-600" />
+                <span>Continuing draft — <strong>{title || 'Untitled Draft'}</strong></span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { resetFormState(); }}
+                className="text-[10px] text-amber-600 hover:text-amber-800 font-bold uppercase font-mono"
+              >
+                ✕ Discard & Start New
+              </button>
+            </div>
+          )}
+
           {/* Form Header */}
           <div className="border-b pb-2 flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2">
               <span className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                🧠 Initiate PPSR Report
+                🧠 {editingDraftId ? 'Continue PPSR Draft' : 'Initiate PPSR Report'}
               </span>
               <span className="text-[10px] text-slate-400 font-mono hidden sm:inline">
                 8D Problem Solving Wizard
@@ -2301,6 +2516,18 @@ export default function PpsrSystem({
             </button>
 
             <div className="flex items-center space-x-2">
+              {/* Save Draft button — shown on every step */}
+              {onSaveDraft && (
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className="flex items-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase font-mono tracking-wider shadow-md shadow-amber-100 transition"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{editingDraftId ? 'Update Draft' : 'Save Draft'}</span>
+                </button>
+              )}
+
               {formStep < 5 ? (
                 <button
                   type="button"
@@ -2327,13 +2554,26 @@ export default function PpsrSystem({
                   type="submit"
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-xl text-xs font-black uppercase font-mono tracking-wider shadow-md shadow-emerald-100 transition"
                 >
-                  Compile & Initiate BE Standard
+                  {editingDraftId ? '✅ Submit Draft' : 'Compile & Initiate BE Standard'}
                 </button>
               )}
             </div>
           </div>
 
         </form>
+      )}
+
+      {/* My Saved Drafts Tab */}
+      {currentTab === 'drafts' && canAccessPpsrTab(resolvedRole, 'drafts') && (
+        <PpsrMyDrafts
+          drafts={drafts}
+          onContinueEditing={handleContinueEditing}
+          onDeleteDraft={(id) => onDeleteDraft?.(id)}
+          onStartNew={() => {
+            resetFormState();
+            handleSetTab('initiate');
+          }}
+        />
       )}
 
       {currentTab === 'meeting' && canAccessPpsrTab(resolvedRole, 'meeting') && (

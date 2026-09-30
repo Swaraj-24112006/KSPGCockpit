@@ -298,14 +298,18 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 'ishikawaRootCauses': 'ishikawa_root_causes',
                 'initialSpecLimitGraph': 'initial_spec_limit_graph',
                 'effectivenessSpecLimitGraph': 'effectiveness_spec_limit_graph',
+                'lastSavedStep': 'last_saved_step',
             }
             for camel, snake in mapping.items():
                 if camel in normalized and snake not in normalized:
                     normalized[snake] = normalized[camel]
 
-            lead_owner = normalized.get('lead_owner') or normalized.get('leadOwner') or 'Initiator'
-            if 'plant' not in normalized or not normalized['plant']:
-                normalized['plant'] = 'Pune Assembly & Paint Complex'
+            # Only apply defaults for non-Draft submissions
+            is_draft = normalized.get('status') == 'Draft'
+            lead_owner = normalized.get('lead_owner') or normalized.get('leadOwner') or ('' if is_draft else 'Initiator')
+            if not is_draft:
+                if 'plant' not in normalized or not normalized['plant']:
+                    normalized['plant'] = 'Pune Assembly & Paint Complex'
 
             today_str = date.today().isoformat()
 
@@ -527,6 +531,7 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
             'qtyMonthSavedRejPct': ret.get('qty_month_saved_rej_pct'),
             'perSetRejectionCost': ret.get('per_set_rejection_cost'),
             'ishikawaRootCauses': ret.get('ishikawa_root_causes'),
+            'lastSavedStep': ret.get('last_saved_step', 1),
             'createdAt': ret.get('created_at'),
             'updatedAt': ret.get('updated_at'),
         }
@@ -711,7 +716,12 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
         five_whys_data = validated_data.pop('five_whys', None)
 
         if 'ppsr_no' not in validated_data or not validated_data['ppsr_no']:
-            validated_data['ppsr_no'] = generate_ppsr_number()
+            if validated_data.get('status') == 'Draft':
+                # Drafts get a temporary unique identifier (replaced on submission)
+                from uuid import uuid4 as _uuid4
+                validated_data['ppsr_no'] = f'DRAFT-{_uuid4().hex[:8].upper()}'
+            else:
+                validated_data['ppsr_no'] = generate_ppsr_number()
 
         report = PpsrReport.objects.create(**validated_data)
 

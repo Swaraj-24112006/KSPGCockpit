@@ -128,7 +128,7 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
         if self.action == 'feedback' and self.request.method in ('POST', 'PATCH', 'PUT', 'DELETE'):
             return [IsPpsrCommitteeOrAbove()]
         if self.action == 'destroy':
-            return [IsPpsrCoordinatorOrAdmin()]
+            return [IsPpsrInitiatorOrAbove()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -140,8 +140,20 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
             'five_whys',
             'committee_feedback',
         ).all()
-        if self.request.query_params.get('status') != 'Archived':
-            qs = qs.exclude(status='Archived')
+        # In list view (register, review board), exclude Draft and Archived
+        # unless explicitly requested.
+        if self.action == 'list':
+            requested_status = self.request.query_params.get('status')
+            if not requested_status:
+                qs = qs.exclude(status__in=['Archived', 'Draft'])
+            elif requested_status != 'Archived':
+                qs = qs.exclude(status='Archived')
+        else:
+            # Detail views (retrieve, update, partial_update, destroy)
+            # Allow Drafts so initiators can edit/submit/delete their drafts
+            if self.request.query_params.get('status') != 'Archived':
+                qs = qs.exclude(status='Archived')
+
         return qs.order_by('-created_at')
 
     def get_serializer_class(self):
@@ -172,19 +184,44 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
         return Response(response_data)
 
     def perform_create(self, serializer):
-        if 'ppsr_no' not in serializer.validated_data or not serializer.validated_data['ppsr_no']:
-            report = serializer.save(ppsr_no=generate_ppsr_number())
-        else:
-            report = serializer.save()
-        invalidate_all_for_report(str(report.id))
-
-    def perform_update(self, serializer):
         report = serializer.save()
         invalidate_all_for_report(str(report.id))
 
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        old_status = instance.status
+        report = serializer.save()
+        # When a draft is submitted (status transitions away from Draft),
+        # assign a real PPSR number to replace the temporary DRAFT-xxx one.
+        new_status = report.status
+        if old_status == 'Draft' and new_status != 'Draft':
+            if report.ppsr_no.startswith('DRAFT-'):
+                report.ppsr_no = generate_ppsr_number()
+                report.save(update_fields=['ppsr_no'])
+        invalidate_all_for_report(str(report.id))
+
     def destroy(self, request, *args, **kwargs):
-        """Soft delete report by marking status as Archived."""
+        """Soft delete report by marking status as Archived, or hard delete if it is a draft."""
         instance = self.get_object()
+        if instance.status == 'Draft':
+            report_id = str(instance.id)
+            instance.delete()
+            invalidate_all_for_report(report_id)
+            return Response(
+                {'message': 'Draft deleted successfully', 'id': report_id},
+                status=status.HTTP_200_OK
+            )
+
+        from core.rbac import get_role_category, ROLE_COORDINATOR, ROLE_ADMIN, ROLE_SUPERADMIN
+        from ppsr.permissions import _is_unauthenticated_test_or_debug
+        if not _is_unauthenticated_test_or_debug(request):
+            role = get_role_category(request.user, module_code='ppsr')
+            if role not in (ROLE_COORDINATOR, ROLE_ADMIN, ROLE_SUPERADMIN):
+                return Response(
+                    {'detail': 'Only Coordinators or Admins can delete submitted reports.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
         instance.status = 'Archived'
         instance.save(update_fields=['status'])
         invalidate_all_for_report(str(instance.id))
@@ -192,6 +229,23 @@ class PpsrReportViewSet(PpsrRateLimitMixin, viewsets.ModelViewSet):
             {'message': 'PPSR report archived successfully', 'id': str(instance.id)},
             status=status.HTTP_200_OK
         )
+
+    # ------------------------------------------------------------------
+    # Drafts endpoint — returns only Draft-status reports for My Drafts
+    # ------------------------------------------------------------------
+    @action(detail=False, methods=['get'], url_path='drafts')
+    def drafts(self, request):
+        """
+        GET /api/ppsr/reports/drafts/
+        Returns only Draft-status reports for the initiator's My Drafts tab.
+        """
+        qs = PpsrReport.objects.filter(status='Draft').prefetch_related(
+            'containment_actions', 'corrective_actions',
+            'standardization_items', 'read_across_items',
+            'five_whys', 'committee_feedback',
+        ).order_by('-updated_at')
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data)
 
     # ------------------------------------------------------------------------
     # Task 4.3 & 6.7 — Committee Decision Action (Rate limit: 40/h)

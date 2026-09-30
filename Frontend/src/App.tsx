@@ -75,6 +75,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   const [safetyIncidents, setSafetyIncidents] = useState<SafetyIncident[]>([]);
   const [ppsrReports, setPpsrReports] = useState<PpsrReport[]>([]);
   const [ppsrMeetings, setPpsrMeetings] = useState<PpsrMeetingLog[]>([]);
+  const [ppsrDrafts, setPpsrDrafts] = useState<PpsrReport[]>([]);
   const [impactActions, setImpactActions] = useState<OpenImpactAction[]>([]);
 
   // Safe custom notification state to replace iframe-blocked alert() calls
@@ -295,6 +296,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       committeeDecision: p.committeeDecision || p.committee_decision || 'In Review',
       committeeDecisionDate: p.committeeDecisionDate || p.committee_decision_date || '',
       steeringCommitteeSign: p.steeringCommitteeSign || p.steering_committee_sign || '',
+      lastSavedStep: p.lastSavedStep ?? p.last_saved_step ?? 1,
+      updatedAt: p.updatedAt || p.updated_at || '',
     };
   };
 
@@ -382,6 +385,16 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
           rawMtgs = dataM;
         }
         setPpsrMeetings(rawMtgs);
+      }
+
+      // Fetch PPSR Drafts
+      const dataPpsrDrafts = await fetchJsonSafe('/api/v1/ppsr/reports/drafts/');
+      if (dataPpsrDrafts) {
+        let rawDrafts: any[] = [];
+        if (Array.isArray(dataPpsrDrafts)) rawDrafts = dataPpsrDrafts;
+        else if (dataPpsrDrafts.results && Array.isArray(dataPpsrDrafts.results)) rawDrafts = dataPpsrDrafts.results;
+        else if (dataPpsrDrafts.data && Array.isArray(dataPpsrDrafts.data)) rawDrafts = dataPpsrDrafts.data;
+        setPpsrDrafts(rawDrafts.map(normalizePpsrReport));
       }
 
       // Fetch Open Impact Actions
@@ -865,6 +878,86 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
     }
   };
 
+  // ── PPSR Draft API Handlers ──
+  const fetchPpsrDrafts = async () => {
+    try {
+      const res = await authFetch('/api/v1/ppsr/reports/drafts/');
+      if (!res.ok) return;
+      const data = await res.json();
+      const results = Array.isArray(data) ? data : (data.results || []);
+      setPpsrDrafts(results.map(normalizePpsrReport));
+    } catch (err) {
+      console.error('Error fetching PPSR drafts:', err);
+    }
+  };
+
+  const handleSavePpsrDraft = async (draftData: Partial<PpsrReport>) => {
+    try {
+      const res = await authFetch('/api/v1/ppsr/reports/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draftData)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Error saving PPSR draft:', err);
+        alert(`Failed to save draft: ${JSON.stringify(err)}`);
+        return;
+      }
+      // Refresh drafts list
+      fetchPpsrDrafts();
+    } catch (err) {
+      console.error('Error saving PPSR draft:', err);
+    }
+  };
+
+  const handleUpdatePpsrDraft = async (id: string, draftData: Partial<PpsrReport>) => {
+    try {
+      const res = await authFetch(`/api/v1/ppsr/reports/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draftData)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Error updating PPSR draft:', err);
+        return;
+      }
+      // If status changed from Draft → Open, also refresh the reports list
+      if (draftData.status && draftData.status !== 'Draft') {
+        // Refresh both reports and drafts
+        fetchPpsrDrafts();
+        // The report will now appear in the main list — refresh it
+        const data = await res.json().catch(() => null);
+        if (data) {
+          const report = data.data || (data.id ? data : null);
+          if (report) {
+            setPpsrReports(prev => [normalizePpsrReport(report), ...prev]);
+          }
+        }
+      } else {
+        fetchPpsrDrafts();
+      }
+    } catch (err) {
+      console.error('Error updating PPSR draft:', err);
+    }
+  };
+
+  const handleDeletePpsrDraft = async (id: string) => {
+    try {
+      const res = await authFetch(`/api/v1/ppsr/reports/${id}/`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        console.error('Error deleting PPSR draft');
+        return;
+      }
+      setPpsrDrafts(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      console.error('Error deleting PPSR draft:', err);
+    }
+  };
+
   const handleAddPpsrMeeting = async (mtgData: Partial<PpsrMeetingLog>) => {
     try {
       const res = await authFetch('/api/v1/ppsr/meetings/', {
@@ -1175,6 +1268,10 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 onInspectReport={(report) => setInspectPpsr(report)}
                 meetings={ppsrMeetings}
                 onAddMeeting={handleAddPpsrMeeting}
+                drafts={ppsrDrafts}
+                onSaveDraft={handleSavePpsrDraft}
+                onUpdateDraft={handleUpdatePpsrDraft}
+                onDeleteDraft={handleDeletePpsrDraft}
               />
             )}
 
