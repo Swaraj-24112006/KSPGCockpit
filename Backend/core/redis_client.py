@@ -90,11 +90,11 @@ def _user_sessions_key(user_id: int) -> str:
 # ─── Session TTL ──────────────────────────────────────────────────────────────
 
 def _get_ttl() -> int:
-    return getattr(settings, "SESSION_COOKIE_AGE", 3600)
+    return getattr(settings, "SESSION_COOKIE_AGE", 7200)
 
 
 def _get_idle_timeout() -> int:
-    return getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 1800)  # 30 min
+    return getattr(settings, "SESSION_IDLE_TIMEOUT_SECONDS", 7200)  # 2 hours (120 min)
 
 
 def _get_absolute_timeout() -> int:

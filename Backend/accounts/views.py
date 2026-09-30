@@ -128,7 +128,7 @@ class LoginView(generics.GenericAPIView):
         response = Response(response_data, status=status.HTTP_200_OK)
 
         # ── Set HttpOnly session cookie ───────────────────────────────────────
-        cookie_age = getattr(settings, 'SESSION_COOKIE_AGE', 3600)
+        cookie_age = getattr(settings, 'SESSION_COOKIE_AGE', 7200)
         is_secure = getattr(settings, 'SESSION_COOKIE_SECURE', False)
 
         response.set_cookie(
@@ -264,7 +264,7 @@ class PasswordChangeView(generics.GenericAPIView):
             }
         }, status=status.HTTP_200_OK)
 
-        cookie_age = getattr(settings, 'SESSION_COOKIE_AGE', 3600)
+        cookie_age = getattr(settings, 'SESSION_COOKIE_AGE', 7200)
         is_secure = getattr(settings, 'SESSION_COOKIE_SECURE', False)
         response.set_cookie(
             key=SESSION_COOKIE_NAME,

@@ -32,6 +32,7 @@ from core.redis_client import (
     rotate_session,
     get_redis,
     _session_key,
+    _get_idle_timeout,
 )
 
 
@@ -119,12 +120,12 @@ class SessionHijackingSecurityTests(TestCase):
             ip_address='127.0.0.1',
         )
 
-        # Artificially age the last_seen timestamp by 31 minutes (idle timeout is 30m)
+        # Artificially age the last_seen timestamp past the idle timeout
         r = get_redis()
         raw = json.loads(r.get(_session_key(session_id)))
-        past_time = (datetime.now(timezone.utc) - timedelta(minutes=31)).isoformat()
+        past_time = (datetime.now(timezone.utc) - timedelta(seconds=_get_idle_timeout() + 60)).isoformat()
         raw['last_seen'] = past_time
-        r.setex(_session_key(session_id), 3600, json.dumps(raw))
+        r.setex(_session_key(session_id), 7200, json.dumps(raw))
 
         # Attempt to access protected endpoint
         self.client.cookies['kspg_sid'] = session_id

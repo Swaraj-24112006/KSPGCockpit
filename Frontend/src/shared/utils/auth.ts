@@ -11,8 +11,8 @@ const REFRESH_TOKEN_KEY = 'kspg_refresh_token';
 const USER_DATA_KEY = 'kspg_user_data';
 const LAST_ACTIVITY_KEY = 'kspg_last_activity';
 
-// Session timeout: 60 minutes of inactivity
-const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+// Session timeout: 120 minutes (2 hours) of inactivity
+const SESSION_TIMEOUT_MS = 120 * 60 * 1000;
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 

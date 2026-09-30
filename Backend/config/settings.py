@@ -195,11 +195,11 @@ CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cas
 # =============================================================================
 # Session Security — Redis-backed with HttpOnly / SameSite cookies
 # =============================================================================
-SESSION_COOKIE_AGE = config('SESSION_COOKIE_AGE', default=3600, cast=int)  # 60 min sliding base
+SESSION_COOKIE_AGE = config('SESSION_COOKIE_AGE', default=7200, cast=int)  # 120 min sliding base (2 hours)
 MAX_CONCURRENT_SESSIONS = config('MAX_CONCURRENT_SESSIONS', default=5, cast=int)
 
 # Session Hijacking & Timeout Controls
-SESSION_IDLE_TIMEOUT_SECONDS = config('SESSION_IDLE_TIMEOUT_SECONDS', default=1800, cast=int)      # 30 min idle timeout
+SESSION_IDLE_TIMEOUT_SECONDS = config('SESSION_IDLE_TIMEOUT_SECONDS', default=7200, cast=int)      # 2 hr idle timeout
 SESSION_ABSOLUTE_TIMEOUT_SECONDS = config('SESSION_ABSOLUTE_TIMEOUT_SECONDS', default=43200, cast=int)  # 12 hr absolute timeout
 SESSION_STRICT_DEVICE_CHECK = config('SESSION_STRICT_DEVICE_CHECK', default=True, cast=bool)       # User-Agent anomaly check
 SESSION_STRICT_IP_CHECK = config('SESSION_STRICT_IP_CHECK', default=False, cast=bool)             # Strict IP binding
@@ -290,7 +290,7 @@ REST_FRAMEWORK = {
 # =============================================================================
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(
-        minutes=config('ACCESS_TOKEN_LIFETIME_MINUTES', default=60, cast=int)
+        minutes=config('ACCESS_TOKEN_LIFETIME_MINUTES', default=120, cast=int)
     ),
     'REFRESH_TOKEN_LIFETIME': timedelta(
         days=config('REFRESH_TOKEN_LIFETIME_DAYS', default=7, cast=int)
