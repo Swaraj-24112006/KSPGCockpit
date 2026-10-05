@@ -81,23 +81,6 @@ export default function ChecklistModule({
       const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
         setBackendStatus('connected');
-        // Fetch dynamic plant structure from backend
-        try {
-          const structRes = await fetch(`${BACKEND_URL}/master/structure`);
-          if (structRes.ok) {
-            const structData = await structRes.json();
-            if (structData.minifactories && structData.minifactories.length > 0) {
-              const hasStations = structData.minifactories.some((m: any) =>
-                m.lines?.some((l: any) => l.stations && l.stations.length > 0)
-              );
-              if (hasStations) {
-                setMinifactories(structData.minifactories);
-              }
-            }
-          }
-        } catch {
-          // Keep local state
-        }
       } else {
         setBackendStatus('disconnected');
       }
@@ -106,12 +89,33 @@ export default function ChecklistModule({
     }
   }, []);
 
+  // Fetch dynamic plant structure from backend once on initial load
+  const loadPlantStructure = useCallback(async () => {
+    try {
+      const structRes = await fetch(`${BACKEND_URL}/master/structure`);
+      if (structRes.ok) {
+        const structData = await structRes.json();
+        if (structData.minifactories && structData.minifactories.length > 0) {
+          const hasStations = structData.minifactories.some((m: any) =>
+            m.lines?.some((l: any) => l.stations && l.stations.length > 0)
+          );
+          if (hasStations) {
+            setMinifactories(structData.minifactories);
+          }
+        }
+      }
+    } catch {
+      // Keep local state
+    }
+  }, []);
+
   useEffect(() => {
     checkBackendHealth();
-    // Re-check every 30 seconds
+    loadPlantStructure();
+    // Re-check backend health status every 30 seconds (ping only)
     const interval = setInterval(checkBackendHealth, 30000);
     return () => clearInterval(interval);
-  }, [checkBackendHealth]);
+  }, [checkBackendHealth, loadPlantStructure]);
 
   // ─── Backend Sync on Submission ──────────────────────────────────
   const syncSubmissionToBackend = async (submission: any) => {

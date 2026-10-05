@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Minifactory,
   Station,
@@ -203,9 +203,17 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
   const [startTime] = useState<number>(Date.now());
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Track which station template has been initialized to avoid wiping in-progress inputs
+  const loadedStationIdRef = useRef<string | null>(null);
+
   // Sync station changes with dynamic checklist template from Master Portal
   useEffect(() => {
     let isMounted = true;
+
+    // Do not reload or wipe inputs if this station's template is already loaded
+    if (loadedStationIdRef.current === selectedStationId) {
+      return;
+    }
 
     if (activeStation) {
       const applyCheckpoints = (mList: MachineCheckpoint[], pList: PokayokeCheckpoint[]) => {
@@ -233,6 +241,7 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
         const mKeys = cleanMachine.map((m) => `machine:${m.id}`);
         const pKeys = cleanPokayoke.map((p) => `pokayoke:${p.id}`);
         setShuffledStepKeys(shuffleArray([...mKeys, ...pKeys]));
+        loadedStationIdRef.current = selectedStationId;
       };
 
       // Fetch dynamic template from backend API
@@ -243,6 +252,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
             applyCheckpoints(data.template.machineCheckpoints, data.template.pokayokeCheckpoints || []);
           } else if (activeStation.machineCheckpoints && activeStation.machineCheckpoints.length > 0) {
             applyCheckpoints(activeStation.machineCheckpoints, activeStation.pokayokeCheckpoints || []);
+          } else {
+            loadedStationIdRef.current = selectedStationId;
           }
         })
         .catch(() => {
@@ -253,7 +264,7 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [selectedStationId, activeStation]);
+  }, [selectedStationId]);
 
   useEffect(() => {
     requestCurrentLocation().then(setLocation);
