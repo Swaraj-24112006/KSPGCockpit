@@ -28,6 +28,7 @@ interface LandingPageProps {
   currentUser?: AuthUser | null;
   onLaunchSFC: () => void;
   onLaunchDWM: () => void;
+  onLaunchMPS: () => void;
   onLogout?: () => void;
   onNavigateToSuperadmin?: () => void;
 }
@@ -36,6 +37,7 @@ export default function LandingPage({
   currentUser,
   onLaunchSFC,
   onLaunchDWM,
+  onLaunchMPS,
   onLogout,
   onNavigateToSuperadmin
 }: LandingPageProps) {
@@ -100,10 +102,11 @@ export default function LandingPage({
             <span>SFC Intelligence</span>
           </button>
           <button
-            onClick={() => showModuleNotice('Inventory Mgt.')}
-            className="text-[#F2F2F2]/60 hover:text-[#F2F2F2] transition-colors cursor-pointer"
+            onClick={onLaunchMPS}
+            className="text-[#F2F2F2]/60 hover:text-[#F2F2F2] transition-colors cursor-pointer flex items-center gap-1.5"
           >
-            Inventory
+            <Boxes className="w-3.5 h-3.5 text-amber-400" />
+            <span>Supply Chain</span>
           </button>
           <button
             onClick={() => showModuleNotice('Quality & Metrology')}
@@ -303,14 +306,71 @@ export default function LandingPage({
             </button>
           </div>
 
+          {/* Module Card 3: MPS — Supply Chain / MRP Intelligence (ACTIVE) */}
+          <div className="bg-[#191B40]/90 backdrop-blur-2xl p-7 relative group flex flex-col h-full rounded-2xl border-2 border-amber-500 shadow-[0_16px_50px_rgba(14,22,38,0.8),0_0_35px_rgba(245,158,11,0.25)] hover:shadow-[0_20px_60px_rgba(245,158,11,0.35)] transition-all duration-300 hover:-translate-y-1">
+            {/* HUD Corner Brackets */}
+            <div className="absolute top-0 left-0 w-3.5 h-3.5 border-t-2 border-l-2 border-amber-500 rounded-tl" />
+            <div className="absolute top-0 right-0 w-3.5 h-3.5 border-t-2 border-r-2 border-amber-500 rounded-tr" />
+            <div className="absolute bottom-0 left-0 w-3.5 h-3.5 border-b-2 border-l-2 border-amber-500 rounded-bl" />
+            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 border-b-2 border-r-2 border-amber-500 rounded-br" />
 
-          {/* Module Card 3: Quality & Metrology */}
+            <div className="flex justify-between items-start mb-5 border-b border-[#F2F2F2]/10 pb-4">
+              <div>
+                <span className="font-mono text-[10px] font-bold text-amber-400 bg-amber-500/15 px-2.5 py-1 rounded-md border border-amber-500/30 mb-2 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  ACTIVE MODULE • READY
+                </span>
+                <h2 className="text-xl md:text-2xl font-black text-[#F2F2F2] font-['Hanken_Grotesk'] mt-1">
+                  MPS — Supply Chain
+                </h2>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-[#F2F2F2] transition-colors duration-300 shadow-md shadow-amber-500/10">
+                <Boxes className="w-7 h-7" />
+              </div>
+            </div>
+
+            <p className="text-[#F2F2F2]/80 text-sm flex-grow mb-6 leading-relaxed">
+              Weekly MRP &amp; Supply Operations engine with BOM management, vendor delivery scheduling, Monday review cockpits, production loss analytics, and stock monitoring.
+            </p>
+
+            {/* Feature pill row */}
+            <div className="grid grid-cols-2 gap-2 mb-6 font-mono text-[10px]">
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span>BOM &amp; MRP</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                <span>Vendor Schedules</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Stock Reports</span>
+              </div>
+              <div className="px-2.5 py-1.5 rounded-lg bg-[#0E1626]/70 border border-[#F2F2F2]/10 text-[#F2F2F2]/90 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                <span>Loss Analytics</span>
+              </div>
+            </div>
+
+            <button
+              id="launch-mps-btn"
+              onClick={onLaunchMPS}
+              className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-amber-500/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
+            >
+              <span>LAUNCH SEQUENCE</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
 
 
-          {/* Module Card 4: TPM Maintenance */}
+          {/* Module Card 4: Quality & Metrology */}
 
 
-          {/* Module Card 5: ERP & MES Connector */}
+          {/* Module Card 5: TPM Maintenance */}
+
+
+          {/* Module Card 6: ERP & MES Connector */}
 
 
         </div>

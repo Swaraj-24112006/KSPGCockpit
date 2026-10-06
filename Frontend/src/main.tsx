@@ -5,13 +5,14 @@ import LoginPage from './Login/LoginPage.tsx';
 import LandingPage from './LandingPage/LandingPage.tsx';
 import SuperAdminDashboard from './SuperAdmin/SuperAdminDashboard.tsx';
 import ChecklistModule from './checklist/ChecklistModule.tsx';
+import MpsModule from './mps/MpsModule.tsx';
 import { isAuthenticated, AuthUser, getUser, saveUser } from './shared/utils/auth.ts';
 import './index.css';
 
 function Root() {
   const [loggedIn, setLoggedIn] = useState<boolean>(() => isAuthenticated());
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getUser());
-  const [currentView, setCurrentView] = useState<'landing' | 'sfc' | 'dwm' | 'superadmin'>(() => {
+  const [currentView, setCurrentView] = useState<'landing' | 'sfc' | 'dwm' | 'mps' | 'superadmin'>(() => {
     const user = getUser();
     if (user?.is_superadmin || user?.role_category === 'superadmin') {
       return 'superadmin';
@@ -60,6 +61,8 @@ function Root() {
         onLogout={handleSessionEnd}
         onNavigateToCockpit={() => setCurrentView('landing')}
         onNavigateToSfc={() => setCurrentView('sfc')}
+        onNavigateToMps={() => setCurrentView('mps')}
+        onNavigateToChecklist={() => setCurrentView('dwm')}
       />
     );
   }
@@ -70,6 +73,7 @@ function Root() {
         currentUser={currentUser} 
         onLaunchSFC={() => setCurrentView('sfc')} 
         onLaunchDWM={() => setCurrentView('dwm')}
+        onLaunchMPS={() => setCurrentView('mps')}
         onLogout={handleSessionEnd}
         onNavigateToSuperadmin={() => setCurrentView('superadmin')}
       />
@@ -79,6 +83,17 @@ function Root() {
   if (currentView === 'dwm') {
     return (
       <ChecklistModule
+        currentUser={currentUser}
+        onBackToLanding={() => setCurrentView('landing')}
+        onLogout={handleSessionEnd}
+        onNavigateToSuperadmin={() => setCurrentView('superadmin')}
+      />
+    );
+  }
+
+  if (currentView === 'mps') {
+    return (
+      <MpsModule
         currentUser={currentUser}
         onBackToLanding={() => setCurrentView('landing')}
         onLogout={handleSessionEnd}

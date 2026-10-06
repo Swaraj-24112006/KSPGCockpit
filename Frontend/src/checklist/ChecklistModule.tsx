@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, LogOut, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { AuthUser } from '../shared/utils/auth';
+import { getUserChecklistRole, getChecklistRoleBadge } from '../shared/utils/rbac';
 import { Minifactory, Station } from './types';
 import { INITIAL_MINIFACTORIES } from './data/initialData';
 import { Navbar } from './components/Navbar';
@@ -25,7 +26,14 @@ export default function ChecklistModule({
   currentUser,
   onBackToLanding,
   onLogout,
+  onNavigateToSuperadmin,
 }: ChecklistModuleProps) {
+  // Determine user's checklist role & restrictions
+  const checklistRole = getUserChecklistRole(currentUser);
+  const roleBadge = getChecklistRoleBadge(checklistRole);
+  // Operators are restricted exclusively to 'operator' (Fill Checklist) view unless they are superadmin
+  const isOperator = checklistRole === 'operator' && !currentUser?.is_superadmin;
+
   // Load initial minifactories from localStorage or default
   const [minifactories, setMinifactories] = useState<Minifactory[]>(() => {
     try {
@@ -39,9 +47,18 @@ export default function ChecklistModule({
     return INITIAL_MINIFACTORIES;
   });
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'operator' | 'admin' | 'master'>('master');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'operator' | 'admin' | 'master'>(
+    () => (isOperator ? 'operator' : 'master')
+  );
   const [selectedMinifactoryId, setSelectedMinifactoryId] = useState<string>('MF2');
   const [backendStatus, setBackendStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+
+  // Guard: if current user is an operator, ensure they remain locked to operator view
+  useEffect(() => {
+    if (isOperator && currentView !== 'operator') {
+      setCurrentView('operator');
+    }
+  }, [isOperator, currentView]);
 
   const [gpsStatus, setGpsStatus] = useState({
     latitude: 18.52043,
@@ -189,10 +206,12 @@ export default function ChecklistModule({
       type: updatedStation.status === 'DEVIATION_STOPPED' ? 'alert' : 'success',
     });
 
-    // Auto-switch to dashboard view after 2.5 seconds to see live update
-    setTimeout(() => {
-      setCurrentView('dashboard');
-    }, 2500);
+    // Auto-switch to dashboard view after 2.5 seconds to see live update (only for non-operators)
+    if (!isOperator) {
+      setTimeout(() => {
+        setCurrentView('dashboard');
+      }, 2500);
+    }
   };
 
   const [selectedStationNav, setSelectedStationNav] = useState<{
@@ -224,8 +243,39 @@ export default function ChecklistModule({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs font-mono text-[#F2F2F2]/60">
-            {currentUser?.full_name || currentUser?.username} ({currentUser?.role_category})
+          {/* Checklist Role Badge */}
+          {checklistRole !== 'none' && checklistRole !== 'superadmin' && (
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                checklistRole === 'coordinator'
+                  ? 'bg-violet-950/70 text-violet-300 border-violet-500/40'
+                  : 'bg-amber-950/70 text-amber-300 border-amber-500/40'
+              }`}
+              title={roleBadge.description}
+            >
+              {roleBadge.label}
+            </span>
+          )}
+
+          {/* Superadmin Indicator / Shortcut */}
+          {currentUser?.is_superadmin && (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-950/70 text-rose-300 border border-rose-500/40">
+              SuperAdmin Master
+            </span>
+          )}
+
+          {onNavigateToSuperadmin && currentUser?.is_superadmin && (
+            <button
+              onClick={onNavigateToSuperadmin}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-400/30 text-xs font-mono font-medium transition cursor-pointer"
+              title="Return to SuperAdmin Control Center"
+            >
+              SuperAdmin
+            </button>
+          )}
+
+          <span className="text-xs font-mono text-[#F2F2F2]/60 hidden sm:inline">
+            {currentUser?.full_name || currentUser?.username}
           </span>
           <button
             onClick={onLogout}
@@ -248,6 +298,8 @@ export default function ChecklistModule({
           minifactories={minifactories.map((m) => ({ id: m.id, name: m.name }))}
           gpsStatus={gpsStatus}
           backendStatus={backendStatus}
+          userRole={checklistRole || undefined}
+          isOperator={isOperator}
         />
 
         {/* Main Content Area */}

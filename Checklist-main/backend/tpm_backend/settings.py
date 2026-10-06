@@ -12,8 +12,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 MASTER_CONFIG_PATH = PROJECT_ROOT / 'master_config.json'
 
+# Load .env if present
+env_file = BASE_DIR / '.env'
+if env_file.exists():
+    with open(env_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                k, v = line.split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
 # ─── CRITICAL: Must match SFC Backend SECRET_KEY for shared JWT validation ───
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-for-kaizen-sfc-2026')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'k2%8s#p@9d_v!c^t&3m(q$4j)x*7f-1h+y~w5n>b<g?0l')
 
 DEBUG = True
 
@@ -80,6 +90,7 @@ DATABASES = {
 # ─── JWT Authentication (shared with SFC Backend) ─────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'api.authentication.CockpitSSOJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),

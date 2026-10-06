@@ -112,6 +112,16 @@ class SuperAdminSummaryView(APIView):
                 'coordinator': UserModuleRole.objects.filter(module_code='safety_desk', role_name='coordinator').count(),
                 'admin': UserModuleRole.objects.filter(module_code='safety_desk', role_name='admin').count(),
             },
+            'mps': {
+                'demand_planner': UserModuleRole.objects.filter(module_code='mps', role_name='demand_planner').count(),
+                'supply_planner': UserModuleRole.objects.filter(module_code='mps', role_name='supply_planner').count(),
+                'production': UserModuleRole.objects.filter(module_code='mps', role_name='production').count(),
+                'management': UserModuleRole.objects.filter(module_code='mps', role_name='management').count(),
+            },
+            'checklist': {
+                'coordinator': UserModuleRole.objects.filter(module_code='checklist', role_name='coordinator').count(),
+                'operator': UserModuleRole.objects.filter(module_code='checklist', role_name='operator').count(),
+            },
         }
 
         # Audit events in last 24h
@@ -256,6 +266,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         password = data.get('password', '').strip()
         kaizen_role = data.get('kaizen_role', 'initiator').strip().lower()
         ppsr_role = data.get('ppsr_role', 'none').strip().lower()
+        mps_role = data.get('mps_role', 'none').strip().lower()
+        checklist_role = data.get('checklist_role', 'none').strip().lower()
 
         # --- Validation ---
         if not username or not employee_id:
@@ -289,6 +301,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
             )
 
         valid_module_roles = ('initiator', 'committee', 'coordinator', 'admin')
+        valid_mps_roles = ('demand_planner', 'supply_planner', 'production', 'management')
+        valid_checklist_roles = ('coordinator', 'operator')
 
         with transaction.atomic():
             # Derive primary role from kaizen_role for backward compat
@@ -341,6 +355,26 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     assigned_by=request.user,
                 )
 
+            # Assign MPS module role (skip if 'none')
+            if mps_role in valid_mps_roles:
+                UserModuleRole.objects.create(
+                    user=user,
+                    module_code='mps',
+                    role_name=mps_role,
+                    mini_factory=mini_factory,
+                    assigned_by=request.user,
+                )
+
+            # Assign Checklist module role (skip if 'none')
+            if checklist_role in valid_checklist_roles:
+                UserModuleRole.objects.create(
+                    user=user,
+                    module_code='checklist',
+                    role_name=checklist_role,
+                    mini_factory=mini_factory,
+                    assigned_by=request.user,
+                )
+
             # Audit Log
             create_audit_log(
                 user=request.user,
@@ -354,8 +388,10 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     'mini_factory': user.mini_factory,
                     'kaizen_role': kaizen_role,
                     'ppsr_role': ppsr_role,
+                    'mps_role': mps_role,
+                    'checklist_role': checklist_role,
                 },
-                remarks=f"SuperAdmin created user {user.username} (Emp ID: {user.employee_id}) — Kaizen: {kaizen_role}, PPSR: {ppsr_role}, MF: {mini_factory}.",
+                remarks=f"SuperAdmin created user {user.username} (Emp ID: {user.employee_id}) — Kaizen: {kaizen_role}, PPSR: {ppsr_role}, MPS: {mps_role}, Checklist: {checklist_role}, MF: {mini_factory}.",
                 ip_address=get_client_ip(request),
             )
 
@@ -372,6 +408,21 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     module_access_lines.append(f"• PPSR Role: {ppsr_role.capitalize()}")
                 else:
                     module_access_lines.append("• PPSR: No Access")
+                if mps_role in valid_mps_roles:
+                    mps_display_map = {
+                        'demand_planner': 'Demand Planner',
+                        'supply_planner': 'Supply / Buyer',
+                        'production': 'Production & Shop Floor',
+                        'management': 'Plant Management',
+                    }
+                    module_access_lines.append(f"• MPS Role: {mps_display_map.get(mps_role, mps_role)}")
+                else:
+                    module_access_lines.append("• MPS: No Access")
+                if checklist_role in valid_checklist_roles:
+                    checklist_display = 'Checklist Coordinator' if checklist_role == 'coordinator' else 'Checklist Operator'
+                    module_access_lines.append(f"• Checklist Role: {checklist_display}")
+                else:
+                    module_access_lines.append("• Checklist: No Access")
                 module_summary = "\n".join(module_access_lines)
 
                 subject = "Your KSPG Shopfloor Platform Account Credentials"
@@ -461,6 +512,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         # Capture old state for audit
         old_kaizen = user.module_roles.filter(module_code='kaizen').first()
         old_ppsr = user.module_roles.filter(module_code='ppsr').first()
+        old_mps = user.module_roles.filter(module_code='mps').first()
+        old_checklist = user.module_roles.filter(module_code='checklist').first()
         old_state = {
             'first_name': user.first_name,
             'last_name': user.last_name,
@@ -473,9 +526,13 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
             'is_active_employee': user.is_active_employee,
             'kaizen_role': old_kaizen.role_name if old_kaizen else 'none',
             'ppsr_role': old_ppsr.role_name if old_ppsr else 'none',
+            'mps_role': old_mps.role_name if old_mps else 'none',
+            'checklist_role': old_checklist.role_name if old_checklist else 'none',
         }
 
         valid_module_roles = ('initiator', 'committee', 'coordinator', 'admin')
+        valid_mps_roles = ('demand_planner', 'supply_planner', 'production', 'management')
+        valid_checklist_roles = ('coordinator', 'operator')
 
         with transaction.atomic():
             if 'first_name' in data: user.first_name = data['first_name'].strip()
@@ -494,6 +551,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
             # Handle per-module role updates
             kaizen_role = data.get('kaizen_role', '').strip().lower() if 'kaizen_role' in data else None
             ppsr_role = data.get('ppsr_role', '').strip().lower() if 'ppsr_role' in data else None
+            mps_role = data.get('mps_role', '').strip().lower() if 'mps_role' in data else None
+            checklist_role = data.get('checklist_role', '').strip().lower() if 'checklist_role' in data else None
 
             if kaizen_role is not None:
                 if kaizen_role == 'none':
@@ -533,6 +592,34 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                         }
                     )
 
+            if mps_role is not None:
+                if mps_role == 'none':
+                    # Revoke MPS access
+                    UserModuleRole.objects.filter(user=user, module_code='mps').delete()
+                elif mps_role in valid_mps_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='mps',
+                        defaults={
+                            'role_name': mps_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+
+            if checklist_role is not None:
+                if checklist_role == 'none':
+                    # Revoke Checklist access
+                    UserModuleRole.objects.filter(user=user, module_code='checklist').delete()
+                elif checklist_role in valid_checklist_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='checklist',
+                        defaults={
+                            'role_name': checklist_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+
             # Handle legacy 'role' field if passed directly
             role_name = data.get('role')
             if role_name and kaizen_role is None:
@@ -547,6 +634,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
             # Refresh module roles for audit
             new_kaizen = user.module_roles.filter(module_code='kaizen').first()
             new_ppsr = user.module_roles.filter(module_code='ppsr').first()
+            new_mps = user.module_roles.filter(module_code='mps').first()
+            new_checklist = user.module_roles.filter(module_code='checklist').first()
             new_state = {
                 'first_name': user.first_name,
                 'last_name': user.last_name,
@@ -559,6 +648,8 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 'is_active_employee': user.is_active_employee,
                 'kaizen_role': new_kaizen.role_name if new_kaizen else 'none',
                 'ppsr_role': new_ppsr.role_name if new_ppsr else 'none',
+                'mps_role': new_mps.role_name if new_mps else 'none',
+                'checklist_role': new_checklist.role_name if new_checklist else 'none',
             }
 
             create_audit_log(

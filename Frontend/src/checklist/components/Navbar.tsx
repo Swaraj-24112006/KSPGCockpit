@@ -11,6 +11,8 @@ interface NavbarProps {
   minifactories: Array<{ id: string; name: string }>;
   gpsStatus: { latitude: number; longitude: number; isWithinGeofence: boolean };
   backendStatus?: 'connected' | 'disconnected' | 'checking';
+  userRole?: string;
+  isOperator?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,6 +23,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   minifactories,
   gpsStatus,
   backendStatus = 'checking',
+  userRole,
+  isOperator = false,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [currentShift, setCurrentShift] = useState<ShiftName>(getCurrentShift());
@@ -111,31 +115,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Controls: Mode Navigation Tabs */}
           <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <button
-                onClick={() => onViewChange('master')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  currentView === 'master'
-                    ? 'bg-indigo-600 text-white shadow-sm font-bold hover:bg-indigo-500'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-300" />
-                <span className="hidden sm:inline">Master Portal</span>
-                <span className="sm:hidden">Master</span>
-              </button>
+              {!isOperator && (
+                <button
+                  onClick={() => onViewChange('master')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                    currentView === 'master'
+                      ? 'bg-indigo-600 text-white shadow-sm font-bold hover:bg-indigo-500'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-300" />
+                  <span className="hidden sm:inline">Master Portal</span>
+                  <span className="sm:hidden">Master</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => onViewChange('dashboard')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  currentView === 'dashboard'
-                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-bold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600" />
-                <span className="hidden sm:inline">Plant Dashboard</span>
-                <span className="sm:hidden">Dashboard</span>
-              </button>
+              {!isOperator && (
+                <button
+                  onClick={() => onViewChange('dashboard')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                    currentView === 'dashboard'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600" />
+                  <span className="hidden sm:inline">Plant Dashboard</span>
+                  <span className="sm:hidden">Dashboard</span>
+                </button>
+              )}
 
               <button
                 onClick={() => onViewChange('operator')}
@@ -149,19 +157,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Fill Checklist</span>
               </button>
 
-              <button
-                onClick={() => onViewChange('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  currentView === 'admin'
-                    ? 'bg-violet-500 text-white shadow-sm font-bold hover:bg-violet-400'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Coordinator Portal</span>
-                <span className="sm:hidden">Admin</span>
-              </button>
+              {!isOperator && (
+                <button
+                  onClick={() => onViewChange('admin')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                    currentView === 'admin'
+                      ? 'bg-violet-500 text-white shadow-sm font-bold hover:bg-violet-400'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Coordinator Portal</span>
+                  <span className="sm:hidden">Admin</span>
+                </button>
+              )}
             </div>
+            {isOperator && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                🔒 Operator Mode (Fill Only)
+              </span>
+            )}
           </div>
         </div>
       </div>

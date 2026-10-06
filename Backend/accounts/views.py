@@ -6,7 +6,9 @@ from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import TokenError
 from django.db import models
 from django.db.models import Q
@@ -51,6 +53,68 @@ logger = logging.getLogger('kaizen')
 SESSION_COOKIE_NAME = 'kspg_sid'
 
 
+def issue_tokens_for_user(user):
+    """
+    Issue JWT tokens enriched with cross-module Single Sign-On claims
+    (username, email, role, mps_role, checklist_role, is_superuser, is_staff)
+    for decentralized authorization in MPS and Checklist backends.
+    """
+    refresh = RefreshToken.for_user(user)
+    access = refresh.access_token
+
+    mps_mr = user.module_roles.filter(module_code='mps').first()
+    chk_mr = user.module_roles.filter(module_code='checklist').first()
+
+    claims = {
+        'username': user.username,
+        'email': user.email or '',
+        'role': user.role.name if user.role else '',
+        'mps_role': mps_mr.role_name if mps_mr else '',
+        'checklist_role': chk_mr.role_name if chk_mr else '',
+        'is_superuser': user.is_superuser,
+        'is_staff': user.is_staff,
+    }
+
+    for k, v in claims.items():
+        refresh[k] = v
+        access[k] = v
+
+    return refresh, access
+
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        try:
+            refresh = RefreshToken(attrs['refresh'])
+            user_id = refresh.payload.get('user_id')
+            if user_id:
+                user = CustomUser.objects.filter(pk=user_id).first()
+                if user:
+                    access = AccessToken(data['access'])
+                    mps_mr = user.module_roles.filter(module_code='mps').first()
+                    chk_mr = user.module_roles.filter(module_code='checklist').first()
+                    claims = {
+                        'username': user.username,
+                        'email': user.email or '',
+                        'role': user.role.name if user.role else '',
+                        'mps_role': mps_mr.role_name if mps_mr else '',
+                        'checklist_role': chk_mr.role_name if chk_mr else '',
+                        'is_superuser': user.is_superuser,
+                        'is_staff': user.is_staff,
+                    }
+                    for k, v in claims.items():
+                        access[k] = v
+                    data['access'] = str(access)
+        except Exception as e:
+            logger.debug("Failed to enrich refreshed access token: %s", e)
+        return data
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    serializer_class = CustomTokenRefreshSerializer
+
+
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='post')
 @method_decorator(ratelimit(key='post:username', rate='5/m', method='POST', block=True), name='post')
 class LoginView(generics.GenericAPIView):
@@ -91,9 +155,8 @@ class LoginView(generics.GenericAPIView):
                 }
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # ── Issue JWT tokens ──────────────────────────────────────────────────
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
+        # ── Issue JWT tokens (SSO enriched) ───────────────────────────────────
+        refresh, access_token = issue_tokens_for_user(user)
         jti = str(access_token.get('jti', ''))
 
         # ── Create Redis session (session fixation prevention: always new ID) ─
@@ -207,14 +270,14 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        refresh = RefreshToken.for_user(user)
+        refresh, access_token = issue_tokens_for_user(user)
         return Response({
             'success': True,
             'message': 'Registration successful.',
             'data': {
                 'user': UserProfileSerializer(user).data,
                 'tokens': {
-                    'access': str(refresh.access_token),
+                    'access': str(access_token),
                     'refresh': str(refresh),
                 }
             }
@@ -241,8 +304,7 @@ class PasswordChangeView(generics.GenericAPIView):
 
         user_agent = request.META.get('HTTP_USER_AGENT', '')[:512]
         ip_address = get_client_ip(request)
-        refresh = RefreshToken.for_user(user)
-        access_token = refresh.access_token
+        refresh, access_token = issue_tokens_for_user(user)
         jti = str(access_token.get('jti', ''))
 
         session_id = create_session(

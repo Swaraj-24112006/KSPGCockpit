@@ -17,6 +17,7 @@ from .views import (
     ProfileView,
     UserViewSet,
     RoleViewSet,
+    CustomTokenRefreshView,
 )
 from .superadmin_views import (
     SuperAdminSummaryView,
@@ -50,8 +51,8 @@ urlpatterns = [
     path('password/reset/', ForgotPasswordRequestView.as_view(), name='password-reset'),
     path('otp/verify/', VerifyOTPView.as_view(), name='otp-verify'),
 
-    # Token refresh (uses cookie refresh token if needed)
-    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    # Token refresh (uses cookie refresh token if needed, embeds SSO claims)
+    path('token/refresh/', CustomTokenRefreshView.as_view(), name='token-refresh'),
 
     # Profile & password
     path('password/change/', PasswordChangeView.as_view(), name='password-change'),

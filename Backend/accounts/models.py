@@ -166,12 +166,19 @@ class UserModuleRole(models.Model):
         ('ppsr', 'PPSR Problem Solving'),
         ('safety_desk', 'Safety Desk & Red Flags'),
         ('tpm', 'TPM Total Productive Maintenance'),
+        ('mps', 'MPS Supply Chain & Inventory'),
+        ('checklist', 'Checklist Daily Work Management'),
     ]
     ROLE_CHOICES = [
         ('initiator', 'Initiator / Operator'),
         ('committee', 'Committee Member / Reviewer'),
         ('coordinator', 'Module Coordinator / Lead'),
         ('admin', 'Module Administrator'),
+        ('demand_planner', 'Demand Planner'),
+        ('supply_planner', 'Supply / Buyer'),
+        ('production', 'Production & Shop Floor'),
+        ('management', 'Plant Management'),
+        ('operator', 'Checklist Operator / Verification'),
     ]
     MINI_FACTORY_CHOICES = [
         ('MF1', 'Mini-Factory 1 (MF1)'),

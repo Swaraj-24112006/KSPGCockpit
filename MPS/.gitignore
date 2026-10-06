@@ -1,0 +1,31 @@
+# Environment variables & secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+db.sqlite3
+Backend/media/
+Backend/staticfiles/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Legacy Standalone Frontend (consolidated into root Frontend/src/mps/)
+Frontend/
+node_modules/
+dist/
+build/
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
