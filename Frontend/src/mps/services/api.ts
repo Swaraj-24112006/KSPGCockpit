@@ -7,7 +7,9 @@
  * - Provides typed helper methods (get, post, patch, del) with error handling.
  */
 
-const API_BASE_URL = import.meta.env.VITE_MPS_API_URL || 'http://localhost:8001/api/';
+const API_BASE_URL =
+  import.meta.env.VITE_MPS_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8001/api/' : '/api/mps/');
 
 /**
  * Retrieve the JWT access token from the parent Cockpit session.

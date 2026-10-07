@@ -39,6 +39,13 @@ export default defineConfig(() => {
           secure: false,
           cookieDomainRewrite: 'localhost',
         },
+        // Proxy MPS Backend API (port 8001)
+        '/api/mps': {
+          target: 'http://127.0.0.1:8001',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path: string) => path.replace(/^\/api\/mps/, '/api'),
+        },
         // Proxy SFC Django REST API & media endpoints (port 8000)
         '/api/v1': {
           target: 'http://127.0.0.1:8000',
