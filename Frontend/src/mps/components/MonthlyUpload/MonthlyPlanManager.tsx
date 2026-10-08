@@ -235,7 +235,7 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
   const handleDeletePlan = async (id: string) => {
     if (window.confirm('Delete this FG monthly plan?')) {
       try {
-        await monthlyPlanService.deleteMonthlyPlan(id).catch(() => {});
+        await monthlyPlanService.deleteMonthlyPlan(id).catch(() => { });
       } finally {
         onUpdateMonthlyPlans(monthlyPlans.filter((p) => p.id !== id));
       }
@@ -349,9 +349,9 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Upload Monthly Plan & Weekly Distribution</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Uploads monthly customer FG plan and auto-divides quantities based on the number of days in each defined week
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -443,9 +443,9 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
             <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
               {(weeklyConsolidatedTotals[w.id] || 0).toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
             </div>
-            <div className="text-xs text-slate-500 mt-1">
+            {/* <div className="text-xs text-slate-500 mt-1">
               Consolidated weekly requirement
-            </div>
+            </div> */}
           </div>
         ))}
       </div>
@@ -457,9 +457,9 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
             <h2 className="font-bold text-slate-900 text-sm">
               Monthly FG Plan vs Prorated Weekly Consolidated Requirements
             </h2>
-            <p className="text-xs text-slate-500">
+            {/* <p className="text-xs text-slate-500">
               Each row displays the monthly target and its automatic proportional distribution across weeks by working days weight
-            </p>
+            </p> */}
           </div>
 
           <div className="relative min-w-[240px]">

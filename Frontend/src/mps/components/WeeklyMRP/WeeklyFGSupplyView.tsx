@@ -145,9 +145,9 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Weekly Finished Goods (FG) Supply Matrix</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Prorated weekly plan vs MB51 actual production receipts (101 prefix 7), dispatches (601) & stock balance
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -207,9 +207,7 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           <div className="text-2xl font-bold text-emerald-700 mt-1 font-mono">
             {totalActualProduced.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          <div className="text-xs text-emerald-600 font-medium mt-1">
-            Finished Goods received from lines
-          </div>
+
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -217,9 +215,9 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           <div className="text-2xl font-bold text-purple-700 mt-1 font-mono">
             {totalActualDispatched.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          {/* <div className="text-xs text-slate-500 mt-1">
             Delivered to OEM assembly lines
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -233,7 +231,7 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
             )}
           </div>
           <div className="text-xs text-slate-500 mt-1">
-            MB51 101 production vs monthly prorated plan
+            {/* MB51 101 production vs monthly prorated plan */}
           </div>
         </div>
       </div>
@@ -386,13 +384,12 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
                             {s.totalActualProduction.toLocaleString()} / {s.monthlyPlanTarget.toLocaleString()}
                           </span>
                           <span
-                            className={`px-1 py-0.2 rounded font-mono font-bold text-[9px] ${
-                              s.overallAchievementRate >= 90
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : s.overallAchievementRate >= 70
+                            className={`px-1 py-0.2 rounded font-mono font-bold text-[9px] ${s.overallAchievementRate >= 90
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : s.overallAchievementRate >= 70
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-amber-100 text-amber-800'
-                            }`}
+                              }`}
                           >
                             {s.overallAchievementRate}%
                           </span>
@@ -401,13 +398,12 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
                         {/* Visual Progress Bar Track & Fill */}
                         <div className="w-full bg-slate-200/90 h-2 rounded-full overflow-hidden flex shadow-inner relative">
                           <div
-                            className={`h-full transition-all duration-300 rounded-full ${
-                              s.overallAchievementRate >= 90
-                                ? 'bg-emerald-500'
-                                : s.overallAchievementRate >= 70
+                            className={`h-full transition-all duration-300 rounded-full ${s.overallAchievementRate >= 90
+                              ? 'bg-emerald-500'
+                              : s.overallAchievementRate >= 70
                                 ? 'bg-indigo-600'
                                 : 'bg-amber-500'
-                            }`}
+                              }`}
                             style={{ width: `${Math.min(100, Math.max(0, s.overallAchievementRate))}%` }}
                           />
                         </div>

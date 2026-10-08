@@ -86,9 +86,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`bg-slate-950 text-slate-200 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col shrink-0 z-30 select-none ${
-        isCollapsed ? 'w-16' : 'w-72'
-      }`}
+      className={`bg-slate-950 text-slate-200 border-r border-slate-800 transition-all duration-300 ease-in-out flex flex-col shrink-0 z-30 select-none ${isCollapsed ? 'w-16' : 'w-72'
+        }`}
     >
       {/* 1. Header & Brand */}
       <div className="p-3.5 border-b border-slate-800 flex items-center justify-between gap-2 bg-slate-950 sticky top-0 z-10">
@@ -161,11 +160,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 id="sidebar-btn-management-loss-report"
                 onClick={() => onSelectSubView('management_loss_report')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'management_loss_report'
-                    ? 'bg-rose-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'management_loss_report'
+                  ? 'bg-rose-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Management Report: Critical Items & Weekly Production Loss End-to-End Trace"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -182,11 +180,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 id="sidebar-btn-performance-dashboard"
                 onClick={() => onSelectSubView('performance_dashboard')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'performance_dashboard'
-                    ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'performance_dashboard'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Performance Dashboard (Fulfillment Rates, RM Availability Trends & Stock Accuracy)"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -222,11 +219,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="mt-1 space-y-1">
               <button
                 onClick={() => onSelectSubView('monday_review_cockpit')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'monday_review_cockpit'
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-200 hover:text-white hover:bg-slate-800/80 bg-slate-800/40'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'monday_review_cockpit'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-200 hover:text-white hover:bg-slate-800/80 bg-slate-800/40'
+                  }`}
                 title="Monday Review Cockpit (Backlog, Exploded BOM & Delivery Schedules)"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -242,11 +238,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={() => onSelectSubView('update_delivery_schedule')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'update_delivery_schedule'
-                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'update_delivery_schedule'
+                  ? 'bg-amber-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Update Delivery Schedule (Excel Upload & Consolidated RM Matrix)"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -262,11 +257,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={() => onSelectSubView('weekly_fg_matrix')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'weekly_fg_matrix'
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'weekly_fg_matrix'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Weekly Finished Goods (FG) Supply Matrix"
               >
                 <Factory className="w-4 h-4 shrink-0 text-blue-400" />
@@ -275,11 +269,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={() => onSelectSubView('weekly_rm_matrix')}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'weekly_rm_matrix'
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'weekly_rm_matrix'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Consolidated RM/PM MRP & Shortages"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -315,11 +308,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="mt-1 space-y-1">
               <button
                 onClick={() => onSelectSubView('monthly_define_weeks')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'monthly_define_weeks'
-                    ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'monthly_define_weeks'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Define Week No. (Calendar Buckets & Days Count)"
               >
                 <Calendar className="w-4 h-4 shrink-0 text-indigo-400" />
@@ -328,11 +320,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={() => onSelectSubView('monthly_plan_upload')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'monthly_plan_upload'
-                    ? 'bg-indigo-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'monthly_plan_upload'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Upload Monthly Plan & Auto-Divide by Days"
               >
                 <FileSpreadsheet className="w-4 h-4 shrink-0 text-emerald-400" />
@@ -361,11 +352,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="mt-1 space-y-1">
               <button
                 onClick={() => onSelectSubView('monday_mb51_report')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'monday_mb51_report'
-                    ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'monday_mb51_report'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="SAP MB51 Movement Report (101 FG/RM & 601 Dispatches)"
               >
                 <FileText className="w-4 h-4 shrink-0 text-blue-400" />
@@ -374,11 +364,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               <button
                 onClick={() => onSelectSubView('monday_stock_report')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'monday_stock_report'
-                    ? 'bg-teal-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'monday_stock_report'
+                  ? 'bg-teal-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Stock Report (SAP MB52 Unrestricted Balances)"
               >
                 <Boxes className="w-4 h-4 shrink-0 text-teal-400" />
@@ -407,44 +396,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="mt-1 space-y-1">
               <button
                 onClick={() => onSelectSubView('master_bom')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'master_bom'
-                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'master_bom'
+                  ? 'bg-amber-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="BOM Master (Finished Goods & Components)"
               >
                 <Layers className="w-4 h-4 shrink-0 text-amber-400" />
                 {!isCollapsed && <span>1. BOM Master Lines</span>}
               </button>
 
-              <button
+              {/* <button
                 onClick={() => onSelectSubView('master_fg_headers')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'master_fg_headers'
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'master_fg_headers'
                     ? 'bg-amber-600 text-white font-semibold shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
                 title="Finished Goods Header Master"
               >
                 <Boxes className="w-4 h-4 shrink-0 text-amber-400" />
                 {!isCollapsed && <span>2. FG Headers (Finished Goods)</span>}
-              </button>
+              </button> */}
 
-              <button
+              {/* <button
                 onClick={() => onSelectSubView('master_components')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'master_components'
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'master_components'
                     ? 'bg-amber-600 text-white font-semibold shadow-sm'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
                 title="Raw Materials & Packaging Components Master"
               >
                 <Package className="w-4 h-4 shrink-0 text-amber-400" />
                 {!isCollapsed && <span>3. RM/PM Component Master</span>}
-              </button>
+              </button> */}
 
-              <button
+              {/* <button
                 onClick={() => onSelectSubView('master_common_components')}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
                   activeSubView === 'master_common_components'
@@ -455,24 +441,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Share2 className="w-4 h-4 shrink-0 text-amber-400" />
                 {!isCollapsed && <span>4. Common Parts Matrix</span>}
-              </button>
+              </button> */}
 
               <button
                 onClick={() => onSelectSubView('master_vendor_buyer')}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                  activeSubView === 'master_vendor_buyer'
-                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'master_vendor_buyer'
+                  ? 'bg-amber-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
                 title="Vendor and Buyer Relationship Master"
               >
                 <Users className="w-4 h-4 shrink-0 text-amber-400" />
-                {!isCollapsed && <span>5. Vendor & Buyer Master</span>}
+                {!isCollapsed && <span>2. Vendor & Buyer Master</span>}
               </button>
             </div>
           )}
         </div>
-        
+
         {/* Section 5: System */}
         <div className="pt-2">
           {!isCollapsed && (
@@ -480,11 +465,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
           <button
             onClick={() => onSelectSubView('audit_log')}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-              activeSubView === 'audit_log'
-                ? 'bg-slate-600 text-white font-semibold shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${activeSubView === 'audit_log'
+              ? 'bg-slate-600 text-white font-semibold shadow-sm'
+              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+              }`}
             title="System Audit Log"
           >
             <History className="w-4 h-4 shrink-0 text-slate-400" />

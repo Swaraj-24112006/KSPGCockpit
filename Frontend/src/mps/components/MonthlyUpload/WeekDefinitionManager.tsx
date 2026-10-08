@@ -266,8 +266,8 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
       const mWeight = w.monthWeight !== undefined && w.monthWeight !== null
         ? w.monthWeight
         : totalMonthWorkingDays > 0
-        ? Math.round(((w.workingDays ?? w.daysCount) / totalMonthWorkingDays) * 1000) / 10
-        : 0;
+          ? Math.round(((w.workingDays ?? w.daysCount) / totalMonthWorkingDays) * 1000) / 10
+          : 0;
 
       return [
         `"${w.month}"`,
@@ -316,9 +316,9 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Define Week Calendar (Week No.)</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Define monthly week date boundaries & days count to accurately prorate and consolidate monthly FG plans
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -401,9 +401,9 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {totalDaysInMonthWeeks} Days
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          {/* <div className="text-xs text-slate-500 mt-1">
             Used for MRP daily prorate distribution
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -411,9 +411,9 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {currentMonthWeeks.reduce((sum, w) => sum + (w.workingDays || w.daysCount), 0)} Days
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          {/* <div className="text-xs text-slate-500 mt-1">
             Shop floor operational shifts
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
@@ -423,7 +423,7 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               Calendar Configured
             </div>
-            <div className="text-xs text-slate-500 mt-1">Ready for Monthly Plan</div>
+            {/* <div className="text-xs text-slate-500 mt-1">Ready for Monthly Plan</div> */}
           </div>
         </div>
       </div>
@@ -470,8 +470,8 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
                     week.monthWeight !== undefined && week.monthWeight !== null
                       ? week.monthWeight
                       : totalWorkingDaysInMonth > 0
-                      ? Math.round(((week.workingDays ?? week.daysCount) / totalWorkingDaysInMonth) * 1000) / 10
-                      : 0;
+                        ? Math.round(((week.workingDays ?? week.daysCount) / totalWorkingDaysInMonth) * 1000) / 10
+                        : 0;
 
                   return (
                     <tr key={week.id} className="hover:bg-slate-50 transition-colors">
@@ -602,7 +602,7 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Holiday/Off Days *

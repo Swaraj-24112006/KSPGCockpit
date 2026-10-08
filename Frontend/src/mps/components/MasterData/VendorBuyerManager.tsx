@@ -172,32 +172,32 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
   const displayItems = apiData.length > 0 || !error
     ? apiData
     : vendorBuyers
-        .filter((item) => {
-          const matchesSearch =
-            item.vendorCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            item.suppliedComponents.some((c) => c.toLowerCase().includes(searchTerm.toLowerCase()));
-          const matchesBuyer = buyerFilter === 'ALL' || item.buyerName === buyerFilter;
-          const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
-          return matchesSearch && matchesBuyer && matchesCategory;
-        })
-        .map((item, idx) => ({
-          id: idx + 1,
-          vendor_code: item.vendorCode,
-          vendor_name: item.vendorName,
-          buyer_name: item.buyerName,
-          buyer_email: item.buyerEmail || '',
-          buyer_phone: item.buyerPhone || '',
-          category: item.category,
-          lead_time_days: item.leadTimeDays,
-          city: item.city || '',
-          gst_no: item.gstNo || '',
-          is_active: true,
-          supplied_components: item.suppliedComponents,
-          created_at: '',
-          updated_at: '',
-        } as VendorBuyerDTO));
+      .filter((item) => {
+        const matchesSearch =
+          item.vendorCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.vendorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.buyerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.suppliedComponents.some((c) => c.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesBuyer = buyerFilter === 'ALL' || item.buyerName === buyerFilter;
+        const matchesCategory = categoryFilter === 'ALL' || item.category === categoryFilter;
+        return matchesSearch && matchesBuyer && matchesCategory;
+      })
+      .map((item, idx) => ({
+        id: idx + 1,
+        vendor_code: item.vendorCode,
+        vendor_name: item.vendorName,
+        buyer_name: item.buyerName,
+        buyer_email: item.buyerEmail || '',
+        buyer_phone: item.buyerPhone || '',
+        category: item.category,
+        lead_time_days: item.leadTimeDays,
+        city: item.city || '',
+        gst_no: item.gstNo || '',
+        is_active: true,
+        supplied_components: item.suppliedComponents,
+        created_at: '',
+        updated_at: '',
+      } as VendorBuyerDTO));
 
   // Extract unique buyers for dropdown
   const uniqueBuyers = Array.from(
@@ -369,7 +369,7 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
       if (apiErr.status === 409) {
         setError(
           apiErr.message ||
-            `Cannot delete Vendor '${item.vendor_code}' because active delivery schedules or orders reference it.`
+          `Cannot delete Vendor '${item.vendor_code}' because active delivery schedules or orders reference it.`
         );
       } else {
         setError(apiErr.message || 'Failed to delete vendor.');
@@ -516,9 +516,9 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Vendor & Buyer Relationship Master</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Maps suppliers, assigned supply planners, procurement lead times, and supplied part codes
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -595,31 +595,28 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setCategoryFilter('ALL')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'ALL'
-                  ? 'bg-white text-amber-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'ALL'
+                ? 'bg-white text-amber-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Types
             </button>
             <button
               onClick={() => setCategoryFilter('RM')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'RM'
-                  ? 'bg-white text-amber-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'RM'
+                ? 'bg-white text-amber-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               RM
             </button>
             <button
               onClick={() => setCategoryFilter('PM')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'PM'
-                  ? 'bg-white text-amber-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'PM'
+                ? 'bg-white text-amber-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               PM
             </button>
@@ -628,31 +625,28 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setStatusFilter('ACTIVE')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'ACTIVE'
-                  ? 'bg-white text-emerald-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'ACTIVE'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Active
             </button>
             <button
               onClick={() => setStatusFilter('INACTIVE')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'INACTIVE'
-                  ? 'bg-white text-rose-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'INACTIVE'
+                ? 'bg-white text-rose-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Inactive
             </button>
@@ -687,9 +681,8 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
           {displayItems.map((item) => (
             <div
               key={item.id}
-              className={`bg-white rounded-xl border p-5 shadow-sm hover:border-amber-300 transition-all flex flex-col justify-between ${
-                !item.is_active ? 'opacity-70 bg-slate-50 border-slate-200' : 'border-slate-200'
-              }`}
+              className={`bg-white rounded-xl border p-5 shadow-sm hover:border-amber-300 transition-all flex flex-col justify-between ${!item.is_active ? 'opacity-70 bg-slate-50 border-slate-200' : 'border-slate-200'
+                }`}
             >
               <div>
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -713,11 +706,10 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
                     </div>
                   </div>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded font-semibold ${
-                      item.category === 'PM'
-                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                        : 'bg-blue-50 text-blue-700 border border-blue-200'
-                    }`}
+                    className={`text-xs px-2 py-0.5 rounded font-semibold ${item.category === 'PM'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                      }`}
                   >
                     {item.category}
                   </span>

@@ -374,9 +374,9 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Monday Upload: SAP MB51 Movement Report</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Parses 101 FG Production Receipts (prefix 7), 101 RM/PM Inward Receipts (non-7), and 601 FG Dispatches
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -443,7 +443,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
             <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
               {fgProductionQty.toLocaleString()} <span className="text-xs font-normal text-slate-500">Units</span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Part starts with '7' (Finished Goods)</div>
+            {/* <div className="text-xs text-slate-500 mt-0.5">Part starts with '7' (Finished Goods)</div> */}
           </div>
         </div>
 
@@ -457,7 +457,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
             <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
               {rmpmReceiptQty.toLocaleString()} <span className="text-xs font-normal text-slate-500">Units</span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Part starts other than '7' (Vendor receipts)</div>
+            {/* <div className="text-xs text-slate-500 mt-0.5">Part starts other than '7' (Vendor receipts)</div> */}
           </div>
         </div>
 
@@ -471,7 +471,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
             <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
               {fgDispatchQty.toLocaleString()} <span className="text-xs font-normal text-slate-500">Units</span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Goods issue to customer delivery</div>
+            {/* <div className="text-xs text-slate-500 mt-0.5">Goods issue to customer delivery</div> */}
           </div>
         </div>
       </div>
@@ -482,43 +482,39 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setSelectedTab('ALL')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                selectedTab === 'ALL'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${selectedTab === 'ALL'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Movements ({mb51List.length})
             </button>
             <button
               onClick={() => setSelectedTab('101_FG')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
-                selectedTab === '101_FG'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${selectedTab === '101_FG'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               <Factory className="w-3.5 h-3.5 text-blue-600" />
               101 FG Production
             </button>
             <button
               onClick={() => setSelectedTab('101_RMPM')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
-                selectedTab === '101_RMPM'
-                  ? 'bg-white text-emerald-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${selectedTab === '101_RMPM'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
               101 RM/PM Inward
             </button>
             <button
               onClick={() => setSelectedTab('601_DISPATCH')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
-                selectedTab === '601_DISPATCH'
-                  ? 'bg-white text-purple-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5 ${selectedTab === '601_DISPATCH'
+                ? 'bg-white text-purple-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               <Truck className="w-3.5 h-3.5 text-purple-600" />
               601 FG Dispatches
@@ -593,11 +589,10 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span
-                          className={`inline-flex px-2 py-0.5 rounded font-mono text-xs font-bold ${
-                            tx.movementType === '101'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-purple-100 text-purple-800'
-                          }`}
+                          className={`inline-flex px-2 py-0.5 rounded font-mono text-xs font-bold ${tx.movementType === '101'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-purple-100 text-purple-800'
+                            }`}
                         >
                           {tx.movementType}
                         </span>
@@ -869,13 +864,12 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                     setSelectedFile(e.dataTransfer.files[0]);
                   }
                 }}
-                className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${
-                  isDragging
-                    ? 'border-blue-500 bg-blue-50/70 scale-[1.01]'
-                    : selectedFile
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${isDragging
+                  ? 'border-blue-500 bg-blue-50/70 scale-[1.01]'
+                  : selectedFile
                     ? 'border-emerald-400 bg-emerald-50/40'
                     : 'border-slate-300 hover:border-blue-400 bg-slate-50/60'
-                }`}
+                  }`}
               >
                 <input
                   type="file"
@@ -893,9 +887,8 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5"
                 >
                   <FileSpreadsheet
-                    className={`w-9 h-9 ${
-                      selectedFile ? 'text-emerald-600' : 'text-blue-600'
-                    }`}
+                    className={`w-9 h-9 ${selectedFile ? 'text-emerald-600' : 'text-blue-600'
+                      }`}
                   />
                   <div className="text-xs font-semibold text-slate-800">
                     {selectedFile ? (
@@ -937,9 +930,8 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                       ? 'File selected above. Clear file to paste raw text manually.'
                       : `MatDoc,PostingDate,Mvt,PartNumber,Description,Qty,UOM,SLOC,Partner\n5000210031,2026-08-05,101,7.06496.03.0,Vacuum Pump Panther,1500,PC,FG01,Line A-PMP2\n5000210032,2026-08-06,101,100201,Die-Cast Aluminum Housing,3000,PC,SL01,Endurance Tech\n5000210033,2026-08-07,601,7.06496.03.0,Vacuum Pump Panther,2600,PC,FG01,Tata Motors`
                   }
-                  className={`w-full p-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono ${
-                    selectedFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
-                  }`}
+                  className={`w-full p-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono ${selectedFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
+                    }`}
                 />
               </div>
 

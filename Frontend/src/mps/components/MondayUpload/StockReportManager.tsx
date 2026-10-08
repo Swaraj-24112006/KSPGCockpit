@@ -164,11 +164,11 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         const updated = stockList.map((s) =>
           s.id === editingItem.id
             ? ({
-                ...s,
-                ...formData,
-                materialType: type,
-                lastUpdated: new Date().toISOString().slice(0, 10)
-              } as StockReportItem)
+              ...s,
+              ...formData,
+              materialType: type,
+              lastUpdated: new Date().toISOString().slice(0, 10)
+            } as StockReportItem)
             : s
         );
         onUpdateStock(updated);
@@ -379,9 +379,9 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Monday Upload: Stock Report (SAP MB52)</h1>
-            <p className="text-sm text-slate-500">
+            {/* <p className="text-sm text-slate-500">
               Current on-hand unrestricted inventory balances for Finished Goods (prefix 7) and RM/PM materials
-            </p>
+            </p> */}
           </div>
         </div>
 
@@ -443,7 +443,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {totalFGStock.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          <div className="text-xs text-blue-600 font-semibold mt-1">Part prefix starting with '7'</div>
+          {/* <div className="text-xs text-blue-600 font-semibold mt-1">Part prefix starting with '7'</div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -451,7 +451,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {totalRMStock.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          <div className="text-xs text-slate-500 mt-1">On-hand usable stock</div>
+          {/* <div className="text-xs text-slate-500 mt-1">On-hand usable stock</div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -459,7 +459,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {totalPMStock.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          <div className="text-xs text-slate-500 mt-1">Liner bags, cartons & boxes</div>
+          {/* <div className="text-xs text-slate-500 mt-1">Liner bags, cartons & boxes</div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -467,7 +467,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           <div className="text-2xl font-bold text-amber-600 mt-1 font-mono">
             {lowStockCount} Materials
           </div>
-          <div className="text-xs text-slate-500 mt-1">Requires buyer replenishment</div>
+          {/* <div className="text-xs text-slate-500 mt-1">Requires buyer replenishment</div> */}
         </div>
       </div>
 
@@ -476,41 +476,37 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
           <button
             onClick={() => setTypeFilter('ALL')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              typeFilter === 'ALL'
-                ? 'bg-white text-teal-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${typeFilter === 'ALL'
+              ? 'bg-white text-teal-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             All Inventory ({stockList.length})
           </button>
           <button
             onClick={() => setTypeFilter('FG')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              typeFilter === 'FG'
-                ? 'bg-white text-blue-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${typeFilter === 'FG'
+              ? 'bg-white text-blue-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             Finished Goods (FG)
           </button>
           <button
             onClick={() => setTypeFilter('RM')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              typeFilter === 'RM'
-                ? 'bg-white text-emerald-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${typeFilter === 'RM'
+              ? 'bg-white text-emerald-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             Raw Materials (RM)
           </button>
           <button
             onClick={() => setTypeFilter('PM')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              typeFilter === 'PM'
-                ? 'bg-white text-purple-700 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${typeFilter === 'PM'
+              ? 'bg-white text-purple-700 shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             Packaging (PM)
           </button>
@@ -561,11 +557,10 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                     <tr key={stock.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-slate-900 text-xs">
                         <span
-                          className={`px-1.5 py-0.5 rounded border ${
-                            stock.materialType === 'FG'
-                              ? 'bg-blue-50 text-blue-700 border-blue-200'
-                              : 'bg-slate-50 text-slate-800 border-slate-200'
-                          }`}
+                          className={`px-1.5 py-0.5 rounded border ${stock.materialType === 'FG'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-slate-50 text-slate-800 border-slate-200'
+                            }`}
                         >
                           {stock.partNumber}
                         </span>
@@ -575,13 +570,12 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span
-                          className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                            stock.materialType === 'FG'
-                              ? 'bg-blue-100 text-blue-800'
-                              : stock.materialType === 'PM'
+                          className={`px-2 py-0.5 rounded text-xs font-semibold ${stock.materialType === 'FG'
+                            ? 'bg-blue-100 text-blue-800'
+                            : stock.materialType === 'PM'
                               ? 'bg-purple-100 text-purple-800'
                               : 'bg-emerald-100 text-emerald-800'
-                          }`}
+                            }`}
                         >
                           {stock.materialType}
                         </span>
@@ -806,11 +800,10 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                   <button
                     type="button"
                     onClick={() => setUploadMode('replace')}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${
-                      uploadMode === 'replace'
-                        ? 'border-teal-500 bg-teal-50/60 ring-1 ring-teal-500'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${uploadMode === 'replace'
+                      ? 'border-teal-500 bg-teal-50/60 ring-1 ring-teal-500'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
                   >
                     <div className="text-xs font-bold text-slate-900">Replace / Upsert (Recommended)</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
@@ -820,11 +813,10 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                   <button
                     type="button"
                     onClick={() => setUploadMode('append')}
-                    className={`p-2.5 rounded-lg border text-left transition-all ${
-                      uploadMode === 'append'
-                        ? 'border-teal-500 bg-teal-50/60 ring-1 ring-teal-500'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${uploadMode === 'append'
+                      ? 'border-teal-500 bg-teal-50/60 ring-1 ring-teal-500'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
                   >
                     <div className="text-xs font-bold text-slate-900">Append Only</div>
                     <div className="text-[11px] text-slate-500 mt-0.5">
@@ -848,13 +840,12 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                     setSelectedFile(e.dataTransfer.files[0]);
                   }
                 }}
-                className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${
-                  isDragging
-                    ? 'border-teal-500 bg-teal-50/70 scale-[1.01]'
-                    : selectedFile
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-all ${isDragging
+                  ? 'border-teal-500 bg-teal-50/70 scale-[1.01]'
+                  : selectedFile
                     ? 'border-emerald-400 bg-emerald-50/40'
                     : 'border-slate-300 hover:border-teal-400 bg-slate-50/60'
-                }`}
+                  }`}
               >
                 <input
                   type="file"
@@ -872,9 +863,8 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                   className="cursor-pointer flex flex-col items-center justify-center gap-1.5"
                 >
                   <FileSpreadsheet
-                    className={`w-9 h-9 ${
-                      selectedFile ? 'text-emerald-600' : 'text-teal-600'
-                    }`}
+                    className={`w-9 h-9 ${selectedFile ? 'text-emerald-600' : 'text-teal-600'
+                      }`}
                   />
                   <div className="text-xs font-semibold text-slate-800">
                     {selectedFile ? (
@@ -916,9 +906,8 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                       ? 'File selected above. Clear file to paste raw text manually.'
                       : `PartNumber,Description,UnrestrictedStock,SafetyStock,UOM,SLOC\n7.06496.03.0,Vacuum Pump Panther 2.0L,1200,500,PC,FG01\n100201,Die-Cast Aluminum Housing,2200,1000,PC,SL01\n100202,Precision Rotor Assembly,3100,1500,PC,SL01`
                   }
-                  className={`w-full p-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-mono ${
-                    selectedFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
-                  }`}
+                  className={`w-full p-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 font-mono ${selectedFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
+                    }`}
                 />
               </div>
 

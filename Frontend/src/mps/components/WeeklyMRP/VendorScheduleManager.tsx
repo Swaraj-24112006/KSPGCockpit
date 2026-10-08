@@ -80,12 +80,12 @@ interface ConsolidatedComponentRow {
   totalPhysicalStock: number;
   reservedStock: number;
   availableStock: number;
-  
+
   // Weekly Breakdown
   weeklyGrossReq: Record<string, number>; // weekId -> gross requirement
   weeklyInwardDeliveries: Record<string, number>; // weekId -> promised inward deliveries
   weeklySchedules: Record<string, VendorDeliverySchedule[]>; // weekId -> list of schedules
-  
+
   // For Selected Scope
   selectedScopeGrossReq: number;
   selectedScopeInward: number;
@@ -93,7 +93,7 @@ interface ConsolidatedComponentRow {
   selectedScopeDeficit: number;
   hasShortage: boolean;
   activeSchedulesForScope: VendorDeliverySchedule[];
-  
+
   // Full Month Aggregations
   monthTotalGrossReq: number;
   monthTotalInward: number;
@@ -139,7 +139,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   // Navigation & View Mode
   const [activeTab, setActiveTab] = useState<'supply_risk_heatmap' | 'consolidated_matrix' | 'schedules_list'>('consolidated_matrix');
   const [scopeMode, setScopeMode] = useState<'WEEK' | 'MONTH'>('WEEK');
-  
+
   // Active Weeks for Selected Month
   const monthWeeks = useMemo(() => {
     return weeks
@@ -304,7 +304,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       // Stock Info (MB52 Unrestricted)
       const stockItem = stockList.find((s) => s.partNumber === comp.componentCode);
       const totalPhysicalStock = stockItem ? stockItem.unrestrictedStock : 0;
-      
+
       // Calculate reserved stock by frozen plans in the current review week
       const isCommon = comp.usedInFGs.length > 1;
       const reservedStock = isCommon ? Math.round(totalPhysicalStock * 0.15) : 0;
@@ -543,8 +543,8 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const suggestedQty = r.hasShortage
         ? r.selectedScopeDeficit
         : r.selectedScopeGrossReq > 0
-        ? r.selectedScopeGrossReq
-        : 1000;
+          ? r.selectedScopeGrossReq
+          : 1000;
 
       return {
         PO_Number: `PO-${selectedMonth.replace('-', '')}-${(9000 + idx).toString()}`,
@@ -1015,19 +1015,19 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const updated = vendorDeliverySchedules.map((s) =>
         s.id === singleScheduleForm.id
           ? {
-              ...s,
-              poNumber: singleScheduleForm.poNumber,
-              componentCode: singleScheduleForm.componentCode,
-              vendorCode: singleScheduleForm.vendorCode,
-              vendorName: singleScheduleForm.vendorName,
-              buyerName: singleScheduleForm.buyerName,
-              expectedDeliveryDate: singleScheduleForm.expectedDeliveryDate,
-              weekId: singleScheduleForm.weekId,
-              promisedQty: Number(singleScheduleForm.promisedQty),
-              carrierOrTracking: singleScheduleForm.carrierOrTracking,
-              deliveryStatus: singleScheduleForm.deliveryStatus,
-              notes: singleScheduleForm.notes
-            }
+            ...s,
+            poNumber: singleScheduleForm.poNumber,
+            componentCode: singleScheduleForm.componentCode,
+            vendorCode: singleScheduleForm.vendorCode,
+            vendorName: singleScheduleForm.vendorName,
+            buyerName: singleScheduleForm.buyerName,
+            expectedDeliveryDate: singleScheduleForm.expectedDeliveryDate,
+            weekId: singleScheduleForm.weekId,
+            promisedQty: Number(singleScheduleForm.promisedQty),
+            carrierOrTracking: singleScheduleForm.carrierOrTracking,
+            deliveryStatus: singleScheduleForm.deliveryStatus,
+            notes: singleScheduleForm.notes
+          }
           : s
       );
 
@@ -1180,13 +1180,12 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       {/* Toast Notification */}
       {notification && (
         <div
-          className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold shadow-md transition-all ${
-            notification.type === 'success'
-              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
-              : notification.type === 'error'
+          className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold shadow-md transition-all ${notification.type === 'success'
+            ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
+            : notification.type === 'error'
               ? 'bg-rose-950/90 text-rose-200 border-rose-700'
               : 'bg-blue-950/90 text-blue-200 border-blue-700'
-          }`}
+            }`}
         >
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -1211,13 +1210,9 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                 <h1 className="text-base font-bold tracking-tight text-white">
                   Vendor Delivery Schedule Updation & Consolidated RM Matrix
                 </h1>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                  Supply / Buyer Mode
-                </span>
+
               </div>
-              <p className="text-xs text-slate-400">
-                Direct Excel template download, bulk spreadsheet schedule upload & consolidated multi-FG requirement management
-              </p>
+
             </div>
           </div>
 
@@ -1331,22 +1326,20 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setScopeMode('WEEK')}
-                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
-                  scopeMode === 'WEEK'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${scopeMode === 'WEEK'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 Weekly Scope ({activeWeek?.weekLabel || 'Current Week'})
               </button>
               <button
                 type="button"
                 onClick={() => setScopeMode('MONTH')}
-                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
-                  scopeMode === 'MONTH'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${scopeMode === 'MONTH'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
               >
                 Complete Month Overview ({selectedMonth})
               </button>
@@ -1383,11 +1376,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Persona: </span>
-              <strong className="text-slate-200">Supply Planner / Buyer</strong>
-            </div>
+
           </div>
         </div>
       </div>
@@ -1400,7 +1389,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             {summaryMetrics.totalComponents}{' '}
             <span className="text-xs text-slate-400 font-normal">items</span>
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Across all Finished Goods</div>
+          {/* <div className="text-[10px] text-slate-500 mt-0.5">Across all Finished Goods</div> */}
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-blue-200 shadow-xs bg-blue-50/20">
@@ -1412,7 +1401,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             {summaryMetrics.commonPartsCount}{' '}
             <span className="text-xs text-blue-700 font-normal">shared</span>
           </div>
-          <div className="text-[10px] text-blue-600 mt-0.5">Shared in multiple FGs</div>
+          {/* <div className="text-[10px] text-blue-600 mt-0.5">Shared in multiple FGs</div> */}
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
@@ -1422,7 +1411,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
             {summaryMetrics.totalGrossReq.toLocaleString()}
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Production requirement</div>
+          {/* <div className="text-[10px] text-slate-500 mt-0.5">Production requirement</div> */}
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-xs bg-emerald-50/20">
@@ -1432,28 +1421,25 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           <div className="text-xl font-bold text-emerald-700 mt-1 font-mono">
             +{summaryMetrics.totalInwardPromised.toLocaleString()}
           </div>
-          <div className="text-[10px] text-emerald-600 mt-0.5">Promised by vendors</div>
+          {/* <div className="text-[10px] text-emerald-600 mt-0.5">Promised by vendors</div> */}
         </div>
 
         <div
-          className={`p-3 rounded-xl border shadow-xs ${
-            summaryMetrics.shortagesCount > 0
-              ? 'bg-rose-50 border-rose-200'
-              : 'bg-emerald-50 border-emerald-200'
-          }`}
+          className={`p-3 rounded-xl border shadow-xs ${summaryMetrics.shortagesCount > 0
+            ? 'bg-rose-50 border-rose-200'
+            : 'bg-emerald-50 border-emerald-200'
+            }`}
         >
           <div
-            className={`text-[11px] font-medium uppercase tracking-wider flex items-center gap-1 ${
-              summaryMetrics.shortagesCount > 0 ? 'text-rose-800' : 'text-emerald-800'
-            }`}
+            className={`text-[11px] font-medium uppercase tracking-wider flex items-center gap-1 ${summaryMetrics.shortagesCount > 0 ? 'text-rose-800' : 'text-emerald-800'
+              }`}
           >
             {summaryMetrics.shortagesCount > 0 && <AlertCircle className="w-3 h-3 text-rose-600" />}
             Deficit / Shortages
           </div>
           <div
-            className={`text-xl font-bold mt-1 font-mono ${
-              summaryMetrics.shortagesCount > 0 ? 'text-rose-700' : 'text-emerald-700'
-            }`}
+            className={`text-xl font-bold mt-1 font-mono ${summaryMetrics.shortagesCount > 0 ? 'text-rose-700' : 'text-emerald-700'
+              }`}
           >
             {summaryMetrics.shortagesCount}{' '}
             <span className="text-xs font-normal">
@@ -1485,11 +1471,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('supply_risk_heatmap')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'supply_risk_heatmap'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'supply_risk_heatmap'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
+                }`}
             >
               <Flame className={`w-3.5 h-3.5 ${activeTab === 'supply_risk_heatmap' ? 'text-white animate-pulse' : 'text-rose-600'}`} />
               <span>Supply Risk Heatmap</span>
@@ -1503,11 +1488,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('consolidated_matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'consolidated_matrix'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'consolidated_matrix'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Consolidated RM Requirements & Matrix</span>
@@ -1519,11 +1503,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('schedules_list')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'schedules_list'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'schedules_list'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
             >
               <Truck className="w-3.5 h-3.5" />
               <span>All Active PO Delivery Schedules</span>
@@ -1688,13 +1671,12 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                     return (
                       <tr
                         key={row.componentCode}
-                        className={`hover:bg-slate-50/80 transition-colors ${
-                          row.hasShortage
-                            ? 'bg-rose-50/30'
-                            : row.isCommonPart
+                        className={`hover:bg-slate-50/80 transition-colors ${row.hasShortage
+                          ? 'bg-rose-50/30'
+                          : row.isCommonPart
                             ? 'bg-blue-50/20'
                             : ''
-                        }`}
+                          }`}
                       >
                         {/* 1. Part Number, Description & Common Item Badge */}
                         <td className="py-2.5 px-3 align-middle">
@@ -1704,11 +1686,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                 {row.componentCode}
                               </span>
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
-                                  row.category === 'RM'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : 'bg-teal-50 text-teal-700 border border-teal-200'
-                                }`}
+                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${row.category === 'RM'
+                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                  : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                  }`}
                               >
                                 {row.category}
                               </span>
@@ -1836,11 +1817,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                         {/* 7. Net Balance (Deficit / Surplus) */}
                         <td className="py-2.5 px-3 text-center align-middle font-mono text-xs">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded font-bold text-xs ${
-                              row.hasShortage
-                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                            }`}
+                            className={`inline-block px-2 py-0.5 rounded font-bold text-xs ${row.hasShortage
+                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              }`}
                           >
                             {row.selectedScopeBalance > 0
                               ? `+${row.selectedScopeBalance.toLocaleString()}`
@@ -1866,11 +1846,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                       title: `Change History: ${row.componentCode}`
                                     })
                                   }
-                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
-                                    compLogsCount > 0
-                                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                      : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
-                                  }`}
+                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${compLogsCount > 0
+                                    ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
+                                    }`}
                                   title={`View revision and delivery change history for ${row.componentCode}`}
                                 >
                                   <History className="w-3 h-3 text-indigo-600" />
@@ -1978,17 +1957,16 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              s.deliveryStatus === 'CONFIRMED_ON_TRACK'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : s.deliveryStatus === 'IN_TRANSIT'
+                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${s.deliveryStatus === 'CONFIRMED_ON_TRACK'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : s.deliveryStatus === 'IN_TRANSIT'
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                 : s.deliveryStatus === 'PARTIAL_PROMISE'
-                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                : s.deliveryStatus === 'CANCELLED'
-                                ? 'bg-slate-100 text-slate-500 border border-slate-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                            }`}
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                  : s.deliveryStatus === 'CANCELLED'
+                                    ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
                           >
                             {s.deliveryStatus.replace(/_/g, ' ')}
                           </span>
@@ -2016,11 +1994,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                       title: `Change History: ${s.poNumber || s.id}`
                                     });
                                   }}
-                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
-                                    schedLogsCount > 0
-                                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                      : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
-                                  }`}
+                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${schedLogsCount > 0
+                                    ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
+                                    }`}
                                   title={`View timestamped change log for PO ${s.poNumber}`}
                                 >
                                   <History className="w-3 h-3 text-indigo-600" />
@@ -2252,8 +2229,8 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                               r.validationStatus === 'ERROR'
                                 ? 'bg-rose-50/60'
                                 : r.validationStatus === 'WARNING'
-                                ? 'bg-amber-50/40'
-                                : 'hover:bg-slate-50'
+                                  ? 'bg-amber-50/40'
+                                  : 'hover:bg-slate-50'
                             }
                           >
                             <td className="py-2 px-2.5 font-mono text-slate-500">{r.rowIndex}</td>
@@ -2317,11 +2294,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                 type="button"
                 disabled={parsedRows.filter((r) => r.isValid).length === 0}
                 onClick={handleApplyUploadSchedules}
-                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer transition-colors ${
-                  parsedRows.filter((r) => r.isValid).length > 0
-                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
+                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer transition-colors ${parsedRows.filter((r) => r.isValid).length > 0
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>

@@ -187,25 +187,25 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
     apiData.length > 0 || !error
       ? apiData.map(dtoToFrontend)
       : boms.filter((bom) => {
-          const matchesSearch =
-            bom.fgCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bom.fgDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bom.componentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bom.componentDescription.toLowerCase().includes(searchTerm.toLowerCase());
-          const matchesCategory = categoryFilter === 'ALL' || bom.category === categoryFilter;
-          const matchesFG = selectedFGFilter === 'ALL' || bom.fgCode === selectedFGFilter;
-          return matchesSearch && matchesCategory && matchesFG;
-        });
+        const matchesSearch =
+          bom.fgCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bom.fgDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bom.componentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bom.componentDescription.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = categoryFilter === 'ALL' || bom.category === categoryFilter;
+        const matchesFG = selectedFGFilter === 'ALL' || bom.fgCode === selectedFGFilter;
+        return matchesSearch && matchesCategory && matchesFG;
+      });
 
   // Unique FGs for dropdown (from API options if available, else from display data)
   const uniqueFGs: { code: string; desc: string }[] =
     fgOptions.length > 0
       ? fgOptions.map(fg => ({ code: fg.fg_code, desc: fg.fg_description }))
       : Array.from(
-          new Map<string, { code: string; desc: string }>(
-            boms.map((b) => [b.fgCode, { code: b.fgCode, desc: b.fgDescription }])
-          ).values()
-        );
+        new Map<string, { code: string; desc: string }>(
+          boms.map((b) => [b.fgCode, { code: b.fgCode, desc: b.fgDescription }])
+        ).values()
+      );
 
   // --- Modal handlers ---
   const handleOpenAddModal = (existing?: BOMLineDTO) => {
@@ -455,8 +455,8 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
       setSuccessMsg(res.message);
       // Refresh BOM records, FG options, and component options
       fetchBOMs(1);
-      fgHeaderService.listAll().then(setFgOptions).catch(() => {});
-      componentService.listAll().then(setComponentOptions).catch(() => {});
+      fgHeaderService.listAll().then(setFgOptions).catch(() => { });
+      componentService.listAll().then(setComponentOptions).catch(() => { });
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       setError(apiErr.message || 'Failed to upload BOM CSV.');
@@ -491,9 +491,9 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">BOM Master (Bill of Materials)</h1>
-              <p className="text-sm text-slate-500">
+              {/* <p className="text-sm text-slate-500">
                 Maintains multi-level relationship between Finished Goods (part prefix 7) and RM/PM components
-              </p>
+              </p> */}
             </div>
           </div>
         </div>
@@ -539,12 +539,12 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
       </div>
 
       {/* SAP Rule Notice Card */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm text-slate-700">
+      {/* <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex items-start gap-3 text-sm text-slate-700">
         <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
           <span className="font-semibold text-slate-900">SAP Data Standard:</span> Finished Good (FG) part numbers start with <code className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded font-mono font-bold">7</code> (e.g. 7.06496.03.0). Components starting with other numbers or prefixes are treated as Raw Materials (RM) or Packaging Materials (PM).
         </div>
-      </div>
+      </div> */}
 
       {/* Filter and Search Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -578,31 +578,28 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setCategoryFilter('ALL')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'ALL'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'ALL'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Types
             </button>
             <button
               onClick={() => setCategoryFilter('RM')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'RM'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'RM'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Raw Material (RM)
             </button>
             <button
               onClick={() => setCategoryFilter('PM')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'PM'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'PM'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               Packaging (PM)
             </button>
@@ -665,11 +662,10 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                            bom.category === 'PM'
-                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          }`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${bom.category === 'PM'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}
                         >
                           {bom.category || 'RM'}
                         </span>
@@ -784,22 +780,20 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
                       <button
                         type="button"
                         onClick={() => setFgMode('existing')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${
-                          fgMode === 'existing'
-                            ? 'bg-white text-blue-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${fgMode === 'existing'
+                          ? 'bg-white text-blue-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         Select Existing
                       </button>
                       <button
                         type="button"
                         onClick={() => setFgMode('new')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${
-                          fgMode === 'new'
-                            ? 'bg-white text-blue-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${fgMode === 'new'
+                          ? 'bg-white text-blue-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         + Create New FG
                       </button>
@@ -887,22 +881,20 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
                       <button
                         type="button"
                         onClick={() => setComponentMode('existing')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${
-                          componentMode === 'existing'
-                            ? 'bg-white text-purple-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${componentMode === 'existing'
+                          ? 'bg-white text-purple-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         Select Existing
                       </button>
                       <button
                         type="button"
                         onClick={() => setComponentMode('new')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${
-                          componentMode === 'new'
-                            ? 'bg-white text-purple-700 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${componentMode === 'new'
+                          ? 'bg-white text-purple-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                          }`}
                       >
                         + Create New Component
                       </button>

@@ -217,10 +217,10 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
   // Find buyer details for active modal
   const activeBuyerInfo = selectedCompForDetail
     ? vendorBuyers.find(
-        (vb) =>
-          vb.suppliedComponents &&
-          vb.suppliedComponents.includes(selectedCompForDetail.componentCode)
-      )
+      (vb) =>
+        vb.suppliedComponents &&
+        vb.suppliedComponents.includes(selectedCompForDetail.componentCode)
+    )
     : null;
 
   return (
@@ -234,7 +234,7 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
           <div>
             <h1 className="text-xl font-bold text-slate-900">Weekly RM/PM MRP & Supply Shortage Matrix</h1>
             <p className="text-sm text-slate-500">
-              Consolidated BOM gross requirements vs current stock vs inward supply (MB51 GRNs + delivery commitments) by Buyer & Vendor
+              {/* Consolidated BOM gross requirements vs current stock vs inward supply (MB51 GRNs + delivery commitments) by Buyer & Vendor */}
             </p>
           </div>
         </div>
@@ -290,7 +290,7 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {totalRMComponents.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Parts</span>
           </div>
-          <div className="text-xs text-slate-500 mt-1">Exploded across active month BOMs</div>
+          {/* <div className="text-xs text-slate-500 mt-1">Exploded across active month BOMs</div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -299,9 +299,9 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
             {criticalShortageCount}
             {criticalShortageCount > 0 && <AlertTriangle className="w-5 h-5 text-red-500" />}
           </div>
-          <div className="text-xs text-red-700 font-semibold mt-1">
+          {/* <div className="text-xs text-red-700 font-semibold mt-1">
             Projected negative stock balance
-          </div>
+          </div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -310,7 +310,7 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
             {warningCount}
             {warningCount > 0 && <AlertCircle className="w-5 h-5 text-amber-500" />}
           </div>
-          <div className="text-xs text-slate-500 mt-1">Stock falls below safety threshold</div>
+          {/* <div className="text-xs text-slate-500 mt-1">Stock falls below safety threshold</div> */}
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -318,7 +318,7 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
           <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">
             {uniqueBuyers.length} Buyers
           </div>
-          <div className="text-xs text-slate-500 mt-1">From Vendor-Buyer relationship master</div>
+          {/* <div className="text-xs text-slate-500 mt-1">From Vendor-Buyer relationship master</div> */}
         </div>
       </div>
 
@@ -355,31 +355,28 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setCategoryFilter('ALL')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Types
             </button>
             <button
               onClick={() => setCategoryFilter('RM')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'RM'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-emerald-700'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'RM'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-emerald-700'
+                }`}
             >
               RM Only
             </button>
             <button
               onClick={() => setCategoryFilter('PM')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                categoryFilter === 'PM'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-purple-700'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${categoryFilter === 'PM'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-purple-700'
+                }`}
             >
               PM Only
             </button>
@@ -389,31 +386,28 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+                }`}
             >
               All Status
             </button>
             <button
               onClick={() => setStatusFilter('SHORTAGE')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'SHORTAGE'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-red-700'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'SHORTAGE'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-red-700'
+                }`}
             >
               Shortage ({criticalShortageCount})
             </button>
             <button
               onClick={() => setStatusFilter('WARNING')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
-                statusFilter === 'WARNING'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-amber-700'
-              }`}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${statusFilter === 'WARNING'
+                ? 'bg-amber-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-amber-700'
+                }`}
             >
               Warning ({warningCount})
             </button>
@@ -510,11 +504,10 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                       </td>
                       <td className="py-2.5 px-3">
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                            s.category === 'PM'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-emerald-100 text-emerald-800'
-                          }`}
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${s.category === 'PM'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                            }`}
                         >
                           {s.category}
                         </span>
@@ -558,8 +551,8 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                                     w.actualInwardReceipt > 0
                                       ? 'text-emerald-700 font-bold'
                                       : hasScheduledOnly
-                                      ? 'text-blue-700 font-semibold flex items-center gap-0.5'
-                                      : 'text-slate-400 font-normal'
+                                        ? 'text-blue-700 font-semibold flex items-center gap-0.5'
+                                        : 'text-slate-400 font-normal'
                                   }
                                 >
                                   {hasScheduledOnly && <Truck className="w-2.5 h-2.5 text-blue-500 inline mr-0.5" />}
@@ -573,13 +566,12 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                               </div>
                             </td>
                             <td
-                              className={`py-2.5 px-2 text-right font-mono font-bold ${
-                                isShortage
-                                  ? 'text-red-700 bg-red-50/60'
-                                  : isWarn
+                              className={`py-2.5 px-2 text-right font-mono font-bold ${isShortage
+                                ? 'text-red-700 bg-red-50/60'
+                                : isWarn
                                   ? 'text-amber-700 bg-amber-50/40'
                                   : 'text-slate-900'
-                              }`}
+                                }`}
                             >
                               {w.projectedStock.toLocaleString()}
                             </td>
@@ -627,11 +619,10 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                     {selectedCompForDetail.componentCode}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                      selectedCompForDetail.category === 'PM'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}
+                    className={`px-2 py-0.5 rounded text-xs font-semibold ${selectedCompForDetail.category === 'PM'
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-emerald-100 text-emerald-800'
+                      }`}
                   >
                     {selectedCompForDetail.category}
                   </span>
@@ -752,21 +743,19 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                         {(w.scheduledDeliveryQty || 0).toLocaleString()}
                       </td>
                       <td
-                        className={`p-2 text-right font-mono font-bold ${
-                          w.status === 'SHORTAGE' ? 'text-red-600' : 'text-slate-900'
-                        }`}
+                        className={`p-2 text-right font-mono font-bold ${w.status === 'SHORTAGE' ? 'text-red-600' : 'text-slate-900'
+                          }`}
                       >
                         {w.projectedStock.toLocaleString()}
                       </td>
                       <td className="p-2 text-center">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            w.status === 'SHORTAGE'
-                              ? 'bg-red-100 text-red-800'
-                              : w.status === 'WARNING'
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${w.status === 'SHORTAGE'
+                            ? 'bg-red-100 text-red-800'
+                            : w.status === 'WARNING'
                               ? 'bg-amber-100 text-amber-800'
                               : 'bg-emerald-100 text-emerald-800'
-                          }`}
+                            }`}
                         >
                           {w.status}
                         </span>
@@ -789,15 +778,15 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
                     );
                     const body = encodeURIComponent(
                       `Dear ${selectedCompForDetail.buyerName},\n\n` +
-                        `Please note an operational supply shortage for component ${selectedCompForDetail.componentCode} (${selectedCompForDetail.componentDescription}).\n\n` +
-                        `Month: ${selectedMonth}\n` +
-                        `Current Stock: ${selectedCompForDetail.currentStock.toLocaleString()}\n` +
-                        `Safety Stock: ${selectedCompForDetail.safetyStock.toLocaleString()}\n` +
-                        `Maximum Shortage Deficit: -${selectedCompForDetail.maxShortageQty.toLocaleString()} units\n` +
-                        `Assigned Supplier: ${selectedCompForDetail.vendorName} (${selectedCompForDetail.vendorCode})\n` +
-                        `Lead Time: ${selectedCompForDetail.leadTimeDays} days\n\n` +
-                        `Please expedite vendor delivery commitments to prevent production stoppage.\n\n` +
-                        `Generated from KSPG Cockpit MRP Operations.`
+                      `Please note an operational supply shortage for component ${selectedCompForDetail.componentCode} (${selectedCompForDetail.componentDescription}).\n\n` +
+                      `Month: ${selectedMonth}\n` +
+                      `Current Stock: ${selectedCompForDetail.currentStock.toLocaleString()}\n` +
+                      `Safety Stock: ${selectedCompForDetail.safetyStock.toLocaleString()}\n` +
+                      `Maximum Shortage Deficit: -${selectedCompForDetail.maxShortageQty.toLocaleString()} units\n` +
+                      `Assigned Supplier: ${selectedCompForDetail.vendorName} (${selectedCompForDetail.vendorCode})\n` +
+                      `Lead Time: ${selectedCompForDetail.leadTimeDays} days\n\n` +
+                      `Please expedite vendor delivery commitments to prevent production stoppage.\n\n` +
+                      `Generated from KSPG Cockpit MRP Operations.`
                     );
                     window.open(`mailto:${recipient}?subject=${subject}&body=${body}`, '_blank');
                   }}

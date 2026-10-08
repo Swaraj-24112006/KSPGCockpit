@@ -486,9 +486,9 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-300 mt-0.5">
+              {/* <p className="text-[11px] text-slate-300 mt-0.5">
                 Dynamic vendor risk index highlighting suppliers with the highest overdue delivery schedules, delayed PO lines, and line stoppage impact.
-              </p>
+              </p> */}
             </div>
           </div>
 
@@ -521,25 +521,23 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
           {/* Tier Buttons */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[11px] text-slate-400 font-medium mr-1">Risk Tiers:</span>
-            
+
             <button
               onClick={() => setTierFilter('ALL')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${
-                tierFilter === 'ALL'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all cursor-pointer ${tierFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
             >
               All Vendors ({metrics.totalVendors})
             </button>
 
             <button
               onClick={() => setTierFilter('CRITICAL')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                tierFilter === 'CRITICAL'
-                  ? 'bg-rose-500 text-white shadow-xs'
-                  : 'bg-rose-950/50 text-rose-300 border border-rose-800/60 hover:bg-rose-900/60'
-              }`}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${tierFilter === 'CRITICAL'
+                ? 'bg-rose-500 text-white shadow-xs'
+                : 'bg-rose-950/50 text-rose-300 border border-rose-800/60 hover:bg-rose-900/60'
+                }`}
             >
               <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping inline-block" />
               <span>Critical Overdue ({metrics.criticalCount})</span>
@@ -547,33 +545,30 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
 
             <button
               onClick={() => setTierFilter('HIGH')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                tierFilter === 'HIGH'
-                  ? 'bg-orange-500 text-white shadow-xs'
-                  : 'bg-orange-950/50 text-orange-300 border border-orange-800/60 hover:bg-orange-900/60'
-              }`}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${tierFilter === 'HIGH'
+                ? 'bg-orange-500 text-white shadow-xs'
+                : 'bg-orange-950/50 text-orange-300 border border-orange-800/60 hover:bg-orange-900/60'
+                }`}
             >
               <span>High Risk ({metrics.highCount})</span>
             </button>
 
             <button
               onClick={() => setTierFilter('MEDIUM')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                tierFilter === 'MEDIUM'
-                  ? 'bg-amber-500 text-white shadow-xs'
-                  : 'bg-amber-950/50 text-amber-300 border border-amber-800/60 hover:bg-amber-900/60'
-              }`}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${tierFilter === 'MEDIUM'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'bg-amber-950/50 text-amber-300 border border-amber-800/60 hover:bg-amber-900/60'
+                }`}
             >
               <span>Moderate Watch ({metrics.mediumCount})</span>
             </button>
 
             <button
               onClick={() => setTierFilter('LOW')}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
-                tierFilter === 'LOW'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-emerald-950/50 text-emerald-300 border border-emerald-800/60 hover:bg-emerald-900/60'
-              }`}
+              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${tierFilter === 'LOW'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-emerald-950/50 text-emerald-300 border border-emerald-800/60 hover:bg-emerald-900/60'
+                }`}
             >
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
               <span>Safe / On-Track ({metrics.lowCount})</span>
@@ -620,18 +615,16 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
             <div className="flex items-center bg-slate-800 p-0.5 rounded border border-slate-700 text-[11px]">
               <button
                 onClick={() => setViewMode('HEATMAP_GRID')}
-                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${
-                  viewMode === 'HEATMAP_GRID' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${viewMode === 'HEATMAP_GRID' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
                 title="Heatmap Tiles View"
               >
                 Tiles
               </button>
               <button
                 onClick={() => setViewMode('TABLE')}
-                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${
-                  viewMode === 'TABLE' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`px-2 py-0.5 rounded font-medium transition-colors cursor-pointer ${viewMode === 'TABLE' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
                 title="Detailed Table View"
               >
                 Table
@@ -697,11 +690,10 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
 
                   {/* Highlighted Overdue Schedules Callout */}
                   <div
-                    className={`rounded-md p-2 mb-2.5 text-xs border ${
-                      hasOverdue
-                        ? 'bg-rose-100/70 border-rose-300 text-rose-900'
-                        : 'bg-emerald-100/60 border-emerald-300 text-emerald-900'
-                    }`}
+                    className={`rounded-md p-2 mb-2.5 text-xs border ${hasOverdue
+                      ? 'bg-rose-100/70 border-rose-300 text-rose-900'
+                      : 'bg-emerald-100/60 border-emerald-300 text-emerald-900'
+                      }`}
                   >
                     <div className="flex items-center justify-between font-semibold">
                       <span className="flex items-center gap-1">
@@ -748,11 +740,10 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                         {vendor.impactedFGs.slice(0, 3).map((fg) => (
                           <span
                             key={fg.fgCode}
-                            className={`px-1 py-0.2 rounded font-mono text-[9px] ${
-                              fg.isFrozen
-                                ? 'bg-rose-100 text-rose-900 border border-rose-300 font-bold'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
+                            className={`px-1 py-0.2 rounded font-mono text-[9px] ${fg.isFrozen
+                              ? 'bg-rose-100 text-rose-900 border border-rose-300 font-bold'
+                              : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}
                             title={`${fg.fgCode}: ${fg.fgDescription} (${fg.line}) ${fg.isFrozen ? '[FROZEN PLAN]' : ''}`}
                           >
                             {fg.fgCode} {fg.isFrozen ? '🔒' : ''}
@@ -785,11 +776,10 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                         <button
                           type="button"
                           onClick={() => onSelectVendorFilter(isSelected ? null : vendor.vendorName)}
-                          className={`px-2 py-1 rounded text-[11px] font-bold cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                          }`}
+                          className={`px-2 py-1 rounded text-[11px] font-bold cursor-pointer transition-all ${isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                            }`}
                           title={isSelected ? 'Clear filter from cockpit' : `Filter Monday Review Cockpit to ${vendor.vendorName}`}
                         >
                           {isSelected ? 'Filtered' : 'Filter Cockpit'}
@@ -843,15 +833,14 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                   return (
                     <tr
                       key={vendor.vendorCode}
-                      className={`hover:bg-slate-50 transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-50/50'
-                          : vendor.riskTier === 'CRITICAL'
+                      className={`hover:bg-slate-50 transition-colors ${isSelected
+                        ? 'bg-indigo-50/50'
+                        : vendor.riskTier === 'CRITICAL'
                           ? 'bg-rose-50/20'
                           : vendor.riskTier === 'HIGH'
-                          ? 'bg-orange-50/20'
-                          : ''
-                      }`}
+                            ? 'bg-orange-50/20'
+                            : ''
+                        }`}
                     >
                       <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-500">
                         #{idx + 1}
@@ -915,11 +904,10 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                           {vendor.impactedFGs.slice(0, 2).map((fg) => (
                             <span
                               key={fg.fgCode}
-                              className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${
-                                fg.isFrozen
-                                  ? 'bg-rose-100 text-rose-800 font-bold border border-rose-200'
-                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
-                              }`}
+                              className={`px-1.5 py-0.2 rounded font-mono text-[10px] ${fg.isFrozen
+                                ? 'bg-rose-100 text-rose-800 font-bold border border-rose-200'
+                                : 'bg-slate-100 text-slate-700 border border-slate-200'
+                                }`}
                               title={`${fg.fgCode}: ${fg.fgDescription}`}
                             >
                               {fg.fgCode}
@@ -945,11 +933,10 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                             <button
                               type="button"
                               onClick={() => onSelectVendorFilter(isSelected ? null : vendor.vendorName)}
-                              className={`px-2 py-1 rounded text-[11px] font-bold cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white'
-                                  : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                              }`}
+                              className={`px-2 py-1 rounded text-[11px] font-bold cursor-pointer transition-all ${isSelected
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                                }`}
                             >
                               {isSelected ? 'Filtered' : 'Filter'}
                             </button>
@@ -1067,13 +1054,12 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
                             </td>
                             <td className="py-2 px-2.5 text-center">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  s.deliveryStatus === 'CONFIRMED_ON_TRACK'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : s.deliveryStatus === 'IN_TRANSIT'
+                                className={`px-2 py-0.5 rounded text-[10px] font-semibold ${s.deliveryStatus === 'CONFIRMED_ON_TRACK'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : s.deliveryStatus === 'IN_TRANSIT'
                                     ? 'bg-blue-100 text-blue-800'
                                     : 'bg-rose-100 text-rose-800 font-bold'
-                                }`}
+                                  }`}
                               >
                                 {s.deliveryStatus.replace(/_/g, ' ')}
                               </span>
