@@ -109,7 +109,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
 
       {/* Bento Grid Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         {/* Total Logged */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
@@ -162,7 +162,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
 
       {/* CHARTS CONTAINER - Custom Responsive Premium SVGs (Zero peer dependency issues) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+
         {/* Growth Trend (Line Chart) */}
         <div className="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -209,7 +209,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
                   <>
                     {/* Glowing area fill */}
                     <path d={areaPath} fill="url(#blueGrad)" opacity="0.1" />
-                    
+
                     {/* Colored path */}
                     <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="3" />
 
@@ -285,7 +285,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
 
       {/* Minifactory bento card comparison */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
+
         {/* Minifactories contributions */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4">
           <h3 className="text-xs font-bold text-slate-700 uppercase font-mono border-b border-slate-100 pb-3">
@@ -348,7 +348,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
 
       {/* OPENING SCREEN SUMMARY - PENDING ENTRIES AND RECENT APPROVALS (Attachment 2 requirement) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-        
+
         {/* SUMMARY: Pending Entries */}
         <div className="bg-white border border-slate-250 rounded-2xl shadow-xs overflow-hidden">
           <button
@@ -437,11 +437,10 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
                   <div className="space-y-1 pr-4">
                     <div className="flex items-center space-x-2">
                       <span className="text-[10px] font-bold text-slate-400 font-mono">{k.srNo}</span>
-                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase ${
-                        k.classification === 'Kaizen'
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase ${k.classification === 'Kaizen'
                           ? 'bg-emerald-100 text-emerald-800'
                           : 'bg-amber-100 text-amber-800'
-                      }`}>
+                        }`}>
                         {k.classification}
                       </span>
                     </div>

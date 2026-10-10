@@ -119,12 +119,13 @@ export default function KaizenReviewBoard({ kaizens, onUpdateKaizen }: KaizenRev
   // Filtered Kaizens calculation
   const filteredKaizens = kaizens.filter(k => {
     // Search
+    const q = searchQuery.toLowerCase();
     const matchesSearch = searchQuery === '' ||
-      k.srNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.ideaBy.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.minifactory.toLowerCase().includes(searchQuery.toLowerCase());
+      (k.srNo || '').toLowerCase().includes(q) ||
+      (k.title || '').toLowerCase().includes(q) ||
+      (k.ideaBy || '').toLowerCase().includes(q) ||
+      (k.location || '').toLowerCase().includes(q) ||
+      (k.minifactory || '').toLowerCase().includes(q);
 
     // Status
     const matchesStatus = filterStatus === 'All' || k.status === filterStatus;

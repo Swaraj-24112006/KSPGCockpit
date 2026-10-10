@@ -92,11 +92,12 @@ export default function KaizenSpreadsheet({ kaizens, onSelectKaizen, onUpdateKai
 
   // Filter kaizens
   const filteredKaizens = kaizens.filter(k => {
+    const q = search.toLowerCase();
     const matchesSearch = 
-      k.title.toLowerCase().includes(search.toLowerCase()) ||
-      k.srNo.toLowerCase().includes(search.toLowerCase()) ||
-      k.ideaBy.toLowerCase().includes(search.toLowerCase()) ||
-      k.problemBefore.toLowerCase().includes(search.toLowerCase());
+      (k.title || '').toLowerCase().includes(q) ||
+      (k.srNo || '').toLowerCase().includes(q) ||
+      (k.ideaBy || '').toLowerCase().includes(q) ||
+      (k.problemBefore || '').toLowerCase().includes(q);
 
     const matchesMinifactory = filterMinifactory === 'All' || k.minifactory === filterMinifactory;
     const matchesStatus = filterStatus === 'All' || k.status === filterStatus;

@@ -37,9 +37,34 @@ from core.rbac import (
     PERM_KAIZEN_DELETE_DRAFT,
 )
 
+from rest_framework.pagination import PageNumberPagination
 import logging
 
 logger = logging.getLogger('kaizen')
+
+
+class KaizenPagination(PageNumberPagination):
+    """
+    Custom pagination class for Kaizen list view.
+    Defaults to unpaginated (returns all records) when '?page=' query parameter is omitted,
+    enabling committee review boards, spreadsheets, and dashboards to display all records.
+    Explicitly paginates if ?page=N is specified.
+    Supports ?page_size=all / ?all=true / ?pagination=false to disable pagination explicitly.
+    """
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 10000
+
+    def paginate_queryset(self, queryset, request, view=None):
+        page_size = request.query_params.get(self.page_size_query_param)
+        if (
+            page_size in ('all', '0', '-1')
+            or request.query_params.get('all') == 'true'
+            or request.query_params.get('pagination') == 'false'
+            or 'page' not in request.query_params
+        ):
+            return None
+        return super().paginate_queryset(queryset, request, view)
 
 
 
@@ -48,7 +73,7 @@ class KaizenViewSet(viewsets.ModelViewSet):
     Main Kaizen CRUD ViewSet.
 
     Endpoints:
-        GET    /api/v1/kaizens/              — List all Kaizens (filtered, paginated, sorted)
+        GET    /api/v1/kaizens/              — List all Kaizens (filtered, unpaginated by default, sorted)
         POST   /api/v1/kaizens/              — Create a new Kaizen / Save Draft
         GET    /api/v1/kaizens/<id>/          — Get Kaizen detail
         PUT    /api/v1/kaizens/<id>/          — Update Kaizen (drafts/rework or committee review)
@@ -59,6 +84,7 @@ class KaizenViewSet(viewsets.ModelViewSet):
         GET    /api/v1/kaizens/my-kaizens/     — Current user's Kaizens
     """
     permission_classes = [AllowAny]
+    pagination_class = KaizenPagination
     filterset_class = KaizenFilter
     search_fields = ['title', 'problem_before', 'counter_measure_after', 'idea_by', 'area']
     ordering_fields = [

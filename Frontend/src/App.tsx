@@ -321,16 +321,30 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
     try {
       setIsLoading(true);
       
-      // Fetch Kaizens from Django Backend
-      const dataK = await fetchJsonSafe('/api/v1/kaizens/');
+      // Fetch Kaizens from Django Backend (all Kaizens for Review Board & Spreadsheet)
+      const dataK = await fetchJsonSafe('/api/v1/kaizens/?all=true');
       if (dataK) {
         let rawList: any[] = [];
-        if (dataK.results && Array.isArray(dataK.results)) {
-          rawList = dataK.results;
+        if (Array.isArray(dataK)) {
+          rawList = dataK;
         } else if (dataK.data && Array.isArray(dataK.data)) {
           rawList = dataK.data;
-        } else if (Array.isArray(dataK)) {
-          rawList = dataK;
+        } else if (dataK.results && Array.isArray(dataK.results)) {
+          rawList = [...dataK.results];
+          // Follow pagination if multiple pages exist
+          let nextUrl = dataK.next;
+          while (nextUrl) {
+            const nextPage = await fetchJsonSafe(nextUrl);
+            if (nextPage?.results && Array.isArray(nextPage.results)) {
+              rawList.push(...nextPage.results);
+              nextUrl = nextPage.next;
+            } else if (Array.isArray(nextPage)) {
+              rawList.push(...nextPage);
+              break;
+            } else {
+              break;
+            }
+          }
         }
         setKaizens(rawList.map(normalizeKaizen));
       }
