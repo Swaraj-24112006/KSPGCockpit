@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Kaizen } from '../types';
 import { BarChart, Clock, CheckCircle, TrendingUp, IndianRupee, Activity, Users, Award, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatIndianRupees, formatIndianRupeesCompact } from '../utils';
-import { RoleCategory, canAccessTab } from '../shared/utils/rbac';
 import ExecutiveAnalyticsBoard from './ExecutiveAnalyticsBoard';
 import EmployeeKaizenChart from './EmployeeKaizenChart';
 
@@ -10,10 +9,9 @@ interface DashboardProps {
   kaizens: Kaizen[];
   onSelectKaizen: (k: Kaizen) => void;
   onNavigateToTab: (tab: 'form' | 'committee' | 'list' | 'cft-awards' | 'process-flowchart' | 'gamification') => void;
-  userRole?: RoleCategory;
 }
 
-export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, userRole }: DashboardProps) {
+export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab }: DashboardProps) {
   const [isPendingCollapsed, setIsPendingCollapsed] = useState(false);
 
   // Compute analytics metrics
@@ -71,14 +69,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => {
-                const el = document.getElementById('employee-kaizen-chart-section');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth' });
-                } else {
-                  onNavigateToTab('gamification');
-                }
-              }}
+              onClick={() => onNavigateToTab('gamification')}
               className="px-5 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-xs transition-all shadow-md flex items-center space-x-1.5 cursor-pointer border border-amber-300 ring-2 ring-amber-400/20"
             >
               <span>🎮 Gamification & Density</span>
@@ -89,22 +80,18 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
             >
               <span>🔄 End-to-End Flowchart</span>
             </button>
-            {(!userRole || canAccessTab(userRole, 'kaizen', 'form')) && (
-              <button
-                onClick={() => onNavigateToTab('form')}
-                className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 cursor-pointer"
-              >
-                <span>👷 Log New Kaizen</span>
-              </button>
-            )}
-            {(!userRole || canAccessTab(userRole, 'kaizen', 'committee')) && (
-              <button
-                onClick={() => onNavigateToTab('committee')}
-                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
-              >
-                <span>👥 Review Meeting</span>
-              </button>
-            )}
+            <button
+              onClick={() => onNavigateToTab('form')}
+              className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center space-x-1.5 cursor-pointer"
+            >
+              <span>👷 Log New Kaizen</span>
+            </button>
+            <button
+              onClick={() => onNavigateToTab('committee')}
+              className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer"
+            >
+              <span>👥 Review Meeting</span>
+            </button>
             <button
               onClick={() => onNavigateToTab('cft-awards')}
               className="px-5 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs transition-all shadow-md flex items-center space-x-1.5 cursor-pointer border border-amber-300"
@@ -115,8 +102,11 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
         </div>
       </div>
 
-      {/* Executive Analytics Dashboard (Matching User Uploaded Benchmark Charts & Employee Leaderboard) */}
-      <ExecutiveAnalyticsBoard kaizens={kaizens} onSelectKaizen={onSelectKaizen} />
+      {/* Executive Analytics Dashboard (Matching User Uploaded Benchmark Charts) */}
+      <ExecutiveAnalyticsBoard kaizens={kaizens} />
+
+      {/* Employee-wise Number of Kaizen Graphs & Leaderboard */}
+      <EmployeeKaizenChart kaizens={kaizens} onSelectKaizen={onSelectKaizen} />
 
       {/* Bento Grid Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -199,7 +189,11 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <text x="35" y="124" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">2</text>
               <text x="35" y="174" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">0</text>
 
-              {/* Trend line coordinates */}
+              {/* Trend line coordinates: 
+                  May: value is monthCounts['May'] or 1. x=150, y = 170 - (val * 15)
+                  June: value is monthCounts['June']. x=300, y = 170 - (val * 15)
+                  July: value is monthCounts['July']. x=450, y = 170 - (val * 15)
+              */}
               {(() => {
                 const mayVal = monthCounts["May"] || 1;
                 const juneVal = monthCounts["June"] || 3;

@@ -17,10 +17,9 @@ import { formatIndianRupees } from '../utils';
 
 interface ExecutiveAnalyticsBoardProps {
   kaizens?: Kaizen[];
-  onSelectKaizen?: (k: Kaizen) => void;
 }
 
-export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }: ExecutiveAnalyticsBoardProps) {
+export default function ExecutiveAnalyticsBoard({ kaizens = [] }: ExecutiveAnalyticsBoardProps) {
   // Slicer States
   const [selectedYear, setSelectedYear] = useState<string>('2025');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
@@ -667,9 +666,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
       </div>
 
       {/* SECTION 4: EMPLOYEE-WISE KAIZEN SUBMISSION & PARTICIPATION LEADERBOARD */}
-      <div id="employee-kaizen-chart-section">
-        <EmployeeKaizenChart kaizens={kaizens} darkMode={true} onSelectKaizen={onSelectKaizen} />
-      </div>
+      <EmployeeKaizenChart kaizens={kaizens} darkMode={true} />
 
     </div>
   );
