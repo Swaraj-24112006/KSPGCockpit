@@ -133,6 +133,8 @@ class Kaizen(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['classification']),
+            models.Index(fields=['suggestion_date']),
+            models.Index(fields=['mini_factory', 'status']),
             models.Index(fields=['area']),
             models.Index(fields=['mini_factory']),
             models.Index(fields=['month']),
@@ -311,3 +313,61 @@ class KaizenCostSaving(models.Model):
 
     def __str__(self):
         return f"{self.kaizen.sr_no} — ₹{self.savings_inr:,.2f}"
+
+
+class Department(models.Model):
+    """
+    Reference table for factory departments / minifactories.
+    Seeded with MF1, MF2, MF3, MC, Maintenance, QA, NCM, OTH.
+    """
+    code = models.CharField(max_length=50, unique=True, help_text='Unique code (e.g., MF1, MC, QA)')
+    display_name = models.CharField(max_length=100, help_text='Short display name (e.g., MF 1, MC)')
+    description = models.CharField(max_length=255, blank=True, help_text='Department description (e.g., Vacuum & Oil Pump)')
+    color = models.CharField(max_length=20, default='#3b82f6', help_text='Chart color HEX string')
+    sort_order = models.PositiveIntegerField(default=0, help_text='Display ordering priority')
+
+    class Meta:
+        db_table = 'departments'
+        ordering = ['sort_order', 'code']
+        verbose_name = 'Department'
+        verbose_name_plural = 'Departments'
+
+    def __str__(self):
+        return f"{self.display_name} ({self.code})"
+
+
+class AnnualHeadcount(models.Model):
+    """
+    Annual headcount for calculating Kaizens Per Employee.
+    Editable in Django Admin.
+    """
+    year = models.PositiveIntegerField(unique=True, help_text='Calendar year (e.g., 2025)')
+    headcount = models.PositiveIntegerField(help_text='Total employee headcount for the year')
+
+    class Meta:
+        db_table = 'annual_headcount'
+        ordering = ['-year']
+        verbose_name = 'Annual Headcount'
+        verbose_name_plural = 'Annual Headcounts'
+
+    def __str__(self):
+        return f"{self.year}: {self.headcount} employees"
+
+
+class LegacyYearlySummary(models.Model):
+    """
+    Historical Kaizen benchmark statistics for years before the digital system was deployed (2021-2024).
+    """
+    year = models.PositiveIntegerField(unique=True, help_text='Calendar year')
+    kaizens = models.PositiveIntegerField(default=0, help_text='Total implemented Kaizens in that year')
+    savings = models.DecimalField(max_digits=15, decimal_places=2, default=0, help_text='Validated cost savings in INR')
+    headcount = models.PositiveIntegerField(null=True, blank=True, help_text='Implied or audited headcount')
+
+    class Meta:
+        db_table = 'legacy_yearly_summaries'
+        ordering = ['year']
+        verbose_name = 'Legacy Yearly Summary'
+        verbose_name_plural = 'Legacy Yearly Summaries'
+
+    def __str__(self):
+        return f"{self.year}: {self.kaizens} kaizens, ₹{self.savings:,.2f}"

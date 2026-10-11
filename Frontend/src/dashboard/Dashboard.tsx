@@ -1,67 +1,151 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Kaizen } from '../types';
-import { BarChart, Clock, CheckCircle, TrendingUp, IndianRupee, Activity, Users, Award, HelpCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle,
+  TrendingUp,
+  IndianRupee,
+  Activity,
+  Calendar,
+  Filter,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw,
+} from 'lucide-react';
 import { formatIndianRupees, formatIndianRupeesCompact } from '../utils';
 import { RoleCategory, canAccessTab } from '../shared/utils/rbac';
 import ExecutiveAnalyticsBoard from './ExecutiveAnalyticsBoard';
-import EmployeeKaizenChart from './EmployeeKaizenChart';
+import { useDashboardAnalytics } from './hooks/useAnalytics';
+import { niceMax, buildLinePath, buildAreaPath, generateAxisTicks, Point2D } from '../components/charts/chartPrimitives';
+import {
+  AnalyticsSkeleton,
+  AnalyticsError,
+  AnalyticsEmpty,
+  LastUpdatedBadge
+} from '../components/charts/AnalyticsStates';
 
 interface DashboardProps {
   kaizens: Kaizen[];
-  onSelectKaizen: (k: Kaizen) => void;
+  onSelectKaizen: (k: Kaizen | any) => void;
   onNavigateToTab: (tab: 'form' | 'committee' | 'list' | 'cft-awards' | 'process-flowchart' | 'gamification') => void;
   userRole?: RoleCategory;
 }
 
+type PeriodFilter = 'this_year' | 'this_quarter' | 'this_month' | 'all';
+
 export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, userRole }: DashboardProps) {
   const [isPendingCollapsed, setIsPendingCollapsed] = useState(false);
+  const [period, setPeriod] = useState<PeriodFilter>('this_year');
 
-  // Compute analytics metrics
-  const totalLogged = kaizens.length;
-  const pendingKaizens = kaizens.filter(k => k.status === 'Pending');
-  const approvedKaizens = kaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point');
-  const totalSavings = approvedKaizens.reduce((sum, k) => sum + (k.costSave || 0), 0);
+  // Compute from / to dates for the period filter
+  const { from, to } = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-indexed
 
-  // 1. Minifactory breakdown
-  const minifactoryCounts: Record<string, number> = {};
-  kaizens.forEach(k => {
-    minifactoryCounts[k.minifactory] = (minifactoryCounts[k.minifactory] || 0) + 1;
-  });
-
-  // 2. PQCDSM metrics frequency
-  const benefitsCounts = { p: 0, q: 0, c: 0, d: 0, s: 0, m: 0 };
-  kaizens.forEach(k => {
-    if (k.benefits?.p) benefitsCounts.p++;
-    if (k.benefits?.q) benefitsCounts.q++;
-    if (k.benefits?.c) benefitsCounts.c++;
-    if (k.benefits?.d) benefitsCounts.d++;
-    if (k.benefits?.s) benefitsCounts.s++;
-    if (k.benefits?.m) benefitsCounts.m++;
-  });
-
-  // 3. Simple Month over Month trend (e.g. May, June, July)
-  const monthCounts: Record<string, number> = { "May": 0, "June": 0, "July": 0 };
-  kaizens.forEach(k => {
-    // If month is June or July, increment, else default May/etc.
-    const m = k.month || 'July';
-    if (monthCounts[m] !== undefined) {
-      monthCounts[m]++;
+    if (period === 'this_month') {
+      const start = new Date(y, m, 1);
+      const end = new Date(y, m + 1, 0);
+      return {
+        from: start.toISOString().split('T')[0],
+        to: end.toISOString().split('T')[0],
+      };
+    } else if (period === 'this_quarter') {
+      const qStartMonth = Math.floor(m / 3) * 3;
+      const start = new Date(y, qStartMonth, 1);
+      const end = new Date(y, qStartMonth + 3, 0);
+      return {
+        from: start.toISOString().split('T')[0],
+        to: end.toISOString().split('T')[0],
+      };
+    } else if (period === 'all') {
+      return {
+        from: '2020-01-01',
+        to: `${y + 1}-12-31`,
+      };
     } else {
-      monthCounts[m] = 1;
+      // 'this_year' (default)
+      return {
+        from: `${y}-01-01`,
+        to: `${y}-12-31`,
+      };
     }
-  });
+  }, [period]);
+
+  // Live analytics from PostgreSQL backend
+  const { data, isLoading, isFetching, error, refetch } = useDashboardAnalytics({ from, to });
+
+  // Fallback / safe defaults when loading or empty
+  const summary = data?.summary || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    approvalRate: null,
+    totalSavings: 0,
+  };
+
+  const monthlyTrend = data?.monthlyTrend || [];
+  const pqcdsm = data?.pqcdsm || [];
+  const byMinifactory = data?.byMinifactory || [];
+  const topSavings = data?.topSavings || [];
+  const pendingKaizens = data?.pending || [];
+  const recentApprovals = data?.recentApprovals || [];
+
+  // Monthly trend chart geometry calculations with niceMax
+  const { chartPoints, maxTrendVal, axisTicks, linePath, areaPath } = useMemo(() => {
+    if (monthlyTrend.length === 0) {
+      return { chartPoints: [], maxTrendVal: 10, axisTicks: [10, 5, 0], linePath: '', areaPath: '' };
+    }
+
+    const counts = monthlyTrend.map(d => d.count);
+    const rawMax = Math.max(...counts, 1);
+    const maxVal = niceMax(rawMax);
+    const ticks = generateAxisTicks(maxVal, 3);
+
+    // SVG coordinates: Width 600, Height 200.
+    // Chart area: x in [70, 560], y in [30, 165] (165 is baseline y)
+    const baselineY = 165;
+    const topY = 30;
+    const leftX = 70;
+    const rightX = 560;
+    const usableW = rightX - leftX;
+    const usableH = baselineY - topY;
+
+    const countPts = monthlyTrend.length;
+    const pts: Point2D[] = monthlyTrend.map((d, i) => {
+      const x = countPts > 1 ? leftX + (i / (countPts - 1)) * usableW : leftX + usableW / 2;
+      const normalizedH = (d.count / maxVal) * usableH;
+      const y = baselineY - normalizedH;
+      return { x, y };
+    });
+
+    const lPath = buildLinePath(pts);
+    const aPath = buildAreaPath(pts, baselineY);
+
+    return {
+      chartPoints: pts,
+      maxTrendVal: maxVal,
+      axisTicks: ticks,
+      linePath: lPath,
+      areaPath: aPath,
+    };
+  }, [monthlyTrend]);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 font-sans">
 
       {/* Opening Intro Hero block */}
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-md border border-slate-800 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-900 px-2.5 py-1 rounded-full uppercase tracking-widest font-mono">
-              ⚡ LIVE MANUFACTURING KAIZEN STATS
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-900 px-2.5 py-1 rounded-full uppercase tracking-widest font-mono">
+                ⚡ LIVE MANUFACTURING KAIZEN STATS
+              </span>
+              <LastUpdatedBadge generatedAt={data?.generatedAt} isFetching={isFetching} darkMode={true} />
+            </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Factory Continuous Improvement Tracker
             </h2>
@@ -69,6 +153,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               Every small daily improvement accumulates. Log Kaizen sheets at workstations, evaluate ROI values, and accelerate lean manufacturing standards.
             </p>
           </div>
+
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => {
@@ -115,12 +200,58 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
         </div>
       </div>
 
+      {/* Scope Controls & Period Selector */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center space-x-2">
+          <Calendar className="w-4 h-4 text-slate-500" />
+          <span className="text-xs font-bold uppercase font-mono text-slate-700">Analytics Period:</span>
+          <div className="flex rounded-xl overflow-hidden border border-slate-200 bg-slate-50 p-0.5 text-xs font-mono">
+            {[
+              { id: 'this_year', label: 'This Year' },
+              { id: 'this_quarter', label: 'This Quarter' },
+              { id: 'this_month', label: 'This Month' },
+              { id: 'all', label: 'All History' },
+            ].map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPeriod(p.id as PeriodFilter)}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  period === p.id
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-950'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3 text-xs font-mono">
+          <LastUpdatedBadge generatedAt={data?.generatedAt} isFetching={isFetching} />
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+            title="Refresh Live Data"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Error state alert */}
+      {error && !data && (
+        <AnalyticsError message={error.message} onRetry={() => refetch()} />
+      )}
+
       {/* Executive Analytics Dashboard (Matching User Uploaded Benchmark Charts & Employee Leaderboard) */}
       <ExecutiveAnalyticsBoard kaizens={kaizens} onSelectKaizen={onSelectKaizen} />
 
       {/* Bento Grid Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
         {/* Total Logged */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
@@ -129,8 +260,10 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <Activity className="w-4 h-4 text-slate-700" />
             </div>
           </div>
-          <div className="text-3xl font-black text-slate-900 font-mono tracking-tight">{totalLogged}</div>
-          <div className="text-[10px] text-slate-400 mt-2 font-medium">Accumulated across all minifactories</div>
+          <div className="text-3xl font-black text-slate-900 font-mono tracking-tight">
+            {isLoading && !data ? '—' : summary.total}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-2 font-medium">Accumulated across all minifactories in window</div>
         </div>
 
         {/* Pending Approval */}
@@ -141,7 +274,9 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-          <div className="text-3xl font-black text-amber-700 font-mono tracking-tight">{pendingKaizens.length}</div>
+          <div className="text-3xl font-black text-amber-700 font-mono tracking-tight">
+            {isLoading && !data ? '—' : summary.pending}
+          </div>
           <div className="text-[10px] text-amber-500/80 mt-2 font-medium">Awaiting discussion in committee</div>
         </div>
 
@@ -153,8 +288,12 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <CheckCircle className="w-4 h-4 text-emerald-500" />
             </div>
           </div>
-          <div className="text-3xl font-black text-emerald-700 font-mono tracking-tight">{approvedKaizens.length}</div>
-          <div className="text-[10px] text-emerald-500/80 mt-2 font-medium">Standardized as factory protocols</div>
+          <div className="text-3xl font-black text-emerald-700 font-mono tracking-tight">
+            {isLoading && !data ? '—' : summary.approved}
+          </div>
+          <div className="text-[10px] text-emerald-500/80 mt-2 font-medium">
+            Standardized protocols (Rate: {summary.approvalRate !== null ? `${Math.round(summary.approvalRate * 100)}%` : '—'})
+          </div>
         </div>
 
         {/* Financial ROI */}
@@ -165,13 +304,14 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <IndianRupee className="w-4 h-4 text-indigo-500" />
             </div>
           </div>
-          <div className="text-3xl font-black text-indigo-900 font-mono tracking-tight">{formatIndianRupees(totalSavings)}</div>
-          <div className="text-[10px] text-indigo-500/80 mt-2 font-medium">Total validated cost reduction</div>
+          <div className="text-3xl font-black text-indigo-900 font-mono tracking-tight">
+            {isLoading && !data ? '—' : formatIndianRupees(summary.totalSavings)}
+          </div>
+          <div className="text-[10px] text-indigo-500/80 mt-2 font-medium">Total validated cost reduction (Closed only)</div>
         </div>
-
       </div>
 
-      {/* CHARTS CONTAINER - Custom Responsive Premium SVGs (Zero peer dependency issues) */}
+      {/* CHARTS CONTAINER - Custom Responsive Premium SVGs derived cleanly from live data */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Growth Trend (Line Chart) */}
@@ -181,71 +321,83 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
               <h3 className="text-xs font-bold text-slate-700 uppercase font-mono">📈 MONTHLY GROWTH TRENDS</h3>
               <p className="text-[11px] text-slate-400 font-medium">Total logged improvements submitted per calendar month</p>
             </div>
-            <span className="text-[10px] font-bold text-slate-500 font-mono uppercase bg-slate-100 px-2.5 py-1 rounded-md">LOGGED FREQUENCY</span>
+            <span className="text-[10px] font-bold text-slate-500 font-mono uppercase bg-slate-100 px-2.5 py-1 rounded-md">
+              LOGGED FREQUENCY
+            </span>
           </div>
 
           {/* SVG Line Chart */}
           <div className="relative w-full h-56 flex items-end">
-            <svg viewBox="0 0 600 200" className="w-full h-full" strokeLinecap="round" strokeLinejoin="round">
-              {/* Grid Lines */}
-              <line x1="50" y1="20" x2="550" y2="20" stroke="#f1f5f9" strokeWidth="1" />
-              <line x1="50" y1="70" x2="550" y2="70" stroke="#f1f5f9" strokeWidth="1" />
-              <line x1="50" y1="120" x2="550" y2="120" stroke="#f1f5f9" strokeWidth="1" />
-              <line x1="50" y1="170" x2="550" y2="170" stroke="#f1f5f9" strokeWidth="1.5" />
+            {isLoading && !data ? (
+              <AnalyticsSkeleton height="h-56" />
+            ) : monthlyTrend.length === 0 ? (
+              <AnalyticsEmpty title="No Trend Data" subtitle="No submissions recorded in this date range." />
+            ) : (
+              <svg viewBox="0 0 600 200" className="w-full h-full" strokeLinecap="round" strokeLinejoin="round">
+                {/* Horizontal Grid Lines */}
+                {axisTicks.map((val) => {
+                  const yPos = 165 - (val / maxTrendVal) * 135;
+                  return (
+                    <g key={val}>
+                      <line x1="50" y1={yPos} x2="570" y2={yPos} stroke="#f1f5f9" strokeWidth="1" />
+                      <text x="42" y={yPos + 4} fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">
+                        {val}
+                      </text>
+                    </g>
+                  );
+                })}
 
-              {/* Y Axis labels */}
-              <text x="35" y="24" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">10</text>
-              <text x="35" y="74" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">5</text>
-              <text x="35" y="124" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">2</text>
-              <text x="35" y="174" fill="#94a3b8" fontSize="9" fontFamily="monospace" textAnchor="end">0</text>
+                {/* Base axis line */}
+                <line x1="50" y1="165" x2="570" y2="165" stroke="#e2e8f0" strokeWidth="1.5" />
 
-              {/* Trend line coordinates */}
-              {(() => {
-                const mayVal = monthCounts["May"] || 1;
-                const juneVal = monthCounts["June"] || 3;
-                const julyVal = monthCounts["July"] || 3;
+                {/* Area Gradient Fill */}
+                <path d={areaPath} fill="url(#blueGradDashboard)" opacity="0.12" />
 
-                const yMay = 170 - (mayVal * 15);
-                const yJune = 170 - (juneVal * 15);
-                const yJuly = 170 - (julyVal * 15);
+                {/* Line Path */}
+                <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="3" />
 
-                const linePath = `M 150 ${yMay} L 300 ${yJune} L 450 ${yJuly}`;
-                const areaPath = `M 150 170 L 150 ${yMay} L 300 ${yJune} L 450 ${yJuly} L 450 170 Z`;
+                {/* Data Points */}
+                {chartPoints.map((pt, i) => {
+                  const mData = monthlyTrend[i];
+                  return (
+                    <g key={mData.month}>
+                      <circle cx={pt.x} cy={pt.y} r="4.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="2" />
+                      {mData.count > 0 && (
+                        <text
+                          x={pt.x}
+                          y={pt.y - 10}
+                          fill="#1e3a8a"
+                          fontSize="10"
+                          fontWeight="bold"
+                          fontFamily="monospace"
+                          textAnchor="middle"
+                        >
+                          {mData.count}
+                        </text>
+                      )}
+                      <text
+                        x={pt.x}
+                        y="185"
+                        fill="#64748b"
+                        fontSize="9"
+                        fontWeight="bold"
+                        fontFamily="sans-serif"
+                        textAnchor="middle"
+                      >
+                        {mData.label.split(' ')[0]}
+                      </text>
+                    </g>
+                  );
+                })}
 
-                return (
-                  <>
-                    {/* Glowing area fill */}
-                    <path d={areaPath} fill="url(#blueGrad)" opacity="0.1" />
-                    
-                    {/* Colored path */}
-                    <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="3" />
-
-                    {/* Circles on vertices */}
-                    <circle cx="150" cy={yMay} r="5" fill="#3b82f6" stroke="white" strokeWidth="2" />
-                    <circle cx="300" cy={yJune} r="5" fill="#3b82f6" stroke="white" strokeWidth="2" />
-                    <circle cx="450" cy={yJuly} r="5" fill="#3b82f6" stroke="white" strokeWidth="2" />
-
-                    {/* Numeric Labels */}
-                    <text x="150" y={yMay - 10} fill="#1e3a8a" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">{mayVal}</text>
-                    <text x="300" y={yJune - 10} fill="#1e3a8a" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">{juneVal}</text>
-                    <text x="450" y={yJuly - 10} fill="#1e3a8a" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">{julyVal}</text>
-                  </>
-                );
-              })()}
-
-              {/* X Axis labels */}
-              <text x="150" y="190" fill="#64748b" fontSize="10" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">May</text>
-              <text x="300" y="190" fill="#64748b" fontSize="10" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">June</text>
-              <text x="450" y="190" fill="#64748b" fontSize="10" fontWeight="bold" fontFamily="sans-serif" textAnchor="middle">July (Current)</text>
-
-              {/* Definitions */}
-              <defs>
-                <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="100%" stopColor="#ffffff" />
-                </linearGradient>
-              </defs>
-            </svg>
+                <defs>
+                  <linearGradient id="blueGradDashboard" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#3b82f6" />
+                    <stop offset="100%" stopColor="#ffffff" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            )}
           </div>
         </div>
 
@@ -257,29 +409,33 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
           </div>
 
           <div className="space-y-3 font-mono text-xs">
-            {[
-              { label: 'P', name: 'Productivity', count: benefitsCounts.p, color: 'bg-blue-500' },
-              { label: 'Q', name: 'Quality', count: benefitsCounts.q, color: 'bg-indigo-500' },
-              { label: 'C', name: 'Cost', count: benefitsCounts.c, color: 'bg-emerald-500' },
-              { label: 'D', name: 'Delivery', count: benefitsCounts.d, color: 'bg-amber-500' },
-              { label: 'S', name: 'Safety', count: benefitsCounts.s, color: 'bg-red-500' },
-              { label: 'M', name: 'Morale', count: benefitsCounts.m, color: 'bg-purple-500' },
-            ].map(item => {
-              // Calculate width %
-              const percentage = totalLogged > 0 ? (item.count / totalLogged) * 100 : 0;
+            {pqcdsm.map(item => {
+              const colorMap: Record<string, string> = {
+                P: 'bg-blue-500',
+                Q: 'bg-indigo-500',
+                C: 'bg-emerald-500',
+                D: 'bg-amber-500',
+                S: 'bg-red-500',
+                M: 'bg-purple-500',
+              };
+              const color = colorMap[item.key] || 'bg-slate-600';
               return (
-                <div key={item.label} className="space-y-1">
+                <div key={item.key} className="space-y-1">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold text-slate-700 flex items-center space-x-1.5">
-                      <span className="bg-slate-100 text-slate-800 w-5 h-5 rounded flex items-center justify-center font-black">{item.label}</span>
+                      <span className="bg-slate-100 text-slate-800 w-5 h-5 rounded flex items-center justify-center font-black">
+                        {item.key}
+                      </span>
                       <span>{item.name}</span>
                     </span>
-                    <span className="font-bold text-slate-500">{item.count} hits</span>
+                    <span className="font-bold text-slate-500">
+                      {item.count} hits ({item.pct}%)
+                    </span>
                   </div>
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                     <div
-                      className={`${item.color} h-full rounded-full transition-all duration-500`}
-                      style={{ width: `${Math.max(percentage, 5)}%` }}
+                      className={`${color} h-full rounded-full transition-all duration-500`}
+                      style={{ width: `${item.pct}%` }}
                     />
                   </div>
                 </div>
@@ -299,27 +455,25 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
             🏭 MINIFFACTORY SUBMISSIONS INDEX
           </h3>
           <div className="divide-y divide-slate-100">
-            {['MF1', 'MF2', 'MF3', 'Machining'].map(factory => {
-              const count = minifactoryCounts[factory] || 0;
-              const pct = totalLogged > 0 ? (count / totalLogged) * 100 : 0;
-              const subDescription = factory === 'MF1' ? 'Vacuum & Oil Pump' : factory === 'MF2' ? 'All types of EGR' : factory === 'MF3' ? 'BPV' : 'Milling & Grinder';
-              return (
-                <div key={factory} className="py-2.5 flex items-center justify-between first:pt-0">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-800">{factory}</span>
-                    <span className="text-[10px] text-slate-400 font-medium font-mono">{subDescription}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 w-1/2">
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-slate-900 h-full rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-xs font-mono font-bold text-slate-600 shrink-0 w-8 text-right">
-                      {count} shts
-                    </span>
-                  </div>
+            {byMinifactory.map(factory => (
+              <div key={factory.code} className="py-2.5 flex items-center justify-between first:pt-0">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-slate-800">{factory.name || factory.code}</span>
+                  <span className="text-[10px] text-slate-400 font-medium font-mono">{factory.description}</span>
                 </div>
-              );
-            })}
+                <div className="flex items-center space-x-3 w-1/2">
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-slate-900 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${factory.pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-600 shrink-0 w-12 text-right">
+                    {factory.count} shts
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -329,11 +483,12 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
             🏆 TOP FINANCIAL VALUE IMPROVEMENTS
           </h3>
           <div className="divide-y divide-slate-100">
-            {kaizens
-              .filter(k => k.costSave > 0)
-              .sort((a, b) => b.costSave - a.costSave)
-              .slice(0, 4)
-              .map(k => (
+            {topSavings.length === 0 ? (
+              <div className="p-8 text-xs text-center text-slate-400 font-medium">
+                No approved Kaizens with positive ROI recorded in this window yet.
+              </div>
+            ) : (
+              topSavings.map(k => (
                 <div
                   key={k.id}
                   onClick={() => onSelectKaizen(k)}
@@ -341,19 +496,22 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
                 >
                   <div className="space-y-0.5 truncate pr-4">
                     <h4 className="text-xs font-bold text-slate-800 truncate">{k.title}</h4>
-                    <span className="text-[10px] text-slate-400 font-mono font-medium block">by {k.ideaBy} • {k.minifactory}</span>
+                    <span className="text-[10px] text-slate-400 font-mono font-medium block">
+                      by {k.ideaBy} • {k.minifactory}
+                    </span>
                   </div>
                   <span className="text-xs font-mono font-black text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md shrink-0">
                     +{formatIndianRupeesCompact(k.costSave)}/yr
                   </span>
                 </div>
-              ))}
+              ))
+            )}
           </div>
         </div>
 
       </div>
 
-      {/* OPENING SCREEN SUMMARY - PENDING ENTRIES AND RECENT APPROVALS (Attachment 2 requirement) */}
+      {/* OPENING SCREEN SUMMARY - PENDING ENTRIES AND RECENT APPROVALS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
         
         {/* SUMMARY: Pending Entries */}
@@ -406,7 +564,7 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
                         e.stopPropagation();
                         onSelectKaizen(k);
                       }}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline font-mono shrink-0"
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 underline font-mono shrink-0 cursor-pointer"
                     >
                       View Sheet
                     </button>
@@ -430,12 +588,12 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
           </div>
 
           <div className="divide-y divide-slate-100">
-            {approvedKaizens.length === 0 ? (
+            {recentApprovals.length === 0 ? (
               <div className="p-8 text-xs text-center text-slate-400 font-medium">
                 No recent approvals logged in the system database yet.
               </div>
             ) : (
-              approvedKaizens.slice(0, 4).map(k => (
+              recentApprovals.map(k => (
                 <div
                   key={k.id}
                   onClick={() => onSelectKaizen(k)}
@@ -444,19 +602,17 @@ export default function Dashboard({ kaizens, onSelectKaizen, onNavigateToTab, us
                   <div className="space-y-1 pr-4">
                     <div className="flex items-center space-x-2">
                       <span className="text-[10px] font-bold text-slate-400 font-mono">{k.srNo}</span>
-                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase ${
-                        k.classification === 'Kaizen'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {k.classification}
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold font-mono uppercase bg-emerald-100 text-emerald-800">
+                        {k.classification || 'Kaizen'}
                       </span>
                     </div>
                     <h4 className="text-xs font-bold text-slate-800 line-clamp-1">{k.title}</h4>
-                    <p className="text-[11px] text-slate-500 truncate font-sans">ROI value: {formatIndianRupees(k.costSave)}/yr • {k.ideaBy}</p>
+                    <p className="text-[11px] text-slate-500 truncate font-sans">
+                      ROI value: {formatIndianRupees(k.costSave)}/yr • {k.ideaBy}
+                    </p>
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 font-mono self-center shrink-0">
-                    {k.month}
+                    {k.month || k.suggestionDate}
                   </span>
                 </div>
               ))

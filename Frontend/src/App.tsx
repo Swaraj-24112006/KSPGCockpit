@@ -10,11 +10,12 @@ import FiveSModule from './fiveS/FiveSModule';
 import SafetyModule from './safety/SafetyModule';
 import PpsrModule from './ppsr/PpsrModule';
 import CftAwardsModule from './cft/CftAwardsModule';
-import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction } from './types';
+import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction, KaizenImpactAssessment } from './types';
 import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
 import { RoleCategory, KaizenSubTab, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
 import { downloadElementAsPdf } from './shared/utils/pdfExporter';
+import { triggerAnalyticsInvalidation } from './api/analytics';
 
 interface AppProps {
   loggedInUser?: AuthUser | null;
@@ -206,6 +207,99 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       photoBeforeUrl: k.photoBeforeUrl || k.photo_before_url || k.photoBefore || k.photo_before || null,
       photoAfterUrl: k.photoAfterUrl || k.photo_after_url || k.photoAfter || k.photo_after || null,
       createdAt: k.createdAt || k.created_at || new Date().toISOString(),
+      impactAssessment: normalizeImpactAssessment(k.impactAssessment || k.impact_assessment),
+    };
+  };
+
+  const normalizeImpactAssessment = (ia: any): KaizenImpactAssessment | undefined => {
+    if (!ia) return undefined;
+    return {
+      decidedInReview: Boolean(ia.decidedInReview ?? ia.decided_in_review),
+      reviewedDate: ia.reviewedDate || ia.reviewed_date || '',
+      reviewedBy: ia.reviewedBy || ia.reviewed_by_name || 'CFT Committee Lead',
+      overallClosureStatus: ia.overallClosureStatus || ia.overall_closure_status || 'Pending Review',
+      closedBy: ia.closedBy || ia.closed_by_name || '',
+      closureDate: ia.closureDate || ia.closure_date || '',
+      closureRemarks: ia.closureRemarks || ia.closure_remarks || '',
+      fiveMChange: ia.fiveMChange || {
+        required: true,
+        description: 'Check 5M changes & revise standard parameters',
+        assignedTo: 'Kaizen Initiator',
+        status: 'Pending',
+        notes: ''
+      },
+      safetyImpact: ia.safetyImpact || {
+        required: true,
+        description: 'Perform EHS risk assessment & safety SOP check',
+        assignedTo: 'Kaizen Initiator',
+        status: 'Pending',
+        notes: ''
+      },
+      pfdUpdate: ia.pfdUpdate || {
+        required: true,
+        description: 'Revise Process Flow Diagram (PFD) drawing',
+        assignedTo: 'Kaizen Initiator',
+        status: 'Pending',
+        notes: ''
+      },
+      pfmeaUpdate: ia.pfmeaUpdate || {
+        required: true,
+        description: 'Update PFMEA failure mode RPN score & control measures',
+        assignedTo: 'Kaizen Initiator',
+        status: 'Pending',
+        notes: ''
+      },
+      allocatedResources: Array.isArray(ia.allocatedResources) 
+        ? ia.allocatedResources 
+        : (Array.isArray(ia.allocated_resources) 
+            ? ia.allocated_resources.map((r: any) => ({
+                id: String(r.id),
+                name: r.employee_name || r.name || '',
+                role: r.role_description || r.role || '',
+                taskAssigned: r.task_assigned || r.taskAssigned || '',
+              }))
+            : [])
+    };
+  };
+
+  const normalizeImpactAction = (a: any): OpenImpactAction => {
+    let cat = a.category || 'Method';
+    const catMap: Record<string, OpenImpactAction['category']> = {
+      'man': 'Man',
+      'machine': 'Machine',
+      'material': 'Material',
+      'method': 'Method',
+      'measurement': 'Measurement',
+      'safety': 'Safety',
+      'horizontal_deployment': 'Horizontal Deployment',
+      'five_m': 'Method',
+      'pfd': 'Method',
+      'pfmea': 'Method',
+    };
+    if (typeof cat === 'string' && catMap[cat.toLowerCase().replace(' ', '_')]) {
+      cat = catMap[cat.toLowerCase().replace(' ', '_')];
+    }
+
+    let stat: OpenImpactAction['status'] = 'Open';
+    const sLower = String(a.status || '').toLowerCase().replace(' ', '_');
+    if (sLower === 'closed' || sLower === 'completed') stat = 'Closed';
+    else if (sLower === 'in_progress') stat = 'In Progress';
+    else stat = 'Open';
+
+    return {
+      id: String(a.id),
+      kaizenSrNo: a.kaizenSrNo || a.kaizen_sr_no || 'KZ-GEN',
+      kaizenTitle: a.kaizenTitle || a.kaizen_title || 'Shopfloor Continuous Improvement Action',
+      department: a.department || 'MF1',
+      category: cat as OpenImpactAction['category'],
+      impactDescription: a.impactDescription || a.description || '',
+      assignedOwner: a.assignedOwner || a.assigned_owner_name || 'Unassigned',
+      targetDate: a.targetDate || a.target_date || '',
+      status: stat,
+      actionTaken: a.actionTaken || a.action_taken || '',
+      closedDate: a.closedDate || a.completed_date || '',
+      verifiedBy: a.verifiedBy || a.verified_by_name || '',
+      createdAt: a.createdAt || a.created_at || new Date().toISOString(),
     };
   };
 
@@ -411,9 +505,15 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         setPpsrDrafts(rawDrafts.map(normalizePpsrReport));
       }
 
-      // Fetch Open Impact Actions
-      const dataI = await fetchJsonSafe('/api/impactactions');
-      if (dataI?.success && Array.isArray(dataI.data)) setImpactActions(dataI.data);
+      // Fetch Open Impact Actions from Django Backend
+      const dataI = await fetchJsonSafe('/api/v1/impact-actions/');
+      if (dataI) {
+        let rawActions: any[] = [];
+        if (Array.isArray(dataI)) rawActions = dataI;
+        else if (dataI.data && Array.isArray(dataI.data)) rawActions = dataI.data;
+        else if (dataI.results && Array.isArray(dataI.results)) rawActions = dataI.results;
+        setImpactActions(rawActions.map(normalizeImpactAction));
+      }
 
     } catch (err) {
       console.error('Error loading SFMS data from backend:', err);
@@ -650,6 +750,7 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       if (submitRes.ok && (submitData.success || submitData.data)) {
         // Refresh list to get updated data and remove from drafts
         await fetchAllData();
+        triggerAnalyticsInvalidation();
         setEditingDraft(null);
         setActiveTab('dashboard');
         alert('🎉 Your Kaizen Sheet was successfully submitted for committee review!');
@@ -743,17 +844,35 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         };
       }
 
-      const res = await authFetch(`/api/v1/kaizens/${id}/`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(djangoPayload)
-      });
-      const data = await res.json();
+      if (updatedFields.impactAssessment) {
+        try {
+          await authFetch(`/api/v1/kaizens/${id}/impact-assessment/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedFields.impactAssessment),
+          });
+        } catch (impactErr) {
+          console.error('Error saving impact assessment:', impactErr);
+        }
+      }
+
+      let patchOk = true;
+      let data: any = {};
+      if (Object.keys(djangoPayload).length > 0) {
+        const res = await authFetch(`/api/v1/kaizens/${id}/`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(djangoPayload)
+        });
+        data = await res.json();
+        patchOk = Boolean(res.ok || data.success || data.id);
+      }
       
-      if (res.ok || data.success || data.id) {
+      if (patchOk) {
         // Optimistically update state immediately
         setKaizens(prev => prev.map(k => String(k.id) === String(id) ? normalizeKaizen({ ...k, ...updatedFields }) : k));
         await fetchAllData();
+        triggerAnalyticsInvalidation();
         if (inspectKaizen && String(inspectKaizen.id) === String(id)) {
           setInspectKaizen(prev => prev ? normalizeKaizen({ ...prev, ...updatedFields }) : null);
         }
@@ -993,15 +1112,17 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   // Open Impact Action handlers
   const handleAddImpactAction = async (actData: Partial<OpenImpactAction>) => {
     try {
-      const res = await authFetch('/api/impactactions', {
+      const res = await authFetch('/api/v1/impact-actions/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(actData)
       });
       const data = await res.json();
-      if (data.success) {
-        setImpactActions(prev => [data.data, ...prev]);
+      const raw = data.data || (data.id ? data : null);
+      if (raw) {
+        setImpactActions(prev => [normalizeImpactAction(raw), ...prev]);
       }
+      await fetchAllData();
     } catch (err) {
       console.error('Error adding Impact Action:', err);
     }
@@ -1009,15 +1130,18 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   const handleUpdateImpactAction = async (id: string, updates: Partial<OpenImpactAction>) => {
     try {
-      const res = await authFetch(`/api/impactactions/${id}`, {
+      const res = await authFetch(`/api/v1/impact-actions/${id}/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       });
       const data = await res.json();
-      if (data.success) {
-        setImpactActions(prev => prev.map(a => a.id === id ? data.data : a));
+      const raw = data.data || (data.id ? data : null);
+      if (raw) {
+        const normalized = normalizeImpactAction(raw);
+        setImpactActions(prev => prev.map(a => a.id === id ? normalized : a));
       }
+      await fetchAllData();
     } catch (err) {
       console.error('Error updating Impact Action:', err);
     }
@@ -1025,11 +1149,9 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   const handleDeleteImpactAction = async (id: string) => {
     try {
-      const res = await authFetch(`/api/impactactions/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        setImpactActions(prev => prev.filter(a => a.id !== id));
-      }
+      const res = await authFetch(`/api/v1/impact-actions/${id}/`, { method: 'DELETE' });
+      setImpactActions(prev => prev.filter(a => a.id !== id));
+      await fetchAllData();
     } catch (err) {
       console.error('Error deleting Impact Action:', err);
     }

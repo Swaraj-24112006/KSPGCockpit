@@ -15,15 +15,16 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'impact-actions', ImpactActionViewSet, basename='impact-action')
+router.register(r'impactactions', ImpactActionViewSet, basename='impactactions')
 
 urlpatterns = [
     # Impact Actions (standalone)
     path('', include(router.urls)),
 
     # Nested under kaizens
-    path('kaizens/<int:kaizen_id>/impact-assessment/', impact_assessment_view, name='impact-assessment'),
-    path('kaizens/<int:kaizen_id>/impact-items/', impact_items_view, name='impact-items'),
-    path('kaizens/<int:kaizen_id>/impact-items/<int:item_id>/', impact_item_detail, name='impact-item-detail'),
-    path('kaizens/<int:kaizen_id>/resources/', resources_view, name='resources'),
-    path('kaizens/<int:kaizen_id>/resources/<int:resource_id>/', resource_detail, name='resource-detail'),
+    path('kaizens/<str:kaizen_id>/impact-assessment/', impact_assessment_view, name='impact-assessment'),
+    path('kaizens/<str:kaizen_id>/impact-items/', impact_items_view, name='impact-items'),
+    path('kaizens/<str:kaizen_id>/impact-items/<int:item_id>/', impact_item_detail, name='impact-item-detail'),
+    path('kaizens/<str:kaizen_id>/resources/', resources_view, name='resources'),
+    path('kaizens/<str:kaizen_id>/resources/<int:resource_id>/', resource_detail, name='resource-detail'),
 ]

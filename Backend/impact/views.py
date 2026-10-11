@@ -5,7 +5,7 @@ Impact Views — Assessment CRUD, Impact Items, Actions, Resources
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.models import Q
@@ -29,13 +29,17 @@ from core.exceptions import KaizenAPIException
 # -----------------------------------------------------------------------
 
 @api_view(['GET', 'POST', 'PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def impact_assessment_view(request, kaizen_id):
     """
     GET/POST/PUT /api/v1/kaizens/<id>/impact-assessment/
     Retrieve, create, or update the impact assessment for a Kaizen.
+    Supports both integer id and sr_no strings.
     """
-    kaizen = get_object_or_404(Kaizen, pk=kaizen_id)
+    if str(kaizen_id).isdigit():
+        kaizen = get_object_or_404(Kaizen, pk=int(kaizen_id))
+    else:
+        kaizen = get_object_or_404(Kaizen, sr_no=kaizen_id)
 
     if request.method == 'GET':
         try:
@@ -49,78 +53,153 @@ def impact_assessment_view(request, kaizen_id):
         serializer = ImpactAssessmentSerializer(assessment)
         return Response({'success': True, 'data': serializer.data})
 
-    elif request.method == 'POST':
-        if hasattr(kaizen, 'impact_assessment'):
-            raise KaizenAPIException(
-                message='Impact assessment already exists. Use PUT to update.',
-                code='DUPLICATE_RESOURCE',
-                status_code=409,
-            )
-        serializer = ImpactAssessmentCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        assessment = serializer.save(
-            kaizen=kaizen,
-            reviewed_by=request.user,
-            reviewed_date=timezone.now().date(),
-        )
+    else:
+        # Idempotent POST / PUT / PATCH: get_or_create
+        assessment, _ = ImpactAssessment.objects.get_or_create(kaizen=kaizen)
 
-        # Auto-create the 4 standard impact items
-        for category in ['five_m', 'safety', 'pfd', 'pfmea']:
-            ImpactItem.objects.get_or_create(
-                assessment=assessment,
-                category=category,
-                defaults={'assigned_to_name': kaizen.idea_by}
-            )
+        # Set review metadata
+        assessment.decided_in_review = True
+        if not assessment.reviewed_date:
+            assessment.reviewed_date = timezone.now().date()
+        if request.user.is_authenticated and not assessment.reviewed_by:
+            assessment.reviewed_by = request.user
 
-        full_serializer = ImpactAssessmentSerializer(assessment)
-        return Response({
-            'success': True,
-            'message': 'Impact assessment created.',
-            'data': full_serializer.data,
-        }, status=status.HTTP_201_CREATED)
+        # 1. Update 4 standard impact items from camelCase or snake_case
+        category_map = {
+            'five_m': request.data.get('fiveMChange') or request.data.get('five_m_change'),
+            'safety': request.data.get('safetyImpact') or request.data.get('safety_impact'),
+            'pfd': request.data.get('pfdUpdate') or request.data.get('pfd_update'),
+            'pfmea': request.data.get('pfmeaUpdate') or request.data.get('pfmea_update'),
+        }
 
-    else:  # PUT / PATCH
-        try:
-            assessment = kaizen.impact_assessment
-        except ImpactAssessment.DoesNotExist:
-            raise KaizenAPIException(
-                message='No impact assessment exists. Create one first with POST.',
-                code='NOT_FOUND',
-                status_code=404,
-            )
-        partial = request.method == 'PATCH'
-        serializer = ImpactAssessmentCreateSerializer(
-            assessment, data=request.data, partial=partial
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        for cat_key, cat_data in category_map.items():
+            if isinstance(cat_data, dict):
+                item, _ = ImpactItem.objects.get_or_create(
+                    assessment=assessment,
+                    category=cat_key,
+                )
+                if 'required' in cat_data:
+                    item.required = bool(cat_data['required'])
+                if 'description' in cat_data:
+                    item.description = cat_data['description'] or ''
+                if 'assignedTo' in cat_data or 'assigned_to_name' in cat_data:
+                    item.assigned_to_name = cat_data.get('assignedTo') or cat_data.get('assigned_to_name') or ''
+                
+                # status mapping
+                stat = cat_data.get('status')
+                if stat:
+                    s_lower = str(stat).lower().replace(' ', '_').replace('-', '_')
+                    if s_lower in ('completed', 'closed'):
+                        item.status = 'completed'
+                    elif s_lower in ('not_required', 'notrequired'):
+                        item.status = 'not_required'
+                    elif s_lower in ('in_progress', 'inprogress'):
+                        item.status = 'in_progress'
+                    else:
+                        item.status = 'pending'
+                
+                if 'completedBy' in cat_data or 'completed_by_name' in cat_data:
+                    item.completed_by_name = cat_data.get('completedBy') or cat_data.get('completed_by_name') or ''
+                if 'completedDate' in cat_data or 'completed_date' in cat_data:
+                    item.completed_date = cat_data.get('completedDate') or cat_data.get('completed_date') or None
+                if 'notes' in cat_data:
+                    item.notes = cat_data.get('notes') or ''
+                
+                item.save()
+
+        # 2. Update allocated resources
+        resources_list = request.data.get('allocatedResources') or request.data.get('allocated_resources')
+        if isinstance(resources_list, list):
+            assessment.allocated_resources.all().delete()
+            for r in resources_list:
+                if isinstance(r, dict) and (r.get('name') or r.get('taskAssigned') or r.get('employee_name')):
+                    AllocatedResource.objects.create(
+                        assessment=assessment,
+                        employee_name=r.get('name') or r.get('employee_name') or '',
+                        role_description=r.get('role') or r.get('role_description') or 'Quality Engineer',
+                        task_assigned=r.get('taskAssigned') or r.get('task_assigned') or 'Impact Resolution'
+                    )
+
+        # 3. Closure metadata
+        closure_status = request.data.get('overallClosureStatus') or request.data.get('overall_closure_status')
+        if closure_status:
+            c_lower = str(closure_status).lower().replace(' ', '_').replace('-', '_')
+            if 'fully' in c_lower or 'closed' in c_lower:
+                assessment.overall_closure_status = 'fully_closed'
+                if not assessment.closure_date:
+                    assessment.closure_date = timezone.now()
+            elif 'action' in c_lower:
+                assessment.overall_closure_status = 'actions_allocated'
+            elif 'progress' in c_lower:
+                assessment.overall_closure_status = 'in_progress'
+            else:
+                assessment.overall_closure_status = 'pending_review'
+
+        if 'closureRemarks' in request.data:
+            assessment.closure_remarks = request.data.get('closureRemarks') or ''
+        elif 'closure_remarks' in request.data:
+            assessment.closure_remarks = request.data.get('closure_remarks') or ''
+
+        if request.user.is_authenticated and not assessment.closed_by:
+            assessment.closed_by = request.user
+
+        assessment.save()
         assessment.update_closure_status()
 
+        # 4. Bidirectional Sync with ImpactAction for 5M Change
+        five_m_item = assessment.impact_items.filter(category='five_m').first()
+        if five_m_item and five_m_item.required:
+            action_qs = ImpactAction.objects.filter(kaizen=kaizen, category__in=['five_m', 'method'])
+            action = action_qs.first()
+            if not action:
+                action = ImpactAction.objects.create(
+                    assessment=assessment,
+                    kaizen=kaizen,
+                    category='method',
+                    department=kaizen.mini_factory or 'MF1',
+                    description=five_m_item.description or f"5M Process Impact verification for {kaizen.sr_no}",
+                    assigned_owner_name=five_m_item.assigned_to_name or kaizen.idea_by or 'Kaizen Initiator',
+                    target_date=kaizen.closing_target_date or timezone.now().date(),
+                    status='closed' if five_m_item.status == 'completed' else 'open',
+                )
+            else:
+                action.assessment = assessment
+                action.department = kaizen.mini_factory or 'MF1'
+                if five_m_item.description:
+                    action.description = five_m_item.description
+                if five_m_item.assigned_to_name:
+                    action.assigned_owner_name = five_m_item.assigned_to_name
+                if five_m_item.status == 'completed':
+                    action.status = 'closed'
+                    action.action_taken = five_m_item.notes or '5M Process Impact verified and signed off.'
+                    action.verified_by_name = five_m_item.completed_by_name or 'CFT Committee Lead'
+                    action.completed_date = five_m_item.completed_date or timezone.now().date()
+                action.save()
+
         full_serializer = ImpactAssessmentSerializer(assessment)
         return Response({
             'success': True,
-            'message': 'Impact assessment updated.',
+            'message': 'Impact assessment saved successfully.',
             'data': full_serializer.data,
-        })
+        }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def impact_items_view(request, kaizen_id):
     """
     GET/POST /api/v1/kaizens/<id>/impact-items/
     List or create impact items for a Kaizen's assessment.
     """
-    kaizen = get_object_or_404(Kaizen, pk=kaizen_id)
+    if str(kaizen_id).isdigit():
+        kaizen = get_object_or_404(Kaizen, pk=int(kaizen_id))
+    else:
+        kaizen = get_object_or_404(Kaizen, sr_no=kaizen_id)
 
     try:
         assessment = kaizen.impact_assessment
     except ImpactAssessment.DoesNotExist:
-        raise KaizenAPIException(
-            message='Create an impact assessment first.',
-            code='NOT_FOUND',
-            status_code=404,
-        )
+        assessment = ImpactAssessment.objects.create(kaizen=kaizen)
 
     if request.method == 'GET':
         items = assessment.impact_items.all()
@@ -139,7 +218,7 @@ def impact_items_view(request, kaizen_id):
 
 
 @api_view(['PUT', 'PATCH'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def impact_item_detail(request, kaizen_id, item_id):
     """
     PUT/PATCH /api/v1/kaizens/<id>/impact-items/<item_id>/
@@ -179,7 +258,7 @@ class ImpactActionViewSet(viewsets.ModelViewSet):
     GET    /api/v1/impact-actions/overdue/      — Overdue actions
     GET    /api/v1/impact-actions/my-actions/   — Current user's actions
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     ordering = ['-created_at']
 
     def get_queryset(self):
@@ -205,7 +284,11 @@ class ImpactActionViewSet(viewsets.ModelViewSet):
                 Q(assigned_to_id=owner) | Q(assigned_owner_name__icontains=owner)
             )
         if department:
-            qs = qs.filter(kaizen__created_by__department__icontains=department)
+            qs = qs.filter(
+                Q(department__icontains=department) |
+                Q(kaizen__created_by__department__icontains=department) |
+                Q(kaizen__mini_factory__icontains=department)
+            )
 
         return qs
 
@@ -214,10 +297,32 @@ class ImpactActionViewSet(viewsets.ModelViewSet):
             return ImpactActionCreateSerializer
         return ImpactActionSerializer
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response({
+            'success': True,
+            'data': serializer.data
+        })
+
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = ImpactActionCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         action_obj = serializer.save()
+
+        # Link assessment if kaizen has one
+        if action_obj.kaizen and hasattr(action_obj.kaizen, 'impact_assessment') and not action_obj.assessment:
+            action_obj.assessment = action_obj.kaizen.impact_assessment
+            action_obj.save(update_fields=['assessment'])
+
         return Response({
             'success': True,
             'message': 'Impact action created.',
@@ -225,20 +330,33 @@ class ImpactActionViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = ImpactActionSerializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # If action belongs to an assessment, recalculate closure
+        # If action belongs to a kaizen, sync with five_m impact item
+        if instance.kaizen and hasattr(instance.kaizen, 'impact_assessment'):
+            assessment = instance.kaizen.impact_assessment
+            item = assessment.impact_items.filter(category='five_m').first()
+            if item:
+                if instance.status in ('closed', 'completed'):
+                    item.status = 'completed'
+                    item.completed_by_name = instance.verified_by_name or 'Coordinator'
+                    item.completed_date = instance.completed_date or timezone.now().date()
+                    if instance.action_taken:
+                        item.notes = instance.action_taken
+                    item.save()
+                assessment.update_closure_status()
+
         if instance.assessment:
             instance.assessment.update_closure_status()
 
         return Response({
             'success': True,
             'message': 'Impact action updated.',
-            'data': serializer.data,
+            'data': ImpactActionSerializer(instance).data,
         })
 
     def destroy(self, request, *args, **kwargs):
@@ -284,22 +402,21 @@ class ImpactActionViewSet(viewsets.ModelViewSet):
 # -----------------------------------------------------------------------
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def resources_view(request, kaizen_id):
     """
     GET/POST /api/v1/kaizens/<id>/resources/
     List or add allocated resources.
     """
-    kaizen = get_object_or_404(Kaizen, pk=kaizen_id)
+    if str(kaizen_id).isdigit():
+        kaizen = get_object_or_404(Kaizen, pk=int(kaizen_id))
+    else:
+        kaizen = get_object_or_404(Kaizen, sr_no=kaizen_id)
 
     try:
         assessment = kaizen.impact_assessment
     except ImpactAssessment.DoesNotExist:
-        raise KaizenAPIException(
-            message='Create an impact assessment first.',
-            code='NOT_FOUND',
-            status_code=404,
-        )
+        assessment = ImpactAssessment.objects.create(kaizen=kaizen)
 
     if request.method == 'GET':
         resources = assessment.allocated_resources.all()
@@ -318,7 +435,7 @@ def resources_view(request, kaizen_id):
 
 
 @api_view(['PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def resource_detail(request, kaizen_id, resource_id):
     """
     PUT/DELETE /api/v1/kaizens/<id>/resources/<resource_id>/

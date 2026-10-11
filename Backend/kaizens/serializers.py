@@ -105,6 +105,16 @@ class KaizenListSerializer(serializers.ModelSerializer):
     # Full URLs to access photos via Django media server
     photo_before_url = serializers.SerializerMethodField()
     photo_after_url = serializers.SerializerMethodField()
+    impact_assessment = serializers.SerializerMethodField()
+
+    def get_impact_assessment(self, obj):
+        if hasattr(obj, 'impact_assessment') and obj.impact_assessment:
+            try:
+                from impact.serializers import ImpactAssessmentSerializer
+                return ImpactAssessmentSerializer(obj.impact_assessment).data
+            except Exception:
+                return None
+        return None
 
     def get_created_by_name(self, obj):
         if obj.created_by:
@@ -140,6 +150,8 @@ class KaizenListSerializer(serializers.ModelSerializer):
             'implementation_date', 'closing_target_date',
             # Photo URL fields
             'photo_before_url', 'photo_after_url',
+            # 5M & Process Impact assessment
+            'impact_assessment',
         ]
 
 
@@ -159,6 +171,16 @@ class KaizenDetailSerializer(serializers.ModelSerializer):
     # Full URLs for photo display
     photo_before_url = serializers.SerializerMethodField()
     photo_after_url = serializers.SerializerMethodField()
+    impact_assessment = serializers.SerializerMethodField()
+
+    def get_impact_assessment(self, obj):
+        if hasattr(obj, 'impact_assessment') and obj.impact_assessment:
+            try:
+                from impact.serializers import ImpactAssessmentSerializer
+                return ImpactAssessmentSerializer(obj.impact_assessment).data
+            except Exception:
+                return None
+        return None
 
     def get_created_by_name(self, obj):
         if obj.created_by:
@@ -198,6 +220,8 @@ class KaizenDetailSerializer(serializers.ModelSerializer):
             'assigned_reviewer', 'reviewer_name',
             'days_to_implement', 'days_to_close', 'is_editable',
             'created_at', 'updated_at', 'submitted_at',
+            # 5M & Process Impact assessment
+            'impact_assessment',
         ]
         read_only_fields = [
             'id', 'sr_no', 'created_by', 'created_at', 'updated_at', 'submitted_at',

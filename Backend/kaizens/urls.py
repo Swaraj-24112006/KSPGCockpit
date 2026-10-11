@@ -6,6 +6,11 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import KaizenViewSet, KaizenEvidenceViewSet
 from .photo_views import KaizenPhotoUploadView, KaizenPhotoUrlsView, KaizenPhotoDeleteView
+from .analytics.views import (
+    DashboardAnalyticsAPIView,
+    ExecutiveAnalyticsAPIView,
+    EmployeeLeaderboardAPIView
+)
 
 router = DefaultRouter()
 router.register(r'kaizens', KaizenViewSet, basename='kaizen')
@@ -44,4 +49,9 @@ urlpatterns = [
         KaizenPhotoDeleteView.as_view(),
         name='kaizen-photo-delete',
     ),
+
+    # Live Kaizen Analytics Endpoints
+    path('kaizen/analytics/dashboard/', DashboardAnalyticsAPIView.as_view(), name='analytics-dashboard'),
+    path('kaizen/analytics/executive/', ExecutiveAnalyticsAPIView.as_view(), name='analytics-executive'),
+    path('kaizen/analytics/employees/', EmployeeLeaderboardAPIView.as_view(), name='analytics-employees'),
 ]

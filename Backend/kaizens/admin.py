@@ -3,7 +3,10 @@ Kaizen Admin Configuration
 """
 
 from django.contrib import admin
-from .models import Kaizen, KaizenBenefit, KaizenEvidence, KaizenCostSaving
+from .models import (
+    Kaizen, KaizenBenefit, KaizenEvidence, KaizenCostSaving,
+    Department, AnnualHeadcount, LegacyYearlySummary
+)
 
 
 class KaizenBenefitInline(admin.StackedInline):
@@ -59,3 +62,23 @@ class KaizenAdmin(admin.ModelAdmin):
             'fields': ('created_by', 'assigned_reviewer', 'created_at', 'updated_at')
         }),
     )
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ['code', 'display_name', 'description', 'color', 'sort_order']
+    list_editable = ['sort_order', 'color']
+    search_fields = ['code', 'display_name', 'description']
+
+
+@admin.register(AnnualHeadcount)
+class AnnualHeadcountAdmin(admin.ModelAdmin):
+    list_display = ['year', 'headcount']
+    list_editable = ['headcount']
+    ordering = ['-year']
+
+
+@admin.register(LegacyYearlySummary)
+class LegacyYearlySummaryAdmin(admin.ModelAdmin):
+    list_display = ['year', 'kaizens', 'savings', 'headcount']
+    ordering = ['year']

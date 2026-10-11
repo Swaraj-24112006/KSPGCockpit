@@ -183,8 +183,11 @@ class ImpactAction(models.Model):
     kaizen = models.ForeignKey(
         'kaizens.Kaizen',
         on_delete=models.CASCADE,
-        related_name='impact_actions'
+        related_name='impact_actions',
+        null=True,
+        blank=True,
     )
+    department = models.CharField(max_length=100, blank=True, default='MF1')
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
     description = models.TextField(help_text='Impact action description')
     assigned_to = models.ForeignKey(
@@ -199,7 +202,7 @@ class ImpactAction(models.Model):
         blank=True,
         help_text='Display name of the assigned owner'
     )
-    target_date = models.DateField()
+    target_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     action_taken = models.TextField(blank=True)
     completed_date = models.DateField(null=True, blank=True)

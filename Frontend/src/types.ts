@@ -399,3 +399,175 @@ export interface PpsrMeetingLog {
 
 export type UserPersona = 'operator' | 'committee' | 'manager';
 
+// ─── Kaizen Live Analytics Types ───────────────────────────────────────────────
+
+export interface AnalyticsFilters {
+  year?: number | string;
+  month?: number | string;
+  type?: 'ALL' | 'Idea' | 'Kaizen';
+  status?: 'ALL' | 'Closed' | 'Open' | 'Reject';
+  dept?: string;
+  minifactory?: string;
+  sort?: 'total' | 'savings' | 'approved';
+  from?: string;
+  to?: string;
+}
+
+export interface MonthlyTrendPoint {
+  month: string | number;
+  label: string;
+  count: number;
+}
+
+export interface PqcdsmItem {
+  key: string;
+  name: string;
+  count: number;
+  pct: number;
+}
+
+export interface DepartmentStat {
+  code: string;
+  name?: string;
+  description: string;
+  count: number;
+  pct: number;
+  color?: string;
+}
+
+export interface TopSavingsKaizen {
+  id: string;
+  srNo: string;
+  title: string;
+  ideaBy: string;
+  minifactory: string;
+  costSave: number;
+  classification: string;
+  suggestionDate: string;
+  month: string;
+}
+
+export interface DashboardAnalytics {
+  scope: {
+    from: string;
+    to: string;
+    minifactory: string | null;
+  };
+  summary: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    approvalRate: number | null;
+    totalSavings: number;
+  };
+  monthlyTrend: MonthlyTrendPoint[];
+  pqcdsm: PqcdsmItem[];
+  byMinifactory: DepartmentStat[];
+  topSavings: TopSavingsKaizen[];
+  pending: TopSavingsKaizen[];
+  recentApprovals: TopSavingsKaizen[];
+  generatedAt: string;
+}
+
+export interface ExecutiveYoYPoint {
+  year: number;
+  label: string;
+  kaizens: number;
+  headcount: number | null;
+  perEmployee: number | null;
+  savings: number;
+  isYtd: boolean;
+}
+
+export interface ExecutiveTypeSplit {
+  key: string;
+  count: number;
+  pct: number;
+}
+
+export interface ExecutiveStatusSummary {
+  key: string;
+  count: number;
+}
+
+export interface ExecutiveDeptVolume {
+  code: string;
+  name: string;
+  count: number;
+  pct: number;
+  color: string;
+}
+
+export interface ExecutiveDeptSavings {
+  code: string;
+  name: string;
+  savings: number;
+  pct: number;
+  color: string;
+}
+
+export interface ExecutiveAnalytics {
+  filters: {
+    year: number | string;
+    month: number | string;
+    type: string;
+    status: string;
+    dept: string;
+  };
+  options: {
+    years: number[];
+    departments: { code: string; name: string; color: string }[];
+  };
+  total: number;
+  yoy: ExecutiveYoYPoint[];
+  typeSplit: ExecutiveTypeSplit[];
+  statusSummary: ExecutiveStatusSummary[];
+  monthTrend: MonthlyTrendPoint[];
+  deptVolume: ExecutiveDeptVolume[];
+  deptSavings: ExecutiveDeptSavings[];
+  generatedAt: string;
+}
+
+export interface LeaderboardEmployee {
+  rank: number;
+  employeeId?: number | string;
+  name: string;
+  total: number;
+  approved: number;
+  goodPoint: number;
+  pending: number;
+  rejected: number;
+  savings: number;
+  departments: string[];
+  latestKaizenId?: number | string;
+}
+
+export type EmployeeLeaderboardItem = LeaderboardEmployee;
+
+export interface EmployeeLeaderboard {
+  scope: {
+    year: number | string;
+    month: number | string;
+    type: string;
+    status: string;
+    dept: string;
+    sort: string;
+  };
+  kpis: {
+    contributors: number;
+    totalKaizens: number;
+    avgPerContributor: number;
+    perEmployee: number | null;
+    savings: number;
+    topContributor: { name: string; total: number } | null;
+  };
+  employees: LeaderboardEmployee[];
+  unassigned: {
+    total: number;
+    savings: number;
+  };
+  generatedAt: string;
+}
+
+
