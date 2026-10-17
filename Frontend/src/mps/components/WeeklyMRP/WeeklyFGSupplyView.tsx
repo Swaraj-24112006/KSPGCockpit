@@ -29,6 +29,7 @@ interface WeeklyFGSupplyViewProps {
   stockList: StockReportItem[];
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
+  openingStockDate?: string;
 }
 
 export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
@@ -37,7 +38,8 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
   mb51List,
   stockList,
   selectedMonth,
-  onSelectMonth
+  onSelectMonth,
+  openingStockDate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFG, setSelectedFG] = useState<string>('ALL');
@@ -51,7 +53,8 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
     monthlyPlans,
     weeks,
     mb51List,
-    stockList
+    stockList,
+    openingStockDate
   );
 
   const uniqueFGs = Array.from(
@@ -152,6 +155,12 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {openingStockDate && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-700">
+              <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
+              <span>Opening Stock Date: <span className="font-mono font-bold text-blue-900">{openingStockDate}</span></span>
+            </div>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"

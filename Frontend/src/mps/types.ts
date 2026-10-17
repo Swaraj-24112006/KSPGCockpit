@@ -161,6 +161,7 @@ export interface StockReportItem {
   uom: string;
   safetyStock: number;
   plant: string;
+  stockDate?: string; // Baseline Inventory Snapshot Date (YYYY-MM-DD)
   lastUpdated?: string;
 }
 
@@ -189,6 +190,7 @@ export interface FGWeeklyCoverageSummary {
   totalActualProduction: number;
   totalActualDispatch: number;
   overallAchievementRate: number; // %
+  openingStockDate?: string;
 }
 
 // 4.2 RM/PM Weekly Requirement & Shortage Summary
@@ -221,6 +223,7 @@ export interface RMWeeklyRequirementSummary {
   totalScheduledDelivery?: number;
   overallStatus: 'OK' | 'WARNING' | 'SHORTAGE';
   maxShortageQty: number;
+  openingStockDate?: string;
 }
 
 // ============================================================================

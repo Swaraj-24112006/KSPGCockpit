@@ -45,6 +45,7 @@ interface WeeklyRMSupplyViewProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   onNavigateToDeliverySchedule?: () => void;
+  openingStockDate?: string;
 }
 
 export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
@@ -57,7 +58,8 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
   vendorDeliverySchedules = [],
   selectedMonth,
   onSelectMonth,
-  onNavigateToDeliverySchedule
+  onNavigateToDeliverySchedule,
+  openingStockDate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [buyerFilter, setBuyerFilter] = useState<string>('ALL');
@@ -77,7 +79,8 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
     vendorBuyers,
     mb51List,
     stockList,
-    vendorDeliverySchedules
+    vendorDeliverySchedules,
+    openingStockDate
   );
 
   const uniqueBuyers = Array.from(new Set(summaries.map((s) => s.buyerName))).filter(Boolean);
@@ -240,6 +243,12 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {openingStockDate && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-semibold text-amber-800">
+              <Package className="w-3.5 h-3.5 text-amber-600" />
+              <span>Opening Stock Date: <span className="font-mono font-bold text-amber-950">{openingStockDate}</span></span>
+            </div>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
