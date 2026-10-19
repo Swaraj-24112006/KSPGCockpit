@@ -119,7 +119,7 @@ export function computeFGWeeklyCoverage(
         actualProductionReceipt: actualProd,
         variance,
         actualDispatch: actualDisp,
-        closingStock: rollingStock
+        closingStock: Math.round(rollingStock)
       };
     });
 
