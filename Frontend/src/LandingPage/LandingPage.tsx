@@ -102,6 +102,15 @@ export default function LandingPage({
             <span>SFC Intelligence</span>
           </button>
           <button
+            id="nav-dwm-btn"
+            onClick={onLaunchDWM}
+            className="text-[#F2F2F2]/70 hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1.5"
+            title="Daily Work Management Suite"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>DWM Suite (5 Apps)</span>
+          </button>
+          <button
             onClick={onLaunchMPS}
             className="text-[#F2F2F2]/60 hover:text-[#F2F2F2] transition-colors cursor-pointer flex items-center gap-1.5"
           >
@@ -261,7 +270,7 @@ export default function LandingPage({
               <div>
                 <span className="font-mono text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-md border border-emerald-500/30 mb-2 inline-flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  ACTIVE MODULE • READY
+                  ACTIVE SUITE • 5 APPS
                 </span>
                 <h2 className="text-xl md:text-2xl font-black text-[#F2F2F2] font-['Hanken_Grotesk'] mt-1">
                   DWM — Daily Work Management
@@ -273,7 +282,7 @@ export default function LandingPage({
             </div>
 
             <p className="text-[#F2F2F2]/80 text-sm flex-grow mb-6 leading-relaxed">
-              Operator machine &amp; pokayoke verification checklists with photo evidence capture, GPS geofencing, deviation management, and real-time compliance dashboards.
+              Standardized plant operations suite with 5 integrated apps: Operator Machine Checklists, First Piece &amp; Last Piece Inspection Reports, Daily Production Reports, and Hourly Production boards.
             </p>
 
             {/* Feature pill row */}
@@ -301,7 +310,7 @@ export default function LandingPage({
               onClick={onLaunchDWM}
               className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-emerald-500/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
             >
-              <span>LAUNCH SEQUENCE</span>
+              <span>EXPLORE DWM APPS (5)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -445,7 +454,8 @@ export default function LandingPage({
               </p>
               <ul className="list-disc list-inside space-y-1.5 text-xs font-mono bg-[#0E1626]/80 p-3.5 rounded-2xl border border-[#F2F2F2]/10 text-[#F2F2F2]/90">
                 <li><strong className="text-[#4C7FFF]">SFC Intelligence:</strong> Kaizen improvement cycle, PPSR problem solving, 5S audits, Safety incidents.</li>
-                <li><strong className="text-emerald-400">Navigation:</strong> When inside SFC, click <em className="text-[#F2F2F2]">"← Back to Cockpit"</em> to return here anytime.</li>
+                <li><strong className="text-emerald-400">DWM Suite:</strong> 5 applications including Operator Checklists, First/Last Piece inspections, and Daily/Hourly production tracking.</li>
+                <li><strong className="text-emerald-400">Navigation:</strong> When inside any module, click <em className="text-[#F2F2F2]">"← Back to Cockpit"</em> to return here anytime.</li>
               </ul>
             </div>
             <button

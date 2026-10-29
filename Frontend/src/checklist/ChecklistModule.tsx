@@ -233,9 +233,10 @@ export default function ChecklistModule({
           <button
             onClick={onBackToLanding}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0E1626] border border-[#F2F2F2]/15 text-xs font-mono font-bold text-[#F2F2F2] hover:bg-[#4C7FFF] hover:border-[#4C7FFF] transition cursor-pointer"
+            title="Return to Daily Work Management Dashboard"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>BACK TO COCKPIT</span>
+            <span>BACK TO DWM DASHBOARD</span>
           </button>
           <h1 className="text-base font-black tracking-tight text-[#F2F2F2]">
             Daily Work Management — Checklist
@@ -246,11 +247,10 @@ export default function ChecklistModule({
           {/* Checklist Role Badge */}
           {checklistRole !== 'none' && checklistRole !== 'superadmin' && (
             <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                checklistRole === 'coordinator'
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${checklistRole === 'coordinator'
                   ? 'bg-violet-950/70 text-violet-300 border-violet-500/40'
                   : 'bg-amber-950/70 text-amber-300 border-amber-500/40'
-              }`}
+                }`}
               title={roleBadge.description}
             >
               {roleBadge.label}
@@ -339,17 +339,15 @@ export default function ChecklistModule({
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 max-w-md w-full animate-in slide-in-from-bottom-5 duration-300">
             <div
-              className={`p-4 rounded-2xl shadow-xl border flex items-start justify-between gap-3 backdrop-blur-md ${
-                toastMessage.type === 'alert'
+              className={`p-4 rounded-2xl shadow-xl border flex items-start justify-between gap-3 backdrop-blur-md ${toastMessage.type === 'alert'
                   ? 'bg-rose-50/95 border-rose-200 text-slate-900'
                   : 'bg-emerald-50/95 border-emerald-200 text-slate-900'
-              }`}
+                }`}
             >
               <div className="flex items-start gap-3">
                 <div
-                  className={`p-2 rounded-xl shrink-0 ${
-                    toastMessage.type === 'alert' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
-                  }`}
+                  className={`p-2 rounded-xl shrink-0 ${toastMessage.type === 'alert' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+                    }`}
                 >
                   {toastMessage.type === 'alert' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle2 className="w-5 h-5" />}
                 </div>
