@@ -4,6 +4,7 @@ import Header from './shared/components/Header';
 import Sidebar from './shared/components/Sidebar';
 import PpsrSheetInspect from './ppsr/PpsrSheetInspect';
 import GlobalDashboardModule from './dashboard/GlobalDashboardModule';
+import SfcDashboard from './sfc/SfcDashboard';
 import KaizenModule from './kaizen/KaizenModule';
 import RedFlagModule from './redflag/RedFlagModule';
 import FiveSModule from './fiveS/FiveSModule';
@@ -11,7 +12,7 @@ import SafetyModule from './safety/SafetyModule';
 import PpsrModule from './ppsr/PpsrModule';
 import CftAwardsModule from './cft/CftAwardsModule';
 import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction, KaizenImpactAssessment } from './types';
-import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2 } from 'lucide-react';
+import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2, BarChart3 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
 import { RoleCategory, KaizenSubTab, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
 import { downloadElementAsPdf } from './shared/utils/pdfExporter';
@@ -1159,6 +1160,65 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   const openRedflagsCount = redFlags.filter(r => r.status === 'Open' || r.status === 'In-Progress').length;
 
+  // Render Full-Screen SFC Cockpit Dashboard when activeModule is 'global-dashboard'
+  if (activeModule === 'global-dashboard') {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-[#0E1626] flex items-center justify-center font-mono">
+          <div className="text-center space-y-4">
+            <div className="w-12 h-12 border-4 border-[#4C7FFF] border-t-transparent rounded-full animate-spin mx-auto shadow-lg shadow-[#4C7FFF]/30" />
+            <p className="text-xs font-bold text-[#F2F2F2]/80 tracking-widest uppercase">
+              INITIALIZING SFC INTELLIGENCE TERMINAL...
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <SfcDashboard
+        currentUser={effectiveUser}
+        kaizens={kaizens}
+        redFlags={redFlags}
+        fiveSAudits={fiveSAudits}
+        safetyIncidents={safetyIncidents}
+        ppsrReports={ppsrReports}
+        onNavigateToModule={(mod, subAction) => {
+          setActiveModule(mod);
+          if (mod === 'kaizen') {
+            if (subAction) {
+              setActiveTab(subAction as any);
+            } else {
+              setActiveTab('dashboard');
+            }
+          } else if (mod === 'redflag') {
+            if (subAction) {
+              setInitialRedFlagAction(subAction);
+            }
+          } else if (mod === 'fives') {
+            if (subAction) {
+              setInitialFiveSAction(subAction);
+            }
+          } else if (mod === 'safety') {
+            if (subAction) {
+              setInitialSafetyAction(subAction);
+            }
+          } else if (mod === 'ppsr') {
+            if (subAction) {
+              setInitialPpsrAction(subAction);
+              setActivePpsrTab(subAction as PpsrSubTab);
+            } else {
+              setActivePpsrTab(ppsrRole === 'committee' ? 'meeting' : 'initiate');
+            }
+          }
+        }}
+        onBackToLanding={onBackToLanding}
+        onLogout={handleLogout}
+        onNavigateToSuperadmin={onNavigateToSuperadmin}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-800">
       
@@ -1202,6 +1262,15 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
               <span>SFMS MENU</span>
             </button>
             <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setActiveModule('global-dashboard')}
+                className="flex items-center space-x-1 px-2.5 py-1 bg-[#191B40] hover:bg-[#4C7FFF] border border-[#4C7FFF]/40 rounded-lg text-[11px] font-semibold text-[#F2F2F2]"
+                title="Return to SFC Dashboard"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-[#4C7FFF]" />
+                <span>SFC</span>
+              </button>
               {onBackToLanding && (
                 <button
                   type="button"
@@ -1254,6 +1323,16 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 <span>SuperAdmin</span>
               </button>
             )}
+            <button
+              id="back-to-sfc-btn"
+              type="button"
+              onClick={() => setActiveModule('global-dashboard')}
+              className="flex items-center space-x-1.5 px-3 py-1 bg-[#191B40] hover:bg-[#4C7FFF] border border-[#4C7FFF]/40 rounded-lg text-[11px] font-semibold text-[#F2F2F2] hover:text-white transition-all duration-200 cursor-pointer shadow-xs"
+              title="Return to SFC Intelligence Dashboard"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-[#4C7FFF] group-hover:text-white" />
+              <span>← SFC Dashboard</span>
+            </button>
             {onBackToLanding && (
               <button
                 id="back-to-landing-btn"

@@ -1,6 +1,7 @@
 import React from 'react';
 import GlobalDashboard from './GlobalDashboard';
 import { Kaizen, RedFlag, FiveSAudit, SafetyIncident, PpsrReport } from '../types';
+import { AuthUser } from '../shared/utils/auth';
 
 interface GlobalDashboardModuleProps {
   kaizens: Kaizen[];
@@ -9,6 +10,10 @@ interface GlobalDashboardModuleProps {
   safetyIncidents: SafetyIncident[];
   ppsrReports: PpsrReport[];
   onNavigateToModule: (module: 'kaizen' | 'redflag' | 'fives' | 'safety' | 'ppsr' | 'cft-awards', subAction?: string) => void;
+  currentUser?: AuthUser | null;
+  onBackToLanding?: () => void;
+  onLogout?: () => void;
+  onNavigateToSuperadmin?: () => void;
 }
 
 export default function GlobalDashboardModule({
@@ -17,7 +22,11 @@ export default function GlobalDashboardModule({
   fiveSAudits,
   safetyIncidents,
   ppsrReports,
-  onNavigateToModule
+  onNavigateToModule,
+  currentUser,
+  onBackToLanding,
+  onLogout,
+  onNavigateToSuperadmin,
 }: GlobalDashboardModuleProps) {
   return (
     <GlobalDashboard
@@ -27,6 +36,10 @@ export default function GlobalDashboardModule({
       safetyIncidents={safetyIncidents}
       ppsrReports={ppsrReports}
       onNavigateToModule={onNavigateToModule}
+      currentUser={currentUser}
+      onBackToLanding={onBackToLanding}
+      onLogout={onLogout}
+      onNavigateToSuperadmin={onNavigateToSuperadmin}
     />
   );
 }

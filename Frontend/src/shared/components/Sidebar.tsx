@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Lightbulb, 
-  Flag, 
-  Sparkles, 
-  ShieldAlert, 
-  Compass, 
-  ChevronDown, 
-  ChevronRight, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Lightbulb,
+  Flag,
+  Sparkles,
+  ShieldAlert,
+  Compass,
+  ChevronDown,
+  ChevronRight,
+  Menu,
   X,
   PlusCircle,
   FileText,
@@ -23,11 +23,19 @@ import {
   Award,
   Vote,
   Workflow,
-  ShieldCheck,
-  FileEdit
+  Crown,
+  Flame,
+  BarChart3,
+  Tag,
+  CheckSquare,
+  BookOpen,
+  Layers,
+  Plus,
+  Calendar,
+  Tv
 } from 'lucide-react';
 import { UserPersona } from '../../types';
-import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge } from '../utils/rbac';
+import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab } from '../utils/rbac';
 
 interface SidebarProps {
   activeModule: string;
@@ -37,15 +45,7 @@ interface SidebarProps {
   persona: UserPersona;
   setPersona: (p: UserPersona) => void;
   openRedflagsCount: number;
-  draftsCount?: number;
-  userRole?: RoleCategory;
-  kaizenRole?: RoleCategory;
-  ppsrRole?: RoleCategory;
-  activePpsrTab?: PpsrSubTab;
-  setActivePpsrTab?: (tab: PpsrSubTab) => void;
-  openPpsrCount?: number;
-  ppsrMeetingsCount?: number;
-  
+
   // Quick sub-action setters
   setInitialRedFlagAction: (act: string | null) => void;
   setInitialFiveSAction: (act: string | null) => void;
@@ -55,6 +55,19 @@ interface SidebarProps {
   // Mobile layout trigger
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
+
+  // Presentation mode hide left window
+  isSidebarHidden?: boolean;
+
+  // RBAC / PPSR props (used for redirection + role-based menu visibility)
+  draftsCount?: number;
+  userRole?: RoleCategory;
+  kaizenRole?: RoleCategory;
+  ppsrRole?: RoleCategory;
+  activePpsrTab?: PpsrSubTab;
+  setActivePpsrTab?: (tab: PpsrSubTab) => void;
+  openPpsrCount?: number;
+  ppsrMeetingsCount?: number;
 }
 
 export default function Sidebar({
@@ -65,43 +78,31 @@ export default function Sidebar({
   persona,
   setPersona,
   openRedflagsCount,
-  draftsCount = 0,
   userRole = 'initiator',
-  kaizenRole,
   ppsrRole,
-  activePpsrTab = 'initiate',
   setActivePpsrTab,
-  openPpsrCount = 0,
-  ppsrMeetingsCount = 0,
   setInitialRedFlagAction,
   setInitialFiveSAction,
   setInitialSafetyAction,
   setInitialPpsrAction,
   isMobileOpen,
-  setIsMobileOpen
+  setIsMobileOpen,
+  isSidebarHidden = false
 }: SidebarProps) {
   const effectivePpsrRole: RoleCategory = ppsrRole || userRole || 'initiator';
-  // Desktop collapse state
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Desktop auto-hide: collapsed (icon rail) by default, opens on hover, closes on mouse leave.
+  // The pin button sets isCollapsed to false to keep the sidebar permanently open.
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [hovering, setHovering] = useState(false);
 
-  // Expanded state of individual submenus
+  // Expanded state of individual submenus (all collapsed by default to show all 5 SFM initiatives)
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    kaizen: true,
-    redflag: false,
     fives: false,
     safety: false,
+    redflag: false,
     ppsr: false,
+    kaizen: false,
   });
-
-  React.useEffect(() => {
-    if (activeModule) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        [activeModule]: true
-      }));
-    }
-  }, [activeModule]);
 
   const toggleSubmenu = (menuKey: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -116,12 +117,7 @@ export default function Sidebar({
     if (moduleKey === 'ppsr' && setActivePpsrTab) {
       setActivePpsrTab(effectivePpsrRole === 'committee' ? 'meeting' : 'initiate');
     }
-    // Auto-open submenu when selecting a module
-    setExpandedMenus(prev => ({
-      ...prev,
-      [moduleKey]: true
-    }));
-    // Close mobile drawer on item click
+    // Close mobile drawer on item click without auto-expanding submenus
     setIsMobileOpen(false);
   };
 
@@ -130,11 +126,11 @@ export default function Sidebar({
     if (moduleKey === 'kaizen') {
       setActiveTab(subTab as any);
     } else if (moduleKey === 'redflag') {
-      setInitialRedFlagAction(actionVal || null);
+      setInitialRedFlagAction(actionVal || subTab || null);
     } else if (moduleKey === 'fives') {
-      setInitialFiveSAction(actionVal || null);
+      setInitialFiveSAction(actionVal || subTab || null);
     } else if (moduleKey === 'safety') {
-      setInitialSafetyAction(actionVal || null);
+      setInitialSafetyAction(actionVal || subTab || null);
     } else if (moduleKey === 'ppsr') {
       if (setActivePpsrTab && subTab) {
         setActivePpsrTab(subTab as PpsrSubTab);
@@ -144,575 +140,572 @@ export default function Sidebar({
     setIsMobileOpen(false);
   };
 
-  // Determine if sidebar is effectively expanded (either pinned expanded, or collapsed but hovered)
-  const isExpanded = !isCollapsed || hovering;
+  // Determine if sidebar is effectively expanded (pinned open, hovered, or mobile drawer open)
+  const isExpanded = !isCollapsed || hovering || isMobileOpen;
 
   return (
     <>
       {/* Mobile Drawer Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 md:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {/* Main Sidebar Component */}
-      <aside
-        onMouseEnter={() => isCollapsed && setHovering(true)}
-        onMouseLeave={() => isCollapsed && setHovering(false)}
-        className={`fixed md:sticky top-0 left-0 h-screen z-50 bg-slate-950 text-slate-300 border-r border-slate-800/80 flex flex-col transition-all duration-300 ${
-          isMobileOpen 
-            ? 'translate-x-0 w-64' 
-            : 'max-md:-translate-x-full'
-        } ${
-          isExpanded ? 'w-64' : 'w-16'
-        }`}
+      {/* Layout spacer: reserves only the slim rail width on desktop (full width when pinned),
+          so the page content does not shift when the sidebar opens on hover */}
+      <div
+        className={`md:sticky md:top-0 md:h-screen md:z-50 md:shrink-0 transition-all duration-300 ${isSidebarHidden ? 'hidden! md:hidden!' : ''
+          } ${isCollapsed ? 'md:w-16' : 'md:w-64'}`}
       >
-        {/* Branding & Collapse Toggle */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80 shrink-0">
-          <div className="flex items-center space-x-3 overflow-hidden">
-            <div className="bg-gradient-to-tr from-emerald-600 to-indigo-600 text-white p-2 rounded-xl shadow-md flex items-center justify-center shrink-0">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            {isExpanded && (
-              <div className="animate-fade-in flex flex-col">
-                <span className="font-display font-black text-sm tracking-wider text-white uppercase">
-                  SHOPFLOOR MS
-                </span>
-                <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider font-mono">
-                  Master Hub
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Pin/Unpin Sidebar toggler (Desktop) */}
-          <button
-            type="button"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden md:flex p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition cursor-pointer"
-            title={isCollapsed ? "Pin sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4 rotate-90" />
-            )}
-          </button>
-
-          {/* Close mobile drawer */}
-          <button
-            type="button"
-            onClick={() => setIsMobileOpen(false)}
-            className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Navigation Items */}
-        <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-          
-          {/* Global Dashboard */}
-          <div>
-            <button
-              onClick={() => selectModule('global-dashboard')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'global-dashboard'
-                  ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <LayoutDashboard className="w-4 h-4 shrink-0 text-indigo-400" />
-                {isExpanded && <span className="truncate">SFMS Dashboard</span>}
-              </div>
-            </button>
-          </div>
-
-          <div className="pt-2 pb-1 border-t border-slate-900 my-2">
-            {isExpanded && (
-              <span className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
-                Modules & Registers
-              </span>
-            )}
-          </div>
-
-          {/* Kaizen Tracker */}
-          <div className="space-y-1">
-            <button
-              onClick={() => selectModule('kaizen')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'kaizen'
-                  ? 'bg-emerald-600/15 text-emerald-400 border border-emerald-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <Lightbulb className="w-4 h-4 shrink-0 text-emerald-400" />
-                {isExpanded && <span className="truncate">💡 Kaizen Tracker</span>}
+        {/* Main Sidebar Component (hidden when Presentation Mode requests hide left window) */}
+        <aside
+          onMouseEnter={() => setHovering(true)}
+          onMouseLeave={() => setHovering(false)}
+          className={`fixed top-0 left-0 h-screen z-50 bg-slate-950 text-slate-300 border-r border-slate-800/80 flex flex-col transition-all duration-300 ${isSidebarHidden ? 'hidden! md:hidden!' : ''
+            } ${isMobileOpen ? 'translate-x-0' : 'max-md:-translate-x-full'
+            } ${isExpanded ? 'w-64' : 'w-16'
+            } ${isCollapsed && hovering ? 'shadow-2xl shadow-black/60' : ''
+            }`}
+        >
+          {/* Branding & Collapse Toggle */}
+          <div className="h-16 flex items-center justify-between px-4 border-b border-slate-800/80 shrink-0">
+            <div className="flex items-center space-x-3 overflow-hidden">
+              <div className="bg-gradient-to-tr from-emerald-600 to-indigo-600 text-white p-2 rounded-xl shadow-md flex items-center justify-center shrink-0">
+                <TrendingUp className="w-5 h-5" />
               </div>
               {isExpanded && (
-                <div 
-                  onClick={(e) => toggleSubmenu('kaizen', e)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition"
-                >
-                  {expandedMenus.kaizen ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                </div>
-              )}
-            </button>
-
-            {/* Kaizen Submenu */}
-            {isExpanded && expandedMenus.kaizen && (
-              <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                {/* 1. Overview Dashboard: Accessible to ALL roles */}
-                <button
-                  onClick={() => selectSubTab('kaizen', 'dashboard')}
-                  className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                    activeModule === 'kaizen' && activeTab === 'dashboard'
-                      ? 'text-emerald-400 font-bold bg-slate-900/60'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                  }`}
-                >
-                  <Gauge className="w-3 h-3 shrink-0" />
-                  <span>Overview Dashboard</span>
-                </button>
-
-                {/* 2. Log New Kaizen: Initiator, Coordinator, Admin */}
-                {canAccessTab(userRole, 'kaizen', 'form') && (
-                  <button
-                    onClick={() => selectSubTab('kaizen', 'form')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'kaizen' && activeTab === 'form'
-                        ? 'text-emerald-400 font-bold bg-slate-900/60'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
-                    <span>👷 Log New Kaizen</span>
-                  </button>
-                )}
-
-                {/* 2b. My Drafts: Initiator, Coordinator, Admin */}
-                {canAccessTab(userRole, 'kaizen', 'drafts') && (
-                  <button
-                    onClick={() => selectSubTab('kaizen', 'drafts')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'kaizen' && activeTab === 'drafts'
-                        ? 'text-amber-400 font-bold bg-slate-900/60'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileEdit className="w-3 h-3 shrink-0 text-amber-400" />
-                      <span>📝 My Drafts</span>
-                    </div>
-                    {draftsCount > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                        {draftsCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {/* 3. Committee Review: Committee, Coordinator, Admin */}
-                {canAccessTab(userRole, 'kaizen', 'committee') && (
-                  <button
-                    onClick={() => selectSubTab('kaizen', 'committee')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'kaizen' && activeTab === 'committee'
-                        ? 'text-emerald-400 font-bold bg-slate-900/60'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <UserCheck className="w-3 h-3 shrink-0 text-indigo-400" />
-                    <span>👥 Committee Review</span>
-                  </button>
-                )}
-
-                {/* 4. Monthly Best Awards: Super Admin & Kaizen Coordinator ONLY */}
-                {canAccessTab(userRole, 'kaizen', 'cft-awards') && (
-                  <button
-                    onClick={() => selectSubTab('cft-awards', '')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'cft-awards' || (activeModule === 'kaizen' && activeTab === 'cft-awards')
-                        ? 'text-amber-400 font-bold bg-slate-900/60'
-                        : 'text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
-                    <span>🏆 Monthly Best Awards</span>
-                  </button>
-                )}
-
-                {/* 5. Impact Point & Closure: Committee, Coordinator, Admin */}
-                {canAccessTab(userRole, 'kaizen', 'impact-tracker') && (
-                  <button
-                    onClick={() => selectSubTab('kaizen', 'impact-tracker')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'kaizen' && activeTab === 'impact-tracker'
-                        ? 'text-indigo-400 font-bold bg-slate-900/60'
-                        : 'text-indigo-300/80 hover:text-indigo-200 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <ClipboardList className="w-3 h-3 shrink-0 text-indigo-400" />
-                    <span>🎯 Impact Point & Closure</span>
-                  </button>
-                )}
-
-                {/* 6. End-to-End Flowchart: ALL roles */}
-                <button
-                  onClick={() => selectSubTab('kaizen', 'process-flowchart')}
-                  className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                    activeModule === 'kaizen' && activeTab === 'process-flowchart'
-                      ? 'text-indigo-400 font-bold bg-slate-900/60'
-                      : 'text-indigo-300/80 hover:text-indigo-200 hover:bg-slate-900/30'
-                  }`}
-                >
-                  <Workflow className="w-3 h-3 shrink-0 text-indigo-400" />
-                  <span>🔄 End-to-End Flowchart</span>
-                </button>
-
-                {/* 7. Spreadsheet Register: Committee, Coordinator, Admin */}
-                {canAccessTab(userRole, 'kaizen', 'list') && (
-                  <button
-                    onClick={() => selectSubTab('kaizen', 'list')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'kaizen' && activeTab === 'list'
-                        ? 'text-emerald-400 font-bold bg-slate-900/60'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <ClipboardList className="w-3 h-3 shrink-0 text-emerald-400" />
-                    <span>📋 Spreadsheet Register</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Red Flags */}
-          <div className="space-y-1">
-            <button
-              onClick={() => selectModule('redflag')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'redflag'
-                  ? 'bg-rose-600/15 text-rose-400 border border-rose-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <Flag className="w-4 h-4 shrink-0 text-rose-500" />
-                  {openRedflagsCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-                  )}
-                </div>
-                {isExpanded && <span className="truncate">🚩 Red Flags</span>}
-              </div>
-              {isExpanded && (
-                <div 
-                  onClick={(e) => toggleSubmenu('redflag', e)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition"
-                >
-                  {expandedMenus.redflag ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                </div>
-              )}
-            </button>
-
-            {isExpanded && expandedMenus.redflag && (
-              <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                <button
-                  onClick={() => selectSubTab('redflag', '', 'filter-all')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <ClipboardList className="w-3 h-3 shrink-0" />
-                  <span>Register & Actions</span>
-                </button>
-                <button
-                  onClick={() => selectSubTab('redflag', '', 'raise-modal')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <AlertOctagon className="w-3 h-3 shrink-0" />
-                  <span>Raise Red Flag</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* 5S Auditing */}
-          <div className="space-y-1">
-            <button
-              onClick={() => selectModule('fives')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'fives'
-                  ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <Sparkles className="w-4 h-4 shrink-0 text-blue-400" />
-                {isExpanded && <span className="truncate">🧼 5S Auditing</span>}
-              </div>
-              {isExpanded && (
-                <div 
-                  onClick={(e) => toggleSubmenu('fives', e)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition"
-                >
-                  {expandedMenus.fives ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                </div>
-              )}
-            </button>
-
-            {isExpanded && expandedMenus.fives && (
-              <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                <button
-                  onClick={() => selectSubTab('fives', '')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <ClipboardList className="w-3 h-3 shrink-0" />
-                  <span>Audit Dashboard</span>
-                </button>
-                <button
-                  onClick={() => selectSubTab('fives', '', 'log-audit')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <PlusCircle className="w-3 h-3 shrink-0" />
-                  <span>New 5S Audit</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Safety Desk */}
-          <div className="space-y-1">
-            <button
-              onClick={() => selectModule('safety')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'safety'
-                  ? 'bg-amber-600/15 text-amber-400 border border-amber-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500" />
-                {isExpanded && <span className="truncate">🛡️ Safety Desk</span>}
-              </div>
-              {isExpanded && (
-                <div 
-                  onClick={(e) => toggleSubmenu('safety', e)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition"
-                >
-                  {expandedMenus.safety ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                </div>
-              )}
-            </button>
-
-            {isExpanded && expandedMenus.safety && (
-              <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                <button
-                  onClick={() => selectSubTab('safety', '')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <ClipboardList className="w-3 h-3 shrink-0" />
-                  <span>EHS Log Register</span>
-                </button>
-                <button
-                  onClick={() => selectSubTab('safety', '', 'report-hazard')}
-                  className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
-                >
-                  <PlusCircle className="w-3 h-3 shrink-0" />
-                  <span>Report Hazard/Incident</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* PPSR (8D) */}
-          <div className="space-y-1">
-            <button
-              onClick={() => selectModule('ppsr')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                activeModule === 'ppsr'
-                  ? 'bg-violet-600/15 text-violet-400 border border-violet-500/20'
-                  : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <Compass className="w-4 h-4 shrink-0 text-violet-400" />
-                {isExpanded && <span className="truncate">🧠 PPSR (8D)</span>}
-              </div>
-              {isExpanded && (
-                <div 
-                  onClick={(e) => toggleSubmenu('ppsr', e)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition"
-                >
-                  {expandedMenus.ppsr ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                  )}
-                </div>
-              )}
-            </button>
-
-            {isExpanded && expandedMenus.ppsr && (
-              <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
-                {/* 1. Initiate PPSR — Initiator, Coordinator, Admin */}
-                {canAccessPpsrTab(effectivePpsrRole, 'initiate') && (
-                  <button
-                    onClick={() => selectSubTab('ppsr', 'initiate', 'initiate-ppsr')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'ppsr' && activePpsrTab === 'initiate'
-                        ? 'text-violet-400 font-bold bg-slate-900/60'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <PlusCircle className="w-3 h-3 shrink-0 text-violet-400" />
-                    <span>👷 Initiate New PPSR</span>
-                  </button>
-                )}
-
-                {/* 2. Committee Review — Committee, Coordinator, Admin */}
-                {canAccessPpsrTab(effectivePpsrRole, 'meeting') && (
-                  <button
-                    onClick={() => selectSubTab('ppsr', 'meeting', 'meeting')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'ppsr' && activePpsrTab === 'meeting'
-                        ? 'text-indigo-400 font-bold bg-slate-900/60'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <UserCheck className="w-3 h-3 shrink-0 text-indigo-400" />
-                      <span>👥 Committee Review</span>
-                    </div>
-                    {ppsrMeetingsCount > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        {ppsrMeetingsCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {/* 3. PPSR Register — Coordinator & Admin only */}
-                {canAccessPpsrTab(effectivePpsrRole, 'register') && (
-                  <button
-                    onClick={() => selectSubTab('ppsr', 'register', 'register')}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'ppsr' && activePpsrTab === 'register'
-                        ? 'text-emerald-400 font-bold bg-slate-900/60'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <ClipboardList className="w-3 h-3 shrink-0 text-emerald-400" />
-                      <span>📋 PPSR Register</span>
-                    </div>
-                    {openPpsrCount > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        {openPpsrCount}
-                      </span>
-                    )}
-                  </button>
-                )}
-
-                {/* 4. CFT Monthly Best Awards — Coordinator & Admin only */}
-                {canAccessPpsrTab(effectivePpsrRole, 'cft-awards') && (
-                  <button
-                    onClick={() => selectSubTab('ppsr', 'cft-awards', 'cft-awards')}
-                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
-                      activeModule === 'ppsr' && activePpsrTab === 'cft-awards'
-                        ? 'text-amber-400 font-bold bg-slate-900/60'
-                        : 'text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30'
-                    }`}
-                  >
-                    <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
-                    <span>🏆 CFT Best Awards</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* CFT Monthly Best Awards Top-Level Module: Super Admin & Kaizen Coordinator ONLY */}
-          {canAccessTab(userRole, 'cft-awards') && (
-            <div className="pt-2">
-              <button
-                onClick={() => selectModule('cft-awards')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${
-                  activeModule === 'cft-awards'
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
-                    : 'hover:bg-slate-900 text-amber-400/90 hover:text-amber-300 border border-amber-500/10 bg-amber-500/5'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Trophy className="w-4 h-4 shrink-0 text-amber-400" />
-                  {isExpanded && <span className="truncate">🏆 CFT Best Awards</span>}
-                </div>
-                {isExpanded && (
-                  <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-mono font-bold">
-                    VOTE
+                <div className="animate-fade-in flex flex-col">
+                  <span className="font-display font-black text-sm tracking-wider text-white uppercase">
+                    SHOPFLOOR MS
                   </span>
+                  <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider font-mono">
+                    Master Hub
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Pin/Unpin Sidebar toggler (Desktop) - pin keeps it open, unpin returns to auto-hide */}
+            {isExpanded && (
+              <button
+                type="button"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="hidden md:flex p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition cursor-pointer"
+                title={isCollapsed ? "Pin sidebar open" : "Unpin (auto-hide)"}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 rotate-90" />
                 )}
               </button>
+            )}
+
+            {/* Close mobile drawer */}
+            <button
+              type="button"
+              onClick={() => setIsMobileOpen(false)}
+              className="md:hidden p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation Items */}
+          <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+
+            {/* Global Dashboard */}
+            <div>
+              <button
+                onClick={() => selectModule('global-dashboard')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'global-dashboard'
+                    ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <LayoutDashboard className="w-4 h-4 shrink-0 text-indigo-400" />
+                  {isExpanded && <span className="truncate">SFC Dashboard</span>}
+                </div>
+              </button>
+            </div>
+
+            <div className="pt-2 pb-1 border-t border-slate-900 my-2">
+              {isExpanded && (
+                <span className="px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                  5 SFM Initiatives
+                </span>
+              )}
+            </div>
+
+            {/* 1. 5S Auditing */}
+            <div className="space-y-1">
+              <button
+                onClick={() => selectModule('fives')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'fives'
+                    ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Sparkles className="w-4 h-4 shrink-0 text-blue-400" />
+                  {isExpanded && <span className="truncate">1. 🧼 5S Auditing</span>}
+                </div>
+                {isExpanded && (
+                  <div
+                    onClick={(e) => toggleSubmenu('fives', e)}
+                    className="p-0.5 hover:bg-slate-800 rounded transition"
+                  >
+                    {expandedMenus.fives ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {isExpanded && expandedMenus.fives && (
+                <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
+                  <button
+                    onClick={() => selectSubTab('fives', 'dashboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <BarChart3 className="w-3 h-3 shrink-0 text-blue-400" />
+                    <span>1. Dashboard (Radar &amp; KPIs)</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'form', 'audit-new')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>2. Raise 25-Pt Audit Form</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'tracker', 'audits-list')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <ClipboardList className="w-3 h-3 shrink-0" />
+                    <span>3. Master Tracker (Audit Logs)</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'presentation', 'presentation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                  >
+                    <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>4. Presentation Mode</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'other', 'redtags')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <Tag className="w-3 h-3 shrink-0 text-rose-400" />
+                    <span>5. Other: 1S Red Tags</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'other', 'actions')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <CheckSquare className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>5. Other: CAPA Action Items</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'other', 'soc')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <Sparkles className="w-3 h-3 shrink-0 text-cyan-400" />
+                    <span>5. Other: 3S SOC Daily Gemba</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'other', 'standards')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <BookOpen className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>5. Other: Visual Standards</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('fives', 'other', 'leaderboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400/90 hover:text-amber-300 hover:bg-slate-900/30"
+                  >
+                    <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>5. Other: Zone Championship</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Safety Desk */}
+            <div className="space-y-1">
+              <button
+                onClick={() => selectModule('safety')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'safety'
+                    ? 'bg-amber-600/15 text-amber-400 border border-amber-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500" />
+                  {isExpanded && <span className="truncate">2. 🛡️ Safety Desk</span>}
+                </div>
+                {isExpanded && (
+                  <div
+                    onClick={(e) => toggleSubmenu('safety', e)}
+                    className="p-0.5 hover:bg-slate-800 rounded transition"
+                  >
+                    {expandedMenus.safety ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {isExpanded && expandedMenus.safety && (
+                <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
+                  <button
+                    onClick={() => selectSubTab('safety', 'dashboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <BarChart3 className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>1. Dashboard (Zero Harm Streak)</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'form', 'report-hazard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>2. Raise Safety Incident Form</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'tracker')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <ClipboardList className="w-3 h-3 shrink-0" />
+                    <span>3. Master Tracker (EHS Register)</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'presentation', 'presentation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                  >
+                    <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>4. Presentation Mode</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'other', 'investigation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <CheckSquare className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>5. Other: Hazard CAPA &amp; Closure</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Red Flags */}
+            <div className="space-y-1">
+              <button
+                onClick={() => selectModule('redflag')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'redflag'
+                    ? 'bg-rose-600/15 text-rose-400 border border-rose-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <Flag className="w-4 h-4 shrink-0 text-rose-500" />
+                    {openRedflagsCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+                    )}
+                  </div>
+                  {isExpanded && <span className="truncate">3. 🚩 Red Flags</span>}
+                </div>
+                {isExpanded && (
+                  <div
+                    onClick={(e) => toggleSubmenu('redflag', e)}
+                    className="p-0.5 hover:bg-slate-800 rounded transition"
+                  >
+                    {expandedMenus.redflag ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {isExpanded && expandedMenus.redflag && (
+                <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
+                  <button
+                    onClick={() => selectSubTab('redflag', 'dashboard', 'dashboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <BarChart3 className="w-3 h-3 shrink-0 text-rose-400" />
+                    <span>1. Dashboard (Matrix)</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('redflag', 'form', 'raise-modal')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <PlusCircle className="w-3 h-3 shrink-0 text-rose-400" />
+                    <span>2. Raise Red Flag Form</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('redflag', 'tracker', 'filter-all')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <ClipboardList className="w-3 h-3 shrink-0" />
+                    <span>3. Master Tracker</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('redflag', 'presentation', 'presentation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                  >
+                    <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>4. Presentation Mode</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('redflag', 'other', 'filter-sustenance')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <Calendar className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>5. Other: 3M Sustenance &amp; Print</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 4. PPSR (8D) */}
+            <div className="space-y-1">
+              <button
+                onClick={() => selectModule('ppsr')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'ppsr'
+                    ? 'bg-violet-600/15 text-violet-400 border border-violet-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Compass className="w-4 h-4 shrink-0 text-violet-400" />
+                  {isExpanded && <span className="truncate">4. 🧠 PPSR (8D)</span>}
+                </div>
+                {isExpanded && (
+                  <div
+                    onClick={(e) => toggleSubmenu('ppsr', e)}
+                    className="p-0.5 hover:bg-slate-800 rounded transition"
+                  >
+                    {expandedMenus.ppsr ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {isExpanded && expandedMenus.ppsr && (
+                <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
+                  <button
+                    onClick={() => selectSubTab('ppsr', '', 'dashboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <BarChart3 className="w-3 h-3 shrink-0 text-violet-400" />
+                    <span>1. Dashboard (8D Resolution)</span>
+                  </button>
+                  {canAccessPpsrTab(effectivePpsrRole, 'initiate') && (
+                    <button
+                      onClick={() => selectSubTab('ppsr', 'initiate', 'initiate-ppsr')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    >
+                      <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
+                      <span>2. Raise 8D Report Form</span>
+                    </button>
+                  )}
+                  {canAccessPpsrTab(effectivePpsrRole, 'register') && (
+                    <button
+                      onClick={() => selectSubTab('ppsr', 'register', 'register')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    >
+                      <ClipboardList className="w-3 h-3 shrink-0" />
+                      <span>3. Master Tracker (8D Register)</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => selectSubTab('ppsr', '', 'presentation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                  >
+                    <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>4. Presentation Mode</span>
+                  </button>
+                  {canAccessPpsrTab(effectivePpsrRole, 'cft-awards') && (
+                    <button
+                      onClick={() => selectSubTab('ppsr', 'cft-awards', 'cft-awards')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30"
+                    >
+                      <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
+                      <span>5. Other: CFT Best Awards &amp; Review</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 5. Kaizen Tracker */}
+            <div className="space-y-1">
+              <button
+                onClick={() => selectModule('kaizen')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 text-xs font-bold tracking-wide uppercase ${activeModule === 'kaizen'
+                    ? 'bg-emerald-600/15 text-emerald-400 border border-emerald-500/20'
+                    : 'hover:bg-slate-900 text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Lightbulb className="w-4 h-4 shrink-0 text-emerald-400" />
+                  {isExpanded && <span className="truncate">5. 💡 Kaizen Tracker</span>}
+                </div>
+                {isExpanded && (
+                  <div
+                    onClick={(e) => toggleSubmenu('kaizen', e)}
+                    className="p-0.5 hover:bg-slate-800 rounded transition"
+                  >
+                    {expandedMenus.kaizen ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    )}
+                  </div>
+                )}
+              </button>
+
+              {/* Kaizen Submenu - Collapsed by default */}
+              {isExpanded && expandedMenus.kaizen && (
+                <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
+                  <button
+                    onClick={() => selectSubTab('kaizen', 'dashboard')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                  >
+                    <Gauge className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>1. Dashboard (Overview &amp; ROI)</span>
+                  </button>
+                  {canAccessTab(userRole, 'kaizen', 'form') && (
+                    <button
+                      onClick={() => selectSubTab('kaizen', 'form')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    >
+                      <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
+                      <span>2. Raise Kaizen Sheet Form</span>
+                    </button>
+                  )}
+                  {canAccessTab(userRole, 'kaizen', 'list') && (
+                    <button
+                      onClick={() => selectSubTab('kaizen', 'list')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    >
+                      <ClipboardList className="w-3 h-3 shrink-0" />
+                      <span>3. Master Tracker (Spreadsheet)</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => selectSubTab('kaizen', 'presentation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                  >
+                    <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>4. Presentation Mode</span>
+                  </button>
+                  {canAccessTab(userRole, 'kaizen', 'committee') && (
+                    <button
+                      onClick={() => selectSubTab('kaizen', 'committee')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                    >
+                      <UserCheck className="w-3 h-3 shrink-0" />
+                      <span>5. Other: Committee Review</span>
+                    </button>
+                  )}
+                  {canAccessTab(userRole, 'kaizen', 'impact-tracker') && (
+                    <button
+                      onClick={() => selectSubTab('kaizen', 'impact-tracker')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                    >
+                      <CheckSquare className="w-3 h-3 shrink-0 text-amber-400" />
+                      <span>5. Other: Impact Point Tracker</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => selectSubTab('kaizen', 'gamification')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <Crown className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>5. Other: Gamification &amp; Culture</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('kaizen', 'process-flowchart')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                  >
+                    <Workflow className="w-3 h-3 shrink-0 text-indigo-400" />
+                    <span>5. Other: Flowchart &amp; Standards</span>
+                  </button>
+                  {canAccessTab(userRole, 'kaizen', 'cft-awards') && (
+                    <button
+                      onClick={() => selectSubTab('cft-awards', '')}
+                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30"
+                    >
+                      <Trophy className="w-3 h-3 shrink-0 text-amber-400" />
+                      <span>5. Other: Monthly Best Awards</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+          {/* Persona quick switch panel at sidebar bottom (Very Enterprise!) */}
+          {isExpanded && (
+            <div className="p-3 border-t border-slate-800/80 bg-slate-950 shrink-0">
+              <span className="block text-[9px] font-black uppercase text-slate-500 tracking-wider mb-2 font-mono">
+                ⚡ WORKSPACE PERSONA
+              </span>
+              <div className="grid grid-cols-1 gap-1 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setPersona('operator')}
+                  className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg transition ${persona === 'operator'
+                      ? 'bg-emerald-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                    }`}
+                >
+                  <span>👷</span>
+                  <span className="truncate">Operator Console</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersona('committee')}
+                  className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg transition ${persona === 'committee'
+                      ? 'bg-indigo-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                    }`}
+                >
+                  <span>👥</span>
+                  <span className="truncate">Committee Reviewer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPersona('manager')}
+                  className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg transition ${persona === 'manager'
+                      ? 'bg-blue-500 text-slate-950 font-bold'
+                      : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+                    }`}
+                >
+                  <span>📊</span>
+                  <span className="truncate">Manager BI Desk</span>
+                </button>
+              </div>
             </div>
           )}
 
-        </div>
-
-        {/* Active Security Role Badge */}
-        {isExpanded && (
-          <div className="p-3 border-t border-slate-800/80 bg-slate-950 shrink-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider font-mono">
-                🔒 RBAC ROLE
-              </span>
-              <span className="text-[9px] text-emerald-400 font-mono font-bold flex items-center space-x-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400 inline" />
-                <span>ACTIVE</span>
-              </span>
-            </div>
-            {(() => {
-              const currentRole = activeModule === 'ppsr' ? effectivePpsrRole : (kaizenRole || userRole);
-              const currentModuleLabel = activeModule === 'ppsr' ? 'PPSR' : activeModule === 'kaizen' ? 'Kaizen' : undefined;
-              const badge = getRoleBadge(currentRole, currentModuleLabel);
-              return (
-                <div className={`px-2.5 py-1.5 rounded-xl border flex items-center space-x-2 ${badge.colorClass}`}>
-                  <span className="text-sm">{badge.icon}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] font-bold truncate leading-tight">
-                      {badge.label}
-                    </div>
-                    <div className="text-[9px] opacity-75 truncate leading-tight font-mono">
-                      {badge.description}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
-
-      </aside>
+        </aside>
+      </div>
     </>
   );
 }

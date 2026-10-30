@@ -10,7 +10,7 @@ import {
 } from '../types';
 import { CameraModal } from './CameraModal';
 import { DeviationModal } from './DeviationModal';
-import { requestCurrentLocation, getCurrentShift, formatTimestamp } from '../utils/geolocation';
+import { requestCurrentLocation, formatTimestamp } from '../utils/geolocation';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -41,6 +41,29 @@ interface OperatorChecklistProps {
   onSubmitSuccess: (updatedStation: Station, submissionHash: string) => void;
   initialLineId?: string;
   initialStationId?: string;
+}
+
+// Shift definitions (3 shifts per day)
+const SHIFT_OPTIONS = [
+  { value: 'Shift 1', label: 'Shift 1 (7:30 AM - 4:00 PM)' },
+  { value: 'Shift 2', label: 'Shift 2 (4:00 PM - 12:30 AM)' },
+  { value: 'Shift 3', label: 'Shift 3 (12:30 AM - 7:30 AM)' },
+];
+
+// Detect the shift for the current time
+function detectShift(date: Date = new Date()): string {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  if (minutes >= 7 * 60 + 30 && minutes < 16 * 60) return 'Shift 1';
+  if (minutes >= 16 * 60 || minutes < 30) return 'Shift 2'; // 4:00 PM - 12:30 AM
+  return 'Shift 3'; // 12:30 AM - 7:30 AM
+}
+
+// Today's date as YYYY-MM-DD (local time) for <input type="date">
+function getTodayDateString(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 // Simple shuffle utility
@@ -134,6 +157,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
   // Operator Info
   const [operatorName, setOperatorName] = useState<string>(activeStation?.operatorName || 'Prakash Rao');
   const [operatorId, setOperatorId] = useState<string>(activeStation?.operatorId || 'OP-9041');
+  const [shiftDate, setShiftDate] = useState<string>(getTodayDateString());
+  const [shift, setShift] = useState<string>(detectShift());
 
   // Checkpoints State (Clean initial states)
   const [machineCheckpoints, setMachineCheckpoints] = useState<MachineCheckpoint[]>(() =>
@@ -165,7 +190,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
   const [modalStationId, setModalStationId] = useState<string>(selectedStationId);
   const [modalOperatorId, setModalOperatorId] = useState<string>(operatorId);
   const [modalOperatorName, setModalOperatorName] = useState<string>(operatorName);
-  const [modalShift, setModalShift] = useState<string>(getCurrentShift());
+  const [modalShiftDate, setModalShiftDate] = useState<string>(shiftDate);
+  const [modalShift, setModalShift] = useState<string>(shift);
   const [modalError, setModalError] = useState<string | null>(null);
 
   // Randomized Order Keys for Checkpoints
@@ -300,7 +326,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     setModalStationId(selectedStationId);
     setModalOperatorId(operatorId);
     setModalOperatorName(operatorName);
-    setModalShift(getCurrentShift());
+    setModalShiftDate(shiftDate);
+    setModalShift(shift);
     setModalError(null);
     setShowSetupModal(true);
   };
@@ -311,11 +338,21 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
       setModalError('Please provide both Operator ID and Name.');
       return;
     }
+    if (!modalShiftDate) {
+      setModalError('Please select a Date.');
+      return;
+    }
+    if (!modalShift) {
+      setModalError('Please select a Shift.');
+      return;
+    }
     onMinifactoryChange(modalMfId);
     setSelectedLineId(modalLineId);
     setSelectedStationId(modalStationId);
     setOperatorId(modalOperatorId.trim());
     setOperatorName(modalOperatorName.trim());
+    setShiftDate(modalShiftDate);
+    setShift(modalShift);
     handleClearAllInputs();
     setShowSetupModal(false);
   };
@@ -364,10 +401,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     const updated = machineCheckpoints.map((item) =>
       item.id === id
         ? {
-            ...item,
-            status,
-            checkedAt: formatTimestamp(new Date()),
-          }
+          ...item,
+          status,
+          checkedAt: formatTimestamp(new Date()),
+        }
         : item
     );
 
@@ -408,10 +445,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
     const updated = pokayokeCheckpoints.map((item) =>
       item.id === id
         ? {
-            ...item,
-            status,
-            checkedAt: formatTimestamp(new Date()),
-          }
+          ...item,
+          status,
+          checkedAt: formatTimestamp(new Date()),
+        }
         : item
     );
 
@@ -551,7 +588,7 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
       operatorId,
       status: hasAnyDeviations ? 'DEVIATION_STOPPED' : 'COMPLETED',
       lastSubmittedAt: formatTimestamp(new Date()),
-      shift: getCurrentShift(),
+      shift: shift,
       completionPercentage: 100,
       machineCheckpoints,
       pokayokeCheckpoints,
@@ -715,11 +752,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('mobile_step')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                viewMode === 'mobile_step'
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'mobile_step'
                   ? 'bg-amber-500 text-slate-950 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
               <span>Card</span>
@@ -727,11 +763,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('guided_list')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                viewMode === 'guided_list'
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'guided_list'
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               <List className="w-3.5 h-3.5" />
               <span>List</span>
@@ -885,11 +920,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                       ? handleMachineStatusChange(currentStepItem.id, 'OK', true)
                       : handlePokayokeStatusChange(currentStepItem.id, 'OK', true)
                   }
-                  className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${
-                    currentStepItem.status === 'OK'
+                  className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${currentStepItem.status === 'OK'
                       ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
                       : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
-                  }`}
+                    }`}
                 >
                   <CheckCircle2 className="w-5 h-5" />
                   <span>PASS / OK</span>
@@ -902,11 +936,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                       ? handleMachineStatusChange(currentStepItem.id, 'NOT_OK', false)
                       : handlePokayokeStatusChange(currentStepItem.id, 'NOT_OK', false)
                   }
-                  className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${
-                    currentStepItem.status === 'NOT_OK'
+                  className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${currentStepItem.status === 'NOT_OK'
                       ? 'bg-rose-600 text-white ring-2 ring-rose-400'
                       : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300'
-                  }`}
+                    }`}
                 >
                   <XCircle className="w-5 h-5" />
                   <span>NOT OK</span>
@@ -985,9 +1018,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                     key={step.id}
                     type="button"
                     onClick={() => setActiveStepIndex(idx)}
-                    className={`w-6 h-6 rounded-lg text-[10px] font-bold shrink-0 transition-all flex items-center justify-center ${bgClass} ${
-                      isCurrent ? 'ring-2 ring-slate-900 font-black scale-110' : 'opacity-80 hover:opacity-100'
-                    }`}
+                    className={`w-6 h-6 rounded-lg text-[10px] font-bold shrink-0 transition-all flex items-center justify-center ${bgClass} ${isCurrent ? 'ring-2 ring-slate-900 font-black scale-110' : 'opacity-80 hover:opacity-100'
+                      }`}
                   >
                     {idx + 1}
                   </button>
@@ -1014,23 +1046,21 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
             return (
               <div
                 key={step.id}
-                className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                  step.status === 'OK'
+                className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${step.status === 'OK'
                     ? 'border-emerald-200 bg-emerald-50/30'
                     : step.status === 'NOT_OK'
-                    ? 'border-rose-200 bg-rose-50/30'
-                    : 'border-slate-200 hover:border-slate-300'
-                }`}
+                      ? 'border-rose-200 bg-rose-50/30'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                      step.status === 'OK'
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${step.status === 'OK'
                         ? 'bg-emerald-600 text-white'
                         : step.status === 'NOT_OK'
-                        ? 'bg-rose-600 text-white'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}
+                          ? 'bg-rose-600 text-white'
+                          : 'bg-slate-100 text-slate-700'
+                      }`}
                   >
                     #{idx + 1}
                   </div>
@@ -1070,11 +1100,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                         step.title
                       )
                     }
-                    className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${
-                      step.photos.length > 0
+                    className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${step.photos.length > 0
                         ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
+                      }`}
                     title="Attach live photo"
                   >
                     <Camera className="w-3.5 h-3.5 text-amber-600" />
@@ -1088,11 +1117,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                         ? handleMachineStatusChange(step.id, 'OK', false)
                         : handlePokayokeStatusChange(step.id, 'OK', false)
                     }
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                      step.status === 'OK'
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${step.status === 'OK'
                         ? 'bg-emerald-600 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>OK</span>
@@ -1105,11 +1133,10 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                         ? handleMachineStatusChange(step.id, 'NOT_OK', false)
                         : handlePokayokeStatusChange(step.id, 'NOT_OK', false)
                     }
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
-                      step.status === 'NOT_OK'
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${step.status === 'NOT_OK'
                         ? 'bg-rose-600 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-rose-50 hover:text-rose-700'
-                    }`}
+                      }`}
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     <span>NOT OK</span>
@@ -1283,6 +1310,32 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                     onChange={(e) => setModalOperatorName(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={modalShiftDate}
+                    onChange={(e) => setModalShiftDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Shift</label>
+                  <select
+                    value={modalShift}
+                    onChange={(e) => setModalShift(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800"
+                  >
+                    {SHIFT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

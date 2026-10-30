@@ -99,7 +99,7 @@ export default function LandingPage({
             className="text-[#F2F2F2] font-bold border-b-2 border-[#4C7FFF] pb-1 hover:text-[#4C7FFF] transition-all cursor-pointer flex items-center gap-1.5"
           >
             <BarChart3 className="w-3.5 h-3.5 text-[#4C7FFF]" />
-            <span>SFC Intelligence</span>
+            <span>SFC Suite (5 Apps)</span>
           </button>
           <button
             id="nav-dwm-btn"
@@ -213,7 +213,7 @@ export default function LandingPage({
               <div>
                 <span className="font-mono text-[10px] font-bold text-[#4C7FFF] bg-[#4C7FFF]/15 px-2.5 py-1 rounded-md border border-[#4C7FFF]/30 mb-2 inline-flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#4C7FFF] animate-ping" />
-                  ACTIVE MODULE • READY
+                  ACTIVE SUITE • 5 APPS
                 </span>
                 <h2 className="text-xl md:text-2xl font-black text-[#F2F2F2] font-['Hanken_Grotesk'] mt-1">
                   SFC Intelligence
@@ -253,7 +253,7 @@ export default function LandingPage({
               onClick={onLaunchSFC}
               className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-[#4C7FFF] to-[#366CEC] hover:from-[#366CEC] hover:to-[#0652d2] active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-[#4C7FFF]/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
             >
-              <span>LAUNCH SEQUENCE</span>
+              <span>EXPLORE SFC APPS (5)</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
