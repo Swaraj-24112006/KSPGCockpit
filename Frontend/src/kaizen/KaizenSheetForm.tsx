@@ -287,9 +287,9 @@ export default function KaizenSheetForm({
       // Don't intercept if user is typing inside a text input or textarea
       const activeEl = document.activeElement;
       const tagName = activeEl?.tagName.toLowerCase();
-      const isTextInput = (tagName === 'input' && (activeEl as HTMLInputElement).type !== 'file') || 
-                          tagName === 'textarea' || 
-                          (activeEl as HTMLElement)?.isContentEditable;
+      const isTextInput = (tagName === 'input' && (activeEl as HTMLInputElement).type !== 'file') ||
+        tagName === 'textarea' ||
+        (activeEl as HTMLElement)?.isContentEditable;
 
       // If user is focused on a standard text field and not one of our photo containers, let standard text paste happen
       if (isTextInput && activeEl?.id !== 'photo-box-before' && activeEl?.id !== 'photo-box-after') {
@@ -654,6 +654,7 @@ export default function KaizenSheetForm({
               <option value="MF2">MF2 (EGR Products)</option>
               <option value="MF3">MF3 (BPV Products)</option>
               <option value="Machining">Machining</option>
+              <option value="Logistic">Logistic</option>
             </select>
           </div>
           <div>
@@ -790,19 +791,17 @@ export default function KaizenSheetForm({
                 onFocus={() => setFocusedPhotoTarget('before')}
                 onBlur={() => setFocusedPhotoTarget(null)}
                 onPaste={(e) => handlePasteImage(e, 'before')}
-                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${
-                  focusedPhotoTarget === 'before' || hoveredPhotoTarget === 'before'
+                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${focusedPhotoTarget === 'before' || hoveredPhotoTarget === 'before'
                     ? 'border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/20'
                     : photoBefore
-                    ? 'border-emerald-300 ring-2 ring-emerald-500/10'
-                    : 'border-slate-300 bg-slate-50 hover:border-slate-400'
-                }`}
+                      ? 'border-emerald-300 ring-2 ring-emerald-500/10'
+                      : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+                  }`}
               >
                 {/* Floating feedback alert */}
                 {pasteFeedback && pasteFeedback.target === 'before' && (
-                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${
-                    pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
-                  }`}>
+                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
+                    }`}>
                     <Check className="w-3.5 h-3.5" />
                     <span>{pasteFeedback.message}</span>
                   </div>
@@ -838,7 +837,7 @@ export default function KaizenSheetForm({
                       >
                         <Camera className="w-3.5 h-3.5" /> Retake Photo
                       </button>
-                      <label 
+                      <label
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
                       >
@@ -885,7 +884,7 @@ export default function KaizenSheetForm({
                       >
                         <Camera className="w-3.5 h-3.5" /> Camera
                       </button>
-                      <label 
+                      <label
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
                       >
@@ -932,19 +931,17 @@ export default function KaizenSheetForm({
                 onFocus={() => setFocusedPhotoTarget('after')}
                 onBlur={() => setFocusedPhotoTarget(null)}
                 onPaste={(e) => handlePasteImage(e, 'after')}
-                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${
-                  focusedPhotoTarget === 'after' || hoveredPhotoTarget === 'after'
+                className={`bg-white border-2 border-dashed rounded-xl overflow-hidden aspect-video relative flex items-center justify-center p-2 group shadow-inner transition outline-none cursor-pointer ${focusedPhotoTarget === 'after' || hoveredPhotoTarget === 'after'
                     ? 'border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/20'
                     : photoAfter
-                    ? 'border-emerald-300 ring-2 ring-emerald-500/10'
-                    : 'border-slate-300 bg-slate-50 hover:border-slate-400'
-                }`}
+                      ? 'border-emerald-300 ring-2 ring-emerald-500/10'
+                      : 'border-slate-300 bg-slate-50 hover:border-slate-400'
+                  }`}
               >
                 {/* Floating feedback alert */}
                 {pasteFeedback && pasteFeedback.target === 'after' && (
-                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${
-                    pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
-                  }`}>
+                  <div className={`absolute top-2 left-2 right-2 z-30 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1.5 transition-all ${pasteFeedback.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-100'
+                    }`}>
                     <Check className="w-3.5 h-3.5" />
                     <span>{pasteFeedback.message}</span>
                   </div>
@@ -980,7 +977,7 @@ export default function KaizenSheetForm({
                       >
                         <Camera className="w-3.5 h-3.5" /> Retake Photo
                       </button>
-                      <label 
+                      <label
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer text-xs text-white font-bold bg-slate-900/80 hover:bg-slate-800 px-3 py-1.5 rounded-lg border border-white/20 flex items-center gap-1 shadow"
                       >
@@ -1027,7 +1024,7 @@ export default function KaizenSheetForm({
                       >
                         <Camera className="w-3.5 h-3.5" /> Camera
                       </button>
-                      <label 
+                      <label
                         onClick={(e) => e.stopPropagation()}
                         className="cursor-pointer text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-sm transition"
                       >
@@ -1089,8 +1086,8 @@ export default function KaizenSheetForm({
                   key={item.key}
                   onClick={() => toggleBenefit(item.key as keyof typeof benefits)}
                   className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${active
-                      ? `${item.color} font-bold scale-[1.02] ring-2 ring-slate-800/20`
-                      : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    ? `${item.color} font-bold scale-[1.02] ring-2 ring-slate-800/20`
+                    : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
                     }`}
                 >
                   <span className="text-xl font-black">{item.label}</span>
