@@ -753,8 +753,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
               type="button"
               onClick={() => setViewMode('mobile_step')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'mobile_step'
-                  ? 'bg-amber-500 text-slate-950 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -764,8 +764,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
               type="button"
               onClick={() => setViewMode('guided_list')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'guided_list'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
                 }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -921,8 +921,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                       : handlePokayokeStatusChange(currentStepItem.id, 'OK', true)
                   }
                   className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${currentStepItem.status === 'OK'
-                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
-                      : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
+                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
                     }`}
                 >
                   <CheckCircle2 className="w-5 h-5" />
@@ -937,8 +937,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                       : handlePokayokeStatusChange(currentStepItem.id, 'NOT_OK', false)
                   }
                   className={`py-4 px-4 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${currentStepItem.status === 'NOT_OK'
-                      ? 'bg-rose-600 text-white ring-2 ring-rose-400'
-                      : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300'
+                    ? 'bg-rose-600 text-white ring-2 ring-rose-400'
+                    : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300'
                     }`}
                 >
                   <XCircle className="w-5 h-5" />
@@ -1047,19 +1047,19 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
               <div
                 key={step.id}
                 className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${step.status === 'OK'
-                    ? 'border-emerald-200 bg-emerald-50/30'
-                    : step.status === 'NOT_OK'
-                      ? 'border-rose-200 bg-rose-50/30'
-                      : 'border-slate-200 hover:border-slate-300'
+                  ? 'border-emerald-200 bg-emerald-50/30'
+                  : step.status === 'NOT_OK'
+                    ? 'border-rose-200 bg-rose-50/30'
+                    : 'border-slate-200 hover:border-slate-300'
                   }`}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${step.status === 'OK'
-                        ? 'bg-emerald-600 text-white'
-                        : step.status === 'NOT_OK'
-                          ? 'bg-rose-600 text-white'
-                          : 'bg-slate-100 text-slate-700'
+                      ? 'bg-emerald-600 text-white'
+                      : step.status === 'NOT_OK'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-slate-100 text-slate-700'
                       }`}
                   >
                     #{idx + 1}
@@ -1101,8 +1101,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                       )
                     }
                     className={`p-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${step.photos.length > 0
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     title="Attach live photo"
                   >
@@ -1118,8 +1118,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                         : handlePokayokeStatusChange(step.id, 'OK', false)
                     }
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${step.status === 'OK'
-                        ? 'bg-emerald-600 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
                       }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1134,8 +1134,8 @@ export const OperatorChecklist: React.FC<OperatorChecklistProps> = ({
                         : handlePokayokeStatusChange(step.id, 'NOT_OK', false)
                     }
                     className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${step.status === 'NOT_OK'
-                        ? 'bg-rose-600 text-white shadow-2xs'
-                        : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-rose-50 hover:text-rose-700'
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-rose-50 hover:text-rose-700'
                       }`}
                   >
                     <XCircle className="w-3.5 h-3.5" />

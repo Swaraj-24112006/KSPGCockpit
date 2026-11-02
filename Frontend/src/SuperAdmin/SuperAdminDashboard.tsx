@@ -3303,6 +3303,9 @@ export default function SuperAdminDashboard({
                     <option value="MF1">MF1 (Mini-Factory 1)</option>
                     <option value="MF2">MF2 (Mini-Factory 2)</option>
                     <option value="MF3">MF3 (Mini-Factory 3)</option>
+                    <option value="M/C">M/C (Machining)</option>
+                    <option value="Mntc">Mntc (Maintenance)</option>
+                    <option value="QA">QA (Quality)</option>
                     <option value="Central">Plant Central / Shared</option>
                   </select>
                 </div>
