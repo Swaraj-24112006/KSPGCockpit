@@ -167,33 +167,304 @@ export interface Kaizen {
   createdAt: string;
 }
 
+export interface RedFlagStageAudit {
+  stage: 'Detection' | 'Containment' | 'RootCause' | 'CAPA' | 'Effectiveness' | 'Sustenance';
+  completedAt: string;
+  completedBy: string;
+  signOffRole?: string;
+  notes?: string;
+}
+
+export interface MonthSustenanceCheck {
+  month: 1 | 2 | 3;
+  targetDays: 30 | 60 | 90;
+  scheduledDate: string;
+  auditDate?: string;
+  auditor?: string;
+  status: 'Pending' | 'Passed' | 'Recurrence Detected';
+  observations?: string;
+  photoEvidence?: string;
+}
+
+export type RedFlagRole = 'Initiator' | 'Target Person' | 'Quality Custodian' | 'Plant Head';
+
 export interface RedFlag {
   id: string;
   srNo: string;
   raisedDate: string;
+  raisedBy: string;
+  raisedByDepartment: string;
+  raisedByRole?: string;
   mfName: string;
   lineAreaName: string;
   modelName: string;
   stationName: string;
   redFlagNo: string;
-  status: 'Open' | 'In-Progress' | 'Closed';
-  redFlagType: 'Quality' | 'Process' | 'Machine' | 'Safety' | 'Material';
+  status: 'Open' | 'Contained' | 'In-Progress' | 'Under-Sustenance' | 'Closed';
+  redFlagType: 'Quality' | 'Process' | 'Machine' | 'Safety' | 'Material' | '5S';
   redFlagSubType: string;
+  severity?: 'Critical (Line Stop)' | 'Major (Quarantine)' | 'Moderate (Rework)';
+  category5M?: 'Man' | 'Machine' | 'Material' | 'Method' | 'Measurement' | 'Environment';
   responsibleDepartment: string;
+  targetDepartment: string;
+  targetPerson: string;
   redFlagDescription: string;
   evidencePhoto: string;
+  countermeasurePhoto?: string;
   teamLeader: string;
   repetitiveOccurrence: 'First Time' | 'Repetitive';
   closureResponsibility: string;
-  immediateActionTaken: string;
-  actionTakenBy: string;
-  actionTakenDate: string;
-  systematicPermanentAction: string;
+
+  // QA Custodianship (QA is custodian of Red Flag)
+  qaCustodian: string;
+  qaCustodianStatus?: 'Review Pending' | 'Containment Approved' | 'CAPA Verified' | 'In Sustenance' | 'Closed Approved';
+  qaCustodianNotes?: string;
+
+  // Stage 2: Immediate Containment & Quarantine Controls (By Target Person)
+  raisedTimestamp?: string;
+  containmentTimestamp?: string;
+  containmentTimeGap?: string;
+  containmentStatus?: 'Pending' | 'Contained' | 'Verified';
+  suspectQtyQuarantined?: number;
+  quarantineTagNo?: string;
+  quarantineLocation?: string;
+  sortingQtyInspected?: number;
+  sortingQtyOk?: number;
+  sortingQtyRejected?: number;
+  containmentAction?: string;
+  containmentVerifiedBy?: string;
+  containmentVerifiedDate?: string;
+  immediateActionTaken?: string;
+  actionTakenBy?: string;
+  actionTakenDate?: string;
+
+  // Stage 3: Cross-Module Escalation & Linkages
+  linkedPpsrId?: string;
+  linkedPpsrNo?: string;
+  linkedKaizenId?: string;
+  linkedKaizenNo?: string;
+  linkedFiveSRedTagId?: string;
+  linkedFiveSRedTagNo?: string;
+
+  // Stage 4: Root Cause (5-Why) & Permanent Action
+  why1?: string;
+  why2?: string;
+  why3?: string;
+  why4?: string;
+  rootCause5Why?: string;
+  systematicPermanentAction?: string;
   targetDate: string;
-  closureDate: string;
-  closureEvidence: string;
+  standardizationUpdates?: {
+    sopUpdated: boolean;
+    pfmeaUpdated: boolean;
+    controlPlanUpdated: boolean;
+    onePointLessonIssued: boolean;
+  };
+
+  // Stage 5: 3-Month Sustenance Tracking (Point kept OPEN till 3 months sustenance is achieved)
+  sustenanceStartDate?: string;
+  month1Check?: MonthSustenanceCheck;
+  month2Check?: MonthSustenanceCheck;
+  month3Check?: MonthSustenanceCheck;
+  sustenanceAchieved?: boolean;
+
+  // Closure Sign-Offs (Authorized only after 3-month sustenance achieved by QA Custodian)
+  validationTrialShifts?: number;
+  validationTrialResults?: string;
+  closureDate?: string;
+  closureEvidence?: string;
+  approvedByQA?: string;
+  approvedByProduction?: string;
+
+  // Additive fields for Phase 8 integration
+  allowedActions?: string[];
+  containmentGapMinutes?: number;
+  containmentWithinSla?: boolean;
+  closedEarly?: boolean;
+  earlyClosureReason?: string;
+  rowVersion?: number;
+  sustenanceCycle?: number;
+  plantId?: string;
+  lineId?: string;
+  stationId?: string;
+  modelId?: string;
+  targetDepartmentId?: string;
+  targetPersonId?: string;
+  qaCustodianId?: string;
+
+  // Audit trail
+  stageHistory?: RedFlagStageAudit[];
   createdAt: string;
 }
+
+// User Profile & Roles from /api/redflags/me
+export interface UserMe {
+  userId: number;
+  employeeId: string | null;
+  label: string | null;
+  department: string | null;
+  roles: string[];
+  isPlantHead: boolean;
+  isQualityCustodian: boolean;
+}
+
+// Lookups types from /api/redflags/lookups
+export interface StationLookup {
+  id: string;
+  name: string;
+}
+
+export interface LineLookup {
+  id: string;
+  name: string;
+  stations: StationLookup[];
+}
+
+export interface PlantLookup {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  defaultQuarantineLocation: string;
+  defaultQaCustodianId?: string | null;
+  defaultQaCustodianLabel?: string | null;
+  plantHeadId?: string | null;
+  plantHeadLabel?: string | null;
+  lines: LineLookup[];
+}
+
+export interface DepartmentLookup {
+  id: string;
+  code: string;
+  name: string;
+  canOriginate: boolean;
+  canBeTarget: boolean;
+  sortOrder: number;
+}
+
+export interface ProductModelLookup {
+  id: string;
+  name: string;
+}
+
+export interface EmployeeLookup {
+  id: string;
+  label: string;
+  department: string;
+}
+
+export interface RedFlagConfigLookup {
+  containmentSlaMinutes: number;
+  gapBucketMinutes: number;
+  sustenanceCheckDays: number[];
+  sustenanceAuditGraceDays: number;
+  enforceSustenanceSchedule: boolean;
+  defaultTargetDays: number;
+  ppsrDefaultDays: number;
+  redTagDisposalDays: number;
+  formNumber: string;
+  formRevision: string;
+  standardReference: string;
+  maxPhotoMb: number;
+  governanceRules: string[];
+}
+
+export interface EnumChoice {
+  value: string;
+  label: string;
+}
+
+export interface LookupsResponse {
+  plants: PlantLookup[];
+  models: ProductModelLookup[];
+  departments: DepartmentLookup[];
+  employees: EmployeeLookup[];
+  enums: {
+    redFlagType: EnumChoice[];
+    severity: EnumChoice[];
+    category5M: EnumChoice[];
+    status: EnumChoice[];
+    containmentStatus: EnumChoice[];
+    qaCustodianStatus: EnumChoice[];
+    repetitive: EnumChoice[];
+    checkStatus: EnumChoice[];
+    escalationModule: EnumChoice[];
+  };
+  config: RedFlagConfigLookup;
+}
+
+// Analytics Models from /api/redflags/analytics/
+export interface RedFlagDashboardAnalytics {
+  kpis: {
+    total: number;
+    openCount: number;
+    unresolvedCount: number;
+    containedCount: number;
+    inProgressCount: number;
+    underSustenanceCount: number;
+    closedCount: number;
+    closedSustainedCount: number;
+    criticalCount: number;
+    stage1PendingTarget: number;
+    stage2PendingQuality: number;
+    containmentVerifiedCount: number;
+    containmentRatePct: number;
+    linkedPpsrCount: number;
+    linkedKaizenCount: number;
+    linkedFiveSRedTagCount: number;
+  };
+  quarantine: {
+    suspectQtyQuarantined: number;
+    sortingQtyInspected: number;
+    sortingQtyOk: number;
+    sortingQtyRejected: number;
+  };
+  timeGap: {
+    avgMinutes: number;
+    completedCount: number;
+    slaMinutes: number;
+    slaCompliancePct: number;
+    buckets: { label: string; count: number }[];
+  };
+  pareto5M: { category: string; count: number; pct: number; cumulativePct: number }[];
+  matrix: { originatingDept: string; targetDept: string; count: number }[];
+  topDefects: { subType: string; count: number }[];
+  targetPeople: { name: string; dept: string; open: number; contained: number; closed: number; total: number }[];
+  stationHotspots: { plant: string; line: string; station: string; count: number }[];
+}
+
+export interface RedFlagExecutiveAnalytics {
+  scorecard: {
+    total: number;
+    open: number;
+    underSustenance: number;
+    sustainedAndClosed: number;
+    containmentSlaCompliancePct: number;
+    avgContainmentGapHours: number;
+  };
+  governance: {
+    rule1Label: string;
+    rule1Status: string;
+    rule2Label: string;
+    rule2Status: string;
+    rule3Label: string;
+    rule3Status: string;
+  };
+  topRecurringDefects: { subType: string; count: number }[];
+  hotspotStations: { station: string; line: string; count: number }[];
+}
+
+export interface RedFlagSummaryAnalytics {
+  total: number;
+  open: number;
+  contained: number;
+  inProgress: number;
+  underSustenance: number;
+  closed: number;
+  critical: number;
+  slaBreachedCount: number;
+}
+
 
 export interface FiveSAudit {
   id: string;

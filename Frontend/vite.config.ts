@@ -65,7 +65,14 @@ export default defineConfig(() => {
           changeOrigin: true,
           secure: false,
         },
-        // Proxy local Express mock routes (redflags, fivesaudits, etc.)
+        // Proxy Red Flag Backend API (Port 8003 or custom target)
+        '/api/redflags': {
+          target: process.env.VITE_REDFLAG_API_TARGET || 'http://127.0.0.1:8003',
+          changeOrigin: true,
+          secure: false,
+          cookieDomainRewrite: 'localhost',
+        },
+        // Proxy local Express mock routes (fivesaudits, etc.)
         '/api': {
           target: 'http://localhost:3000',
           changeOrigin: true,

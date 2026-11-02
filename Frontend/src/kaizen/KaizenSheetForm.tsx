@@ -655,6 +655,7 @@ export default function KaizenSheetForm({
               <option value="MF3">MF3 (BPV Products)</option>
               <option value="Machining">Machining</option>
               <option value="Logistic">Logistic</option>
+              <option value="Quality">Quality</option>
             </select>
           </div>
           <div>

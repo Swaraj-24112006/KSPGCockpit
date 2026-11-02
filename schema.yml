@@ -1,0 +1,1062 @@
+openapi: 3.0.3
+info:
+  title: KSPG Cockpit - Red Flag API
+  version: 1.0.0
+  description: Red Flag Shopfloor Non-Conformance Tracker Service
+paths:
+  /api/redflags/:
+    get:
+      operationId: redflagsList
+      description: |-
+        List / filter Red Flags and Raise a new Red Flag (Stage 1).
+        GET /api/redflags
+        POST /api/redflags
+      summary: List and Filter Red Flags
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RedFlagRead'
+          description: ''
+    post:
+      operationId: redflagsCreate
+      description: |-
+        List / filter Red Flags and Raise a new Red Flag (Stage 1).
+        GET /api/redflags
+        POST /api/redflags
+      summary: Raise a Red Flag (Stage 1 - Detection)
+      tags:
+      - redflags
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RedFlagReadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RedFlagReadRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedFlagReadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedFlagRead'
+          description: ''
+  /api/redflags/{id}/:
+    get:
+      operationId: redflagsRetrieve
+      description: |-
+        Read, PATCH (limited edit), and DELETE (soft delete) a Red Flag.
+        GET /api/redflags/:id
+        PATCH /api/redflags/:id
+        DELETE /api/redflags/:id
+      summary: Get Red Flag Details
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^[0-9a-fA-F-]{36}$
+        required: true
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedFlagRead'
+          description: ''
+    patch:
+      operationId: redflagsPartialUpdate
+      description: |-
+        Read, PATCH (limited edit), and DELETE (soft delete) a Red Flag.
+        GET /api/redflags/:id
+        PATCH /api/redflags/:id
+        DELETE /api/redflags/:id
+      summary: Edit Red Flag Details (Stage 1 fields)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^[0-9a-fA-F-]{36}$
+        required: true
+      tags:
+      - redflags
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRedFlagPatchRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRedFlagPatchRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRedFlagPatchRequest'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedFlagRead'
+          description: ''
+    delete:
+      operationId: redflagsDestroy
+      description: |-
+        Read, PATCH (limited edit), and DELETE (soft delete) a Red Flag.
+        GET /api/redflags/:id
+        PATCH /api/redflags/:id
+        DELETE /api/redflags/:id
+      summary: Soft Delete Red Flag (Plant Head only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          pattern: ^[0-9a-fA-F-]{36}$
+        required: true
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/redflags/attachments/:
+    post:
+      operationId: redflagsAttachmentsCreate
+      description: |-
+        Multipart image upload to MinIO.
+        POST /api/redflags/attachments
+      summary: Upload Attachment Photo
+      tags:
+      - redflags
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttachmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttachmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attachment'
+          description: ''
+  /api/redflags/export.csv:
+    get:
+      operationId: redflagsExport.csvRetrieve
+      description: |-
+        Export filtered Red Flags to CSV with UTF-8 BOM and formula injection protection.
+        GET /api/redflags/export.csv
+      summary: Export Filtered Red Flags to CSV
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/redflags/lookups/:
+    get:
+      operationId: redflagsLookupsRetrieve
+      description: |-
+        Returns all master data, dropdown choices, and configuration needed by Red Flag frontend.
+        GET /api/redflags/lookups
+      summary: Get System Lookups, Master Data, Enums, and Configuration
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupsResponse'
+          description: ''
+  /api/redflags/me/:
+    get:
+      operationId: redflagsMeRetrieve
+      description: |-
+        Returns current authenticated user details, roles, employee profile.
+        GET /api/redflags/me
+      summary: Get Current User Identity & Roles
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+components:
+  schemas:
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        url:
+          type: string
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        original_name:
+          type: string
+          maxLength: 255
+        size_bytes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        content_type:
+          type: string
+          maxLength: 100
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - kind
+      - uploaded_at
+      - url
+    AttachmentRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        original_name:
+          type: string
+          maxLength: 255
+        size_bytes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        content_type:
+          type: string
+          maxLength: 100
+      required:
+      - kind
+    Category5mEnum:
+      enum:
+      - Man
+      - Machine
+      - Material
+      - Method
+      - Measurement
+      - Environment
+      type: string
+      description: |-
+        * `Man` - Man (Operator Skill/Handling)
+        * `Machine` - Machine (Tool/Fixture/Sensor)
+        * `Material` - Material (Vendor/Raw Stock)
+        * `Method` - Method (Standard/Process)
+        * `Measurement` - Measurement (Gauge/Cal)
+        * `Environment` - Environment (Oil/Mist/Dust)
+    DepartmentLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 100
+        can_originate:
+          type: boolean
+        can_be_target:
+          type: boolean
+        sort_order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+      required:
+      - code
+      - id
+      - name
+    EmployeeLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        department:
+          type: string
+          readOnly: true
+      required:
+      - department
+      - id
+      - label
+    EnumChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
+    KindEnum:
+      enum:
+      - T0_EVIDENCE
+      - T1_CONTAINMENT
+      - SUSTENANCE_AUDIT
+      - CLOSURE_EVIDENCE
+      type: string
+      description: |-
+        * `T0_EVIDENCE` - T0 Evidence Photo
+        * `T1_CONTAINMENT` - T1 Containment Photo
+        * `SUSTENANCE_AUDIT` - Sustenance Audit Photo
+        * `CLOSURE_EVIDENCE` - Closure Evidence Photo
+    LineLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        stations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StationLookup'
+          readOnly: true
+      required:
+      - id
+      - name
+      - stations
+    LookupsEnums:
+      type: object
+      properties:
+        red_flag_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        severity:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        category_5m:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        containment_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        qa_custodian_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        repetitive:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        check_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        escalation_module:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+      required:
+      - category_5m
+      - check_status
+      - containment_status
+      - escalation_module
+      - qa_custodian_status
+      - red_flag_type
+      - repetitive
+      - severity
+      - status
+    LookupsResponse:
+      type: object
+      properties:
+        plants:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlantLookup'
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductModelLookup'
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepartmentLookup'
+        employees:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeLookup'
+        enums:
+          $ref: '#/components/schemas/LookupsEnums'
+        config:
+          $ref: '#/components/schemas/RedFlagConfigLookup'
+      required:
+      - config
+      - departments
+      - employees
+      - enums
+      - models
+      - plants
+    PatchedRedFlagPatchRequest:
+      type: object
+      properties:
+        row_version:
+          type: integer
+        description:
+          type: string
+        target_department:
+          type: string
+          format: uuid
+        target_person:
+          type: string
+          format: uuid
+        team_leader:
+          type: string
+        plant:
+          type: string
+          format: uuid
+        line:
+          type: string
+          format: uuid
+        station:
+          type: string
+          format: uuid
+        model:
+          type: string
+          format: uuid
+        red_flag_type:
+          type: string
+          minLength: 1
+        red_flag_sub_type:
+          type: string
+        severity:
+          type: string
+          minLength: 1
+        category_5m:
+          type: string
+          minLength: 1
+        repetitive_occurrence:
+          type: string
+          minLength: 1
+        target_date:
+          type: string
+          format: date
+        qa_custodian:
+          type: string
+          format: uuid
+        qa_custodian_notes:
+          type: string
+        raised_by:
+          type: string
+          format: uuid
+        raised_by_department:
+          type: string
+          format: uuid
+        raised_by_role:
+          type: string
+    PlantLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        default_quarantine_location:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineLookup'
+          readOnly: true
+      required:
+      - code
+      - id
+      - lines
+      - name
+    ProductModelLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    QaCustodianStatusEnum:
+      enum:
+      - Review Pending
+      - Containment Approved
+      - CAPA Verified
+      - In Sustenance
+      - Closed Approved
+      type: string
+      description: |-
+        * `Review Pending` - Review Pending
+        * `Containment Approved` - Containment Approved
+        * `CAPA Verified` - CAPA Verified
+        * `In Sustenance` - In Sustenance
+        * `Closed Approved` - Closed Approved
+    RedFlagConfigLookup:
+      type: object
+      properties:
+        containment_sla_minutes:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        gap_bucket_minutes: {}
+        sustenance_check_days: {}
+        sustenance_audit_grace_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        enforce_sustenance_schedule:
+          type: boolean
+        default_target_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        ppsr_default_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        red_tag_disposal_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        form_number:
+          type: string
+          maxLength: 50
+        form_revision:
+          type: string
+          maxLength: 20
+        standard_reference:
+          type: string
+          maxLength: 100
+        max_photo_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        governance_rules: {}
+    RedFlagRead:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sr_no:
+          type: string
+          readOnly: true
+        red_flag_no:
+          type: string
+          maxLength: 30
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        row_version:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        raised_date:
+          type: string
+          readOnly: true
+        raised_timestamp:
+          type: string
+          readOnly: true
+        raised_by:
+          type: string
+        raised_by_department:
+          type: string
+        raised_by_role:
+          type: string
+          maxLength: 100
+        mf_name:
+          type: string
+        line_area_name:
+          type: string
+        station_name:
+          type: string
+        model_name:
+          type: string
+        red_flag_type:
+          $ref: '#/components/schemas/RedFlagTypeEnum'
+        red_flag_sub_type:
+          type: string
+          maxLength: 200
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+        category_5m:
+          $ref: '#/components/schemas/Category5mEnum'
+        repetitive_occurrence:
+          $ref: '#/components/schemas/RepetitiveOccurrenceEnum'
+        responsible_department:
+          type: string
+        target_department:
+          type: string
+        target_person:
+          type: string
+        team_leader:
+          type: string
+          maxLength: 200
+        red_flag_description:
+          type: string
+        evidence_photo:
+          type: string
+          readOnly: true
+        countermeasure_photo:
+          type: string
+          nullable: true
+          readOnly: true
+        qa_custodian:
+          type: string
+        qa_custodian_status:
+          $ref: '#/components/schemas/QaCustodianStatusEnum'
+        qa_custodian_notes:
+          type: string
+        closure_responsibility:
+          type: string
+          readOnly: true
+        containment_timestamp:
+          type: string
+          nullable: true
+          readOnly: true
+        containment_time_gap:
+          type: string
+          nullable: true
+          readOnly: true
+        containment_status:
+          type: string
+          readOnly: true
+        suspect_qty_quarantined:
+          type: integer
+          readOnly: true
+        target_date:
+          type: string
+          format: date
+        sustenance_start_date:
+          type: string
+          format: date
+          nullable: true
+        sustenance_achieved:
+          type: boolean
+        stage_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/StageHistory'
+          readOnly: true
+        allowed_actions:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        plant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        line_id:
+          type: string
+          format: uuid
+          readOnly: true
+        station_id:
+          type: string
+          format: uuid
+          readOnly: true
+        model_id:
+          type: string
+          format: uuid
+          readOnly: true
+        target_department_id:
+          type: string
+          format: uuid
+          readOnly: true
+        target_person_id:
+          type: string
+          format: uuid
+          readOnly: true
+        qa_custodian_id:
+          type: string
+          format: uuid
+          readOnly: true
+      required:
+      - allowed_actions
+      - category_5m
+      - closure_responsibility
+      - containment_status
+      - containment_time_gap
+      - containment_timestamp
+      - countermeasure_photo
+      - created_at
+      - evidence_photo
+      - id
+      - line_area_name
+      - line_id
+      - mf_name
+      - model_id
+      - model_name
+      - plant_id
+      - qa_custodian
+      - qa_custodian_id
+      - raised_by
+      - raised_by_department
+      - raised_date
+      - raised_timestamp
+      - red_flag_description
+      - red_flag_no
+      - red_flag_type
+      - responsible_department
+      - severity
+      - sr_no
+      - stage_history
+      - station_id
+      - station_name
+      - suspect_qty_quarantined
+      - target_date
+      - target_department
+      - target_department_id
+      - target_person
+      - target_person_id
+    RedFlagReadRequest:
+      type: object
+      properties:
+        red_flag_no:
+          type: string
+          minLength: 1
+          maxLength: 30
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        row_version:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        raised_by:
+          type: string
+          minLength: 1
+        raised_by_department:
+          type: string
+          minLength: 1
+        raised_by_role:
+          type: string
+          maxLength: 100
+        mf_name:
+          type: string
+          minLength: 1
+        line_area_name:
+          type: string
+          minLength: 1
+        station_name:
+          type: string
+          minLength: 1
+        model_name:
+          type: string
+          minLength: 1
+        red_flag_type:
+          $ref: '#/components/schemas/RedFlagTypeEnum'
+        red_flag_sub_type:
+          type: string
+          maxLength: 200
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+        category_5m:
+          $ref: '#/components/schemas/Category5mEnum'
+        repetitive_occurrence:
+          $ref: '#/components/schemas/RepetitiveOccurrenceEnum'
+        responsible_department:
+          type: string
+          minLength: 1
+        target_department:
+          type: string
+          minLength: 1
+        target_person:
+          type: string
+          minLength: 1
+        team_leader:
+          type: string
+          maxLength: 200
+        red_flag_description:
+          type: string
+          minLength: 1
+        qa_custodian:
+          type: string
+          minLength: 1
+        qa_custodian_status:
+          $ref: '#/components/schemas/QaCustodianStatusEnum'
+        qa_custodian_notes:
+          type: string
+        target_date:
+          type: string
+          format: date
+        sustenance_start_date:
+          type: string
+          format: date
+          nullable: true
+        sustenance_achieved:
+          type: boolean
+      required:
+      - category_5m
+      - line_area_name
+      - mf_name
+      - model_name
+      - qa_custodian
+      - raised_by
+      - raised_by_department
+      - red_flag_description
+      - red_flag_no
+      - red_flag_type
+      - responsible_department
+      - severity
+      - station_name
+      - target_date
+      - target_department
+      - target_person
+    RedFlagTypeEnum:
+      enum:
+      - Quality
+      - Process
+      - Machine
+      - Safety
+      - Material
+      - 5S
+      type: string
+      description: |-
+        * `Quality` - Quality (Defect/Spec)
+        * `Process` - Process Parameter
+        * `Machine` - Machine Breakdown
+        * `Safety` - Safety & EHS Hazard
+        * `Material` - Material Inward Defect
+        * `5S` - 5S Contamination
+    RepetitiveOccurrenceEnum:
+      enum:
+      - First Time
+      - Repetitive
+      type: string
+      description: |-
+        * `First Time` - First Time
+        * `Repetitive` - Repetitive
+    SeverityEnum:
+      enum:
+      - Critical (Line Stop)
+      - Major (Quarantine)
+      - Moderate (Rework)
+      type: string
+      description: |-
+        * `Critical (Line Stop)` - Critical (Line Stop)
+        * `Major (Quarantine)` - Major (Quarantine Lot)
+        * `Moderate (Rework)` - Moderate (Rework)
+    StageEnum:
+      enum:
+      - Detection
+      - Containment
+      - RootCause
+      - CAPA
+      - Effectiveness
+      - Sustenance
+      type: string
+      description: |-
+        * `Detection` - Detection
+        * `Containment` - Containment
+        * `RootCause` - RootCause
+        * `CAPA` - CAPA
+        * `Effectiveness` - Effectiveness
+        * `Sustenance` - Sustenance
+    StageHistory:
+      type: object
+      properties:
+        stage:
+          $ref: '#/components/schemas/StageEnum'
+        completed_at:
+          type: string
+          format: date-time
+        completed_by:
+          type: string
+        sign_off_role:
+          type: string
+        notes:
+          type: string
+      required:
+      - completed_at
+      - completed_by
+      - sign_off_role
+      - stage
+    StageHistoryRequest:
+      type: object
+      properties:
+        stage:
+          $ref: '#/components/schemas/StageEnum'
+        completed_at:
+          type: string
+          format: date-time
+        completed_by:
+          type: string
+          minLength: 1
+        sign_off_role:
+          type: string
+          minLength: 1
+        notes:
+          type: string
+      required:
+      - completed_at
+      - completed_by
+      - sign_off_role
+      - stage
+    StationLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    StatusEnum:
+      enum:
+      - Open
+      - Contained
+      - In-Progress
+      - Under-Sustenance
+      - Closed
+      type: string
+      description: |-
+        * `Open` - Open
+        * `Contained` - Contained
+        * `In-Progress` - In-Progress
+        * `Under-Sustenance` - Under-Sustenance
+        * `Closed` - Closed
+    UserMe:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        employee_id:
+          type: string
+          format: uuid
+          nullable: true
+        label:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+        is_plant_head:
+          type: boolean
+        is_quality_custodian:
+          type: boolean
+      required:
+      - department
+      - employee_id
+      - is_plant_head
+      - is_quality_custodian
+      - label
+      - roles
+      - user_id
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

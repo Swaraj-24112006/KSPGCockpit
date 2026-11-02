@@ -1440,6 +1440,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 redFlags={redFlags}
                 onAddRedFlag={handleAddRedFlag}
                 onUpdateRedFlag={handleUpdateRedFlag}
+                onFlagListChanged={setRedFlags}
+                onNavigateToModule={(mod) => setActiveModule(mod as any)}
                 currentPersona={persona}
                 initialAction={initialRedFlagAction}
                 onClearInitialAction={() => setInitialRedFlagAction(null)}
