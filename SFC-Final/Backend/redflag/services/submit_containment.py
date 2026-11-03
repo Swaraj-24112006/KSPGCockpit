@@ -62,12 +62,25 @@ def submit_containment(flag_id, user, data, ip=None, user_agent=''):
 
         # 3. Action taken by employee
         action_emp = employee
-        req_emp_id = data.get('actionTakenBy') or data.get('action_taken_by')
-        if req_emp_id:
-            try:
-                action_emp = Employee.objects.get(id=req_emp_id, is_active=True)
-            except Employee.DoesNotExist:
-                raise UnprocessableEntity({'actionTakenBy': 'Invalid employee ID.'})
+        req_emp = data.get('actionTakenBy') or data.get('action_taken_by')
+        if req_emp:
+            from .raise_red_flag import _is_uuid
+            if _is_uuid(req_emp):
+                found = Employee.objects.filter(id=req_emp, is_active=True).first()
+                if found:
+                    action_emp = found
+            else:
+                emp_str = str(req_emp).strip()
+                core = emp_str.split('(')[0].strip() if '(' in emp_str else emp_str
+                found = Employee.objects.filter(full_name__icontains=core, is_active=True).first()
+                if not found:
+                    found = Employee.objects.filter(full_name__icontains=emp_str, is_active=True).first()
+                if found:
+                    action_emp = found
+        if not action_emp and flag.target_person:
+            action_emp = flag.target_person
+        if not action_emp:
+            action_emp = employee
 
         if not action_emp:
             raise UnprocessableEntity("Your user account is not linked to an employee profile.")
@@ -129,9 +142,15 @@ def submit_containment(flag_id, user, data, ip=None, user_agent=''):
                 photo_attachment = Attachment.objects.get(id=photo_att_id)
             except Attachment.DoesNotExist:
                 raise UnprocessableEntity({'countermeasurePhoto': 'Invalid countermeasure photo attachment ID.'})
-        elif photo_b64 and isinstance(photo_b64, str) and not photo_b64.startswith('http'):
+        elif photo_b64 and isinstance(photo_b64, str):
             from .raise_red_flag import _handle_legacy_photo
-            photo_attachment = _handle_legacy_photo(photo_b64, user, AttachmentKind.T1_CONTAINMENT)
+            if photo_b64.startswith('http'):
+                key_candidate = photo_b64.split('?')[0].split('/')[-1]
+                photo_attachment = Attachment.objects.filter(object_key__icontains=key_candidate).first()
+                if not photo_attachment:
+                    photo_attachment = _handle_legacy_photo('data:image/svg+xml;utf8,<svg></svg>', user, AttachmentKind.T1_CONTAINMENT)
+            else:
+                photo_attachment = _handle_legacy_photo(photo_b64, user, AttachmentKind.T1_CONTAINMENT)
         else:
             raise UnprocessableEntity({'countermeasurePhoto': 'T1 physical containment photo is required.'})
 
