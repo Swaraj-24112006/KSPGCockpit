@@ -636,23 +636,66 @@ class RedFlagDeleteSerializer(serializers.Serializer):
     reason = serializers.CharField(required=True, min_length=3)
 
 class ContainmentSubmitSerializer(serializers.Serializer):
-    contained_at = serializers.CharField(required=False)
-    action_taken_by = serializers.UUIDField(required=False)
+    contained_at = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    action_taken_by = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     suspect_qty_quarantined = serializers.IntegerField(required=False, default=0)
-    quarantine_tag_no = serializers.CharField(required=False, allow_blank=True)
+    quarantine_tag_no = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     quarantine_location = serializers.CharField(required=True)
     sorting_qty_inspected = serializers.IntegerField(required=False, default=0)
     sorting_qty_ok = serializers.IntegerField(required=False, default=0)
     sorting_qty_rejected = serializers.IntegerField(required=False, default=0)
     containment_action = serializers.CharField(required=True)
-    countermeasure_photo_id = serializers.UUIDField(required=False)
-    countermeasure_photo = serializers.CharField(required=False)
+    countermeasure_photo_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    countermeasure_photo = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'containmentAction' in data_copy and 'containment_action' not in data_copy:
+            data_copy['containment_action'] = data_copy['containmentAction']
+        if 'quarantineLocation' in data_copy and 'quarantine_location' not in data_copy:
+            data_copy['quarantine_location'] = data_copy['quarantineLocation']
+        if 'quarantineTagNo' in data_copy and 'quarantine_tag_no' not in data_copy:
+            data_copy['quarantine_tag_no'] = data_copy['quarantineTagNo']
+        if 'suspectQtyQuarantined' in data_copy and 'suspect_qty_quarantined' not in data_copy:
+            data_copy['suspect_qty_quarantined'] = data_copy['suspectQtyQuarantined']
+        if 'sortingQtyInspected' in data_copy and 'sorting_qty_inspected' not in data_copy:
+            data_copy['sorting_qty_inspected'] = data_copy['sortingQtyInspected']
+        if 'sortingQtyOk' in data_copy and 'sorting_qty_ok' not in data_copy:
+            data_copy['sorting_qty_ok'] = data_copy['sortingQtyOk']
+        if 'sortingQtyRejected' in data_copy and 'sorting_qty_rejected' not in data_copy:
+            data_copy['sorting_qty_rejected'] = data_copy['sortingQtyRejected']
+        if 'actionTakenBy' in data_copy and 'action_taken_by' not in data_copy:
+            data_copy['action_taken_by'] = data_copy['actionTakenBy']
+        if 'containmentTimestamp' in data_copy and 'contained_at' not in data_copy:
+            data_copy['contained_at'] = data_copy['containmentTimestamp']
+        if 'countermeasureAttachmentId' in data_copy and 'countermeasure_photo_id' not in data_copy:
+            data_copy['countermeasure_photo_id'] = data_copy['countermeasureAttachmentId']
+        if 'countermeasurePhoto' in data_copy and 'countermeasure_photo' not in data_copy:
+            data_copy['countermeasure_photo'] = data_copy['countermeasurePhoto']
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class ContainmentApproveSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class ContainmentRejectSerializer(serializers.Serializer):
     reason = serializers.CharField(required=True)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class RootCauseSubmitSerializer(serializers.Serializer):
     why1 = serializers.CharField(required=False, allow_blank=True)
@@ -667,25 +710,81 @@ class RootCauseSubmitSerializer(serializers.Serializer):
     systematic_permanent_action = serializers.CharField(required=True)
     standardization_updates = serializers.DictField(required=False)
     target_date = serializers.CharField(required=False)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'rootCause5Why' in data_copy and 'root_cause_5_why' not in data_copy:
+            data_copy['root_cause_5_why'] = data_copy['rootCause5Why']
+        if 'systematicPermanentAction' in data_copy and 'systematic_permanent_action' not in data_copy:
+            data_copy['systematic_permanent_action'] = data_copy['systematicPermanentAction']
+        if 'standardizationUpdates' in data_copy and 'standardization_updates' not in data_copy:
+            data_copy['standardization_updates'] = data_copy['standardizationUpdates']
+        if 'targetDate' in data_copy and 'target_date' not in data_copy:
+            data_copy['target_date'] = data_copy['targetDate']
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class SustenanceStartSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
     standardization_updates = serializers.DictField(required=False)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'standardizationUpdates' in data_copy and 'standardization_updates' not in data_copy:
+            data_copy['standardization_updates'] = data_copy['standardizationUpdates']
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class SustenanceCheckLogSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=['Passed', 'Recurrence Detected'])
     observations = serializers.CharField(required=False, allow_blank=True)
-    photo_attachment_id = serializers.UUIDField(required=False)
+    photo_attachment_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     audit_date = serializers.CharField(required=False)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'photoAttachmentId' in data_copy and 'photo_attachment_id' not in data_copy:
+            data_copy['photo_attachment_id'] = data_copy['photoAttachmentId']
+        if 'auditDate' in data_copy and 'audit_date' not in data_copy:
+            data_copy['audit_date'] = data_copy['auditDate']
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class RedFlagCloseSerializer(serializers.Serializer):
-    closure_evidence = serializers.UUIDField(required=True)
+    closure_evidence = serializers.CharField(required=True)
     validation_trial_shifts = serializers.IntegerField(required=False, default=0)
     validation_trial_results = serializers.CharField(required=False, allow_blank=True)
-    approved_by_qa = serializers.UUIDField(required=False)
-    approved_by_production = serializers.UUIDField(required=False)
+    approved_by_qa = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    approved_by_production = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     closure_date = serializers.CharField(required=False)
     early_closure_reason = serializers.CharField(required=False, allow_blank=True)
+    row_version = serializers.IntegerField(required=False)
+
+    def to_internal_value(self, data):
+        data_copy = dict(data)
+        if 'closureEvidence' in data_copy and 'closure_evidence' not in data_copy:
+            data_copy['closure_evidence'] = data_copy['closureEvidence']
+        if 'validationTrialShifts' in data_copy and 'validation_trial_shifts' not in data_copy:
+            data_copy['validation_trial_shifts'] = data_copy['validationTrialShifts']
+        if 'validationTrialResults' in data_copy and 'validation_trial_results' not in data_copy:
+            data_copy['validation_trial_results'] = data_copy['validationTrialResults']
+        if 'approvedByQa' in data_copy and 'approved_by_qa' not in data_copy:
+            data_copy['approved_by_qa'] = data_copy['approvedByQa']
+        if 'approvedByProduction' in data_copy and 'approved_by_production' not in data_copy:
+            data_copy['approved_by_production'] = data_copy['approvedByProduction']
+        if 'closureDate' in data_copy and 'closure_date' not in data_copy:
+            data_copy['closure_date'] = data_copy['closureDate']
+        if 'earlyClosureReason' in data_copy and 'early_closure_reason' not in data_copy:
+            data_copy['early_closure_reason'] = data_copy['earlyClosureReason']
+        if 'rowVersion' in data_copy and 'row_version' not in data_copy:
+            data_copy['row_version'] = data_copy['rowVersion']
+        return super().to_internal_value(data_copy)
 
 class SustenanceDueCheckSerializer(serializers.Serializer):
     check_id = serializers.UUIDField(source='id')
