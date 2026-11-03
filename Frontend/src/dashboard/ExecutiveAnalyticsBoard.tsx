@@ -181,10 +181,10 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
 
   return (
     <div className="space-y-8 font-sans">
-      
+
       {/* SECTION 1: YoY IMPLEMENTED KAIZENS & PER EMPLOYEE */}
       <div className="bg-gradient-to-b from-[#031d38] via-[#08284d] to-[#04162a] border border-sky-900/60 rounded-3xl p-6 md:p-8 shadow-2xl text-white space-y-6">
-        
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-800/50 pb-4">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-sky-500/20 rounded-2xl border border-sky-400/30 text-sky-400">
@@ -215,7 +215,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
           <AnalyticsSkeleton height="h-64" darkMode={true} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-2">
-            
+
             {/* Left Chart: No. of Kaizens - Implemented YoY */}
             <div className="bg-[#052345]/80 p-5 rounded-2xl border border-sky-800/40 space-y-4">
               <div className="flex items-center justify-between">
@@ -477,7 +477,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
 
       {/* SECTION 3: IDEA / KAIZEN MANAGEMENT DASHBOARD */}
       <div className="bg-[#031d38] border border-slate-700/80 rounded-3xl p-6 md:p-8 shadow-2xl text-white space-y-6">
-        
+
         {/* HEADER BAR & SLICERS / FILTERS */}
         <div className="space-y-4 border-b border-slate-700/60 pb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -502,7 +502,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
 
           {/* SLICER CONTROLS BAR */}
           <div className="bg-[#08294d] border border-slate-700/80 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-5 gap-3 text-xs font-mono">
-            
+
             {/* Year Slicer */}
             <div className="space-y-1">
               <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center space-x-1">
@@ -550,9 +550,8 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
                     key={t}
                     type="button"
                     onClick={() => setSelectedType(t as any)}
-                    className={`flex-1 py-1.5 text-[11px] font-bold transition cursor-pointer ${
-                      selectedType === t ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-300 hover:bg-slate-800'
-                    }`}
+                    className={`flex-1 py-1.5 text-[11px] font-bold transition cursor-pointer ${selectedType === t ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-300 hover:bg-slate-800'
+                      }`}
                   >
                     {t}
                   </button>
@@ -572,9 +571,8 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
                     key={s}
                     type="button"
                     onClick={() => setSelectedStatus(s as any)}
-                    className={`flex-1 py-1.5 text-[10px] font-bold transition cursor-pointer ${
-                      selectedStatus === s ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-300 hover:bg-slate-800'
-                    }`}
+                    className={`flex-1 py-1.5 text-[10px] font-bold transition cursor-pointer ${selectedStatus === s ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-300 hover:bg-slate-800'
+                      }`}
                   >
                     {s}
                   </button>
@@ -605,7 +603,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
 
         {/* ROW 1 CHARTS */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
+
           {/* Chart 1: TYPE - IDEA OR KAIZEN */}
           <div className="lg:col-span-4 bg-[#08294d] border border-slate-700 rounded-2xl p-5 space-y-3">
             <h3 className="text-xs font-extrabold text-white uppercase font-mono border-b border-slate-700 pb-2">
@@ -734,7 +732,7 @@ export default function ExecutiveAnalyticsBoard({ kaizens = [], onSelectKaizen }
 
         {/* ROW 2 CHARTS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          
+
           {/* Donut 1: Minifactory/Dept-wise Kaizen Count */}
           <div className="bg-[#08294d] border border-slate-700 rounded-2xl p-5 space-y-4">
             <h3 className="text-xs font-extrabold text-white uppercase font-mono border-b border-slate-700 pb-2">
