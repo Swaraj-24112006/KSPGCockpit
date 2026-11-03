@@ -152,21 +152,45 @@ export default function RedFlagDashboard({
       const hrs = Math.floor(tg.avgMinutes / 60);
       const remMins = tg.avgMinutes % 60;
       const avgLabel = tg.avgMinutes === 0 ? 'N/A' : hrs > 0 ? `${hrs}h ${remMins}m` : `${remMins}m`;
-      const bucketMap: Record<string, number> = {};
-      tg.buckets.forEach(b => {
-        bucketMap[b.label] = b.count;
-      });
-      return {
-        avgMins: tg.avgMinutes,
-        avgLabel,
-        slaCompliancePct: tg.slaCompliancePct,
-        buckets: {
+
+      let buckets = {
+        under30m: 0,
+        from30to60m: 0,
+        from60to120m: 0,
+        over120m: 0,
+        pending: (dashboardData.kpis?.stage1PendingTarget || 0)
+      };
+
+      if (Array.isArray(tg.buckets)) {
+        const bucketMap: Record<string, number> = {};
+        tg.buckets.forEach((b: any) => {
+          if (b && b.label) {
+            bucketMap[b.label] = b.count || 0;
+          }
+        });
+        buckets = {
           under30m: bucketMap['< 30 mins'] || 0,
           from30to60m: bucketMap['30 - 60 mins'] || 0,
           from60to120m: bucketMap['1 - 2 hours'] || 0,
           over120m: bucketMap['> 2 hours (Breach)'] || 0,
-          pending: (dashboardData.kpis.stage1PendingTarget || 0)
-        },
+          pending: (dashboardData.kpis?.stage1PendingTarget || 0)
+        };
+      } else if (tg.buckets && typeof tg.buckets === 'object') {
+        const b = tg.buckets as Record<string, number>;
+        buckets = {
+          under30m: b.under30m || 0,
+          from30to60m: b.from30to60m || 0,
+          from60to120m: b.from60to120m || 0,
+          over120m: b.over120m || 0,
+          pending: b.pending ?? (dashboardData.kpis?.stage1PendingTarget || 0)
+        };
+      }
+
+      return {
+        avgMins: tg.avgMinutes,
+        avgLabel,
+        slaCompliancePct: tg.slaCompliancePct,
+        buckets,
         completedCount: tg.completedCount
       };
     }
@@ -187,7 +211,7 @@ export default function RedFlagDashboard({
   // 2. 5M PARETO (RANKED WITH CUMULATIVE %) & DEFECT TYPE BREAKDOWN
   // ============================================================================
   const pareto5M = useMemo(() => {
-    if (dashboardData?.pareto5M && dashboardData.pareto5M.length > 0) {
+    if (Array.isArray(dashboardData?.pareto5M) && dashboardData.pareto5M.length > 0) {
       return dashboardData.pareto5M.map(item => ({
         category: item.category,
         count: item.count,
@@ -227,7 +251,7 @@ export default function RedFlagDashboard({
       });
     });
 
-    if (dashboardData?.matrix) {
+    if (Array.isArray(dashboardData?.matrix)) {
       dashboardData.matrix.forEach(m => {
         const orig = departments.find(d => m.originatingDept?.includes(d.split(' ')[0])) || m.originatingDept;
         const tgt = departments.find(d => m.targetDept?.includes(d.split(' ')[0])) || m.targetDept;
@@ -248,7 +272,7 @@ export default function RedFlagDashboard({
 
   // Target Person Accountability & Containment Leaderboard
   const targetPersonStats = useMemo(() => {
-    if (dashboardData?.targetPeople && dashboardData.targetPeople.length > 0) {
+    if (Array.isArray(dashboardData?.targetPeople) && dashboardData.targetPeople.length > 0) {
       return dashboardData.targetPeople.map(tp => ({
         name: tp.name,
         dept: tp.dept,
@@ -266,7 +290,7 @@ export default function RedFlagDashboard({
 
   // Station / Line Hotspot Analytics
   const stationHotspots = useMemo(() => {
-    if (dashboardData?.stationHotspots && dashboardData.stationHotspots.length > 0) {
+    if (Array.isArray(dashboardData?.stationHotspots) && dashboardData.stationHotspots.length > 0) {
       return dashboardData.stationHotspots.map(sh => ({
         station: sh.station,
         line: sh.line,
@@ -1191,7 +1215,21 @@ export default function RedFlagDashboard({
                           </span>
                           <div className="aspect-video bg-rose-50/40 rounded overflow-hidden flex items-center justify-center">
                             {rf.evidencePhoto ? (
-                              <img src={rf.evidencePhoto} alt="T0 Defect" className="w-full h-full object-contain" />
+                              <img
+                                src={rf.evidencePhoto}
+                                alt="T0 Defect"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                  const parent = (e.target as HTMLElement).parentElement;
+                                  if (parent && !parent.querySelector('.offline-fallback')) {
+                                    const fallback = document.createElement('span');
+                                    fallback.className = 'offline-fallback text-[10px] text-slate-400 font-mono text-center px-1';
+                                    fallback.textContent = '📷 Photo (Offline)';
+                                    parent.appendChild(fallback);
+                                  }
+                                }}
+                              />
                             ) : (
                               <span className="text-[10px] text-slate-400">No T0</span>
                             )}
@@ -1204,7 +1242,21 @@ export default function RedFlagDashboard({
                           </span>
                           <div className="aspect-video bg-emerald-50/40 rounded overflow-hidden flex items-center justify-center">
                             {rf.countermeasurePhoto || rf.closureEvidence ? (
-                              <img src={rf.countermeasurePhoto || rf.closureEvidence} alt="T1 Containment" className="w-full h-full object-contain" />
+                              <img
+                                src={rf.countermeasurePhoto || rf.closureEvidence}
+                                alt="T1 Containment"
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                  const parent = (e.target as HTMLElement).parentElement;
+                                  if (parent && !parent.querySelector('.offline-fallback')) {
+                                    const fallback = document.createElement('span');
+                                    fallback.className = 'offline-fallback text-[10px] text-slate-400 font-mono text-center px-1';
+                                    fallback.textContent = '📷 Photo (Offline)';
+                                    parent.appendChild(fallback);
+                                  }
+                                }}
+                              />
                             ) : (
                               <span className="text-[10px] text-amber-700 font-bold text-center px-1">Pending Target T1</span>
                             )}

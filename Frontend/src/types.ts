@@ -424,7 +424,14 @@ export interface RedFlagDashboardAnalytics {
     completedCount: number;
     slaMinutes: number;
     slaCompliancePct: number;
-    buckets: { label: string; count: number }[];
+    buckets: { label: string; count: number }[] | {
+      under30m?: number;
+      from30to60m?: number;
+      from60to120m?: number;
+      over120m?: number;
+      pending?: number;
+      [key: string]: number | undefined;
+    };
   };
   pareto5M: { category: string; count: number; pct: number; cumulativePct: number }[];
   matrix: { originatingDept: string; targetDept: string; count: number }[];

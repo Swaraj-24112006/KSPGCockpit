@@ -6,6 +6,7 @@ import RedFlagActionModal from './components/RedFlagActionModal';
 import RedFlagPrintSheet from './components/RedFlagPrintSheet';
 import RedFlagSheetForm from './components/RedFlagSheetForm';
 import RedFlagDashboard from './components/RedFlagDashboard';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import RedFlagPresentationMode from './components/RedFlagPresentationMode';
 import PresentationModeView, { SlideItem } from './components/common/PresentationModeView';
 import { 
@@ -568,22 +569,24 @@ export default function RedFlagSystem({
 
       {/* TAB 1: ALL-COMBINATION DASHBOARD & ANALYTICS */}
       {activeTab === 'dashboard' && (
-        <RedFlagDashboard 
-          redFlags={redFlags} 
-          onSelectRedFlag={(rf) => setSelectedFlagForAction(rf)}
-          onNavigateToTab={(tab) => {
-            if (tab === 'form') setActiveTab('form');
-            else if (tab === 'sustenance') setActiveTab('other');
-            else if (tab === 'tracker') setActiveTab('tracker');
-          }}
-          onOpenWorkflowStage={(rf, stage) => {
-            if (rf) setFormSelectedFlagId(rf.id);
-            if (stage === 'initiator') setFormWorkflowStage('initiator');
-            else if (stage === 'target') setFormWorkflowStage('containment');
-            else setFormWorkflowStage('quality');
-            setActiveTab('form');
-          }}
-        />
+        <ErrorBoundary fallbackTitle="Red Flag Dashboard View">
+          <RedFlagDashboard 
+            redFlags={redFlags} 
+            onSelectRedFlag={(rf) => setSelectedFlagForAction(rf)}
+            onNavigateToTab={(tab) => {
+              if (tab === 'form') setActiveTab('form');
+              else if (tab === 'sustenance') setActiveTab('other');
+              else if (tab === 'tracker') setActiveTab('tracker');
+            }}
+            onOpenWorkflowStage={(rf, stage) => {
+              if (rf) setFormSelectedFlagId(rf.id);
+              if (stage === 'initiator') setFormWorkflowStage('initiator');
+              else if (stage === 'target') setFormWorkflowStage('containment');
+              else setFormWorkflowStage('quality');
+              setActiveTab('form');
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {/* TAB 2: 4-STAGE WORKFLOW FORMS WITH ROLE-BASED ACCESS CONTROL */}

@@ -2,6 +2,7 @@ import React from 'react';
 import RedFlagSystem from '../components/RedFlagSystem';
 import { RedFlag, UserPersona } from '../types';
 import { RedFlagProvider } from '../context/RedFlagContext';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
 interface RedFlagModuleProps {
   redFlags: RedFlag[];
@@ -21,8 +22,10 @@ interface RedFlagModuleProps {
 
 export default function RedFlagModule(props: RedFlagModuleProps) {
   return (
-    <RedFlagProvider initialFlags={props.redFlags}>
-      <RedFlagSystem {...props} />
-    </RedFlagProvider>
+    <ErrorBoundary fallbackTitle="Red Flag Module Encountered an Issue">
+      <RedFlagProvider initialFlags={props.redFlags}>
+        <RedFlagSystem {...props} />
+      </RedFlagProvider>
+    </ErrorBoundary>
   );
 }
