@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: KSPG Cockpit - Red Flag API
+  version: 1.0.0
+  description: Red Flag Shopfloor Non-Conformance Tracker Service
+paths:
+  /api/redflags/lookups/:
+    get:
+      operationId: redflagsLookupsRetrieve
+      description: |-
+        Returns all master data, dropdown choices, and configuration needed by Red Flag frontend.
+        GET /api/redflags/lookups
+      summary: Get System Lookups, Master Data, Enums, and Configuration
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupsResponse'
+          description: ''
+  /api/redflags/me/:
+    get:
+      operationId: redflagsMeRetrieve
+      description: |-
+        Returns current authenticated user details, roles, employee profile.
+        GET /api/redflags/me
+      summary: Get Current User Identity & Roles
+      tags:
+      - redflags
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMe'
+          description: ''
+components:
+  schemas:
+    DepartmentLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 50
+        name:
+          type: string
+          maxLength: 100
+        can_originate:
+          type: boolean
+        can_be_target:
+          type: boolean
+        sort_order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+      required:
+      - code
+      - id
+      - name
+    EmployeeLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        department:
+          type: string
+          readOnly: true
+      required:
+      - department
+      - id
+      - label
+    EnumChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
+    LineLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        stations:
+          type: array
+          items:
+            $ref: '#/components/schemas/StationLookup'
+          readOnly: true
+      required:
+      - id
+      - name
+      - stations
+    LookupsEnums:
+      type: object
+      properties:
+        red_flag_type:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        severity:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        category_5m:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        containment_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        qa_custodian_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        repetitive:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        check_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+        escalation_module:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnumChoice'
+      required:
+      - category_5m
+      - check_status
+      - containment_status
+      - escalation_module
+      - qa_custodian_status
+      - red_flag_type
+      - repetitive
+      - severity
+      - status
+    LookupsResponse:
+      type: object
+      properties:
+        plants:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlantLookup'
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductModelLookup'
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepartmentLookup'
+        employees:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployeeLookup'
+        enums:
+          $ref: '#/components/schemas/LookupsEnums'
+        config:
+          $ref: '#/components/schemas/RedFlagConfigLookup'
+      required:
+      - config
+      - departments
+      - employees
+      - enums
+      - models
+      - plants
+    PlantLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        default_quarantine_location:
+          type: string
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineLookup'
+          readOnly: true
+      required:
+      - code
+      - id
+      - lines
+      - name
+    ProductModelLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    RedFlagConfigLookup:
+      type: object
+      properties:
+        containment_sla_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        gap_bucket_minutes: {}
+        sustenance_check_days: {}
+        sustenance_audit_grace_days:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        enforce_sustenance_schedule:
+          type: boolean
+        default_target_days:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        ppsr_default_days:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        red_tag_disposal_days:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        form_number:
+          type: string
+          maxLength: 50
+        form_revision:
+          type: string
+          maxLength: 20
+        standard_reference:
+          type: string
+          maxLength: 100
+        max_photo_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        governance_rules: {}
+    StationLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - name
+    UserMe:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        employee_id:
+          type: string
+          format: uuid
+          nullable: true
+        label:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+        is_plant_head:
+          type: boolean
+        is_quality_custodian:
+          type: boolean
+      required:
+      - department
+      - employee_id
+      - is_plant_head
+      - is_quality_custodian
+      - label
+      - roles
+      - user_id
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -1,0 +1,5 @@
+plant_code,name,is_active
+MF1,Main Assembly Line 01,true
+MF1,Testing & Inspection Bay,true
+MF2,CNC Machining Cell A,true
+

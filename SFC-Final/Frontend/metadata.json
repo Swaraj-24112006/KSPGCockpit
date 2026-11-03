@@ -1,0 +1,10 @@
+{
+  "name": "SFC Tracker Final",
+  "description": "Log daily improvements with photos, manage review approvals, and visualize long-term progress using intuitive mobile-friendly management dashboards.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

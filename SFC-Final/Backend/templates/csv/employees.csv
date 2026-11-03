@@ -1,0 +1,6 @@
+employee_code,full_name,designation,department,plant_code,email,phone,is_active
+EMP001,Rajesh Sharma,Assembly Lead,Production,MF1,rajesh.sharma@kspg.local,+919876543210,true
+EMP002,Vikram Singh,Maintenance Lead,Maintenance,MF1,vikram.singh@kspg.local,+919876543211,true
+EMP003,Sunil Deshmukh,Quality Custodian,Quality,MF1,sunil.deshmukh@kspg.local,+919876543212,true
+EMP004,Amitabh Verma,Plant Head,Production,MF1,amitabh.verma@kspg.local,+919876543213,true
+

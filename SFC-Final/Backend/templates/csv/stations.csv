@@ -1,0 +1,5 @@
+plant_code,line_name,name,is_active
+MF1,Main Assembly Line 01,ST-01 Torquing & Press Fit,true
+MF1,Main Assembly Line 01,ST-02 Riveting Station,true
+MF1,Testing & Inspection Bay,ST-03 End-of-Line Tester,true
+

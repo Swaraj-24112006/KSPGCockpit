@@ -13,6 +13,7 @@
 !Frontend/.env.example
 !MPS/Backend/.env.example
 !Checklist-main/.env.example
+!SFC-Final/Backend/.env.example
 
 # ── Python & Django ──────────────────────────────────────────────────────────
 __pycache__/
