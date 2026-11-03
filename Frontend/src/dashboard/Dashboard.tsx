@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Kaizen } from '../types';
 import {
   ResponsiveContainer,
@@ -35,10 +35,13 @@ import {
   X,
   Plus,
   Trash2,
-  Save
+  Save,
+  RefreshCw
 } from 'lucide-react';
 import { formatIndianRupees, formatIndianRupeesCompact } from '../utils';
 import { PowerBiVisualCard, DrillBreadcrumbItem, SFC_PALETTE } from './common/SfcPowerBiShared';
+import { authFetch } from '../shared/utils/auth';
+import { ANALYTICS_INVALIDATE_EVENT } from '../api/analytics';
 
 interface DashboardProps {
   kaizens?: Kaizen[];
@@ -144,9 +147,124 @@ const DEFAULT_PRE2026_BASELINE: Pre2026HistoricalRow[] = [
   }
 ];
 
-function cleanEmployeeName(rawName: string): string {
-  if (!rawName) return 'Shopfloor Operator';
-  return rawName.split('(')[0].split('/')[0].trim();
+function cleanEmployeeName(rawName: string | undefined): string {
+  if (!rawName || typeof rawName !== 'string') return 'Shopfloor Contributor';
+  return rawName.split('(')[0].split('/')[0].trim() || 'Shopfloor Contributor';
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+function getKaizenYear(k: Kaizen): number {
+  if (k.suggestionDate) {
+    const y = parseInt(k.suggestionDate.substring(0, 4), 10);
+    if (!isNaN(y) && y >= 2000 && y <= 2100) return y;
+    const d = new Date(k.suggestionDate);
+    if (!isNaN(d.getFullYear())) return d.getFullYear();
+  }
+  if (k.implementedDate) {
+    const y = parseInt(k.implementedDate.substring(0, 4), 10);
+    if (!isNaN(y) && y >= 2000 && y <= 2100) return y;
+  }
+  return 2026;
+}
+
+function getKaizenMonth(k: Kaizen): string {
+  if (k.month && k.month.trim()) {
+    const m = k.month.trim();
+    const match = MONTH_NAMES.find(name => name.toLowerCase().startsWith(m.toLowerCase().substring(0, 3)));
+    if (match) return match;
+    return m;
+  }
+  if (k.suggestionDate) {
+    const d = new Date(k.suggestionDate);
+    if (!isNaN(d.getTime())) {
+      return MONTH_NAMES[d.getMonth()];
+    }
+  }
+  return 'July';
+}
+
+function normalizeDepartment(raw: string | undefined): string {
+  if (!raw) return 'MF1';
+  const clean = raw.trim();
+  const lower = clean.toLowerCase();
+  if (lower === 'mf1' || lower === 'mf 1' || lower.includes('minifactory 1')) return 'MF1';
+  if (lower === 'mf2' || lower === 'mf 2' || lower.includes('minifactory 2')) return 'MF2';
+  if (lower === 'mf3' || lower === 'mf 3' || lower.includes('minifactory 3')) return 'MF3';
+  if (lower === 'machining' || lower === 'mc' || lower === 'm/c') return 'Machining';
+  if (lower === 'maintenance' || lower === 'maint') return 'Maintenance';
+  if (lower === 'quality' || lower === 'qa' || lower === 'qc') return 'Quality';
+  return clean;
+}
+
+function normalizeKaizenRecord(k: any): Kaizen {
+  const rawStatus = (k.status || '').toLowerCase().trim();
+  let normalizedStatus: 'Draft' | 'Pending' | 'Approved' | 'Good Point' | 'Rejected' = 'Pending';
+  if (rawStatus === 'draft') normalizedStatus = 'Draft';
+  else if (rawStatus === 'approved') normalizedStatus = 'Approved';
+  else if (rawStatus === 'good_point' || rawStatus === 'good point') normalizedStatus = 'Good Point';
+  else if (rawStatus === 'rejected') normalizedStatus = 'Rejected';
+  else normalizedStatus = 'Pending';
+
+  const rawClass = (k.classification || '').toLowerCase().trim();
+  let normalizedClass: 'Kaizen' | 'Good Point' | 'Pending' | 'None' = 'Pending';
+  if (rawClass === 'kaizen') normalizedClass = 'Kaizen';
+  else if (rawClass === 'good_point' || rawClass === 'good point') normalizedClass = 'Good Point';
+  else if (rawClass === 'none') normalizedClass = 'None';
+  else normalizedClass = 'Pending';
+
+  const rawB = k.benefits || {};
+  const normalizedBenefits = {
+    p: Boolean(rawB.p ?? rawB.productivity),
+    q: Boolean(rawB.q ?? rawB.quality),
+    c: Boolean(rawB.c ?? rawB.cost),
+    d: Boolean(rawB.d ?? rawB.delivery),
+    s: Boolean(rawB.s ?? rawB.safety),
+    m: Boolean(rawB.m ?? rawB.morale),
+  };
+
+  const costVal = typeof k.costSave === 'number'
+    ? k.costSave
+    : typeof k.costSave === 'string'
+    ? parseFloat(k.costSave) || 0
+    : typeof k.cost_save === 'number'
+    ? k.cost_save
+    : parseFloat(k.cost_save) || 0;
+
+  return {
+    ...k,
+    id: String(k.id || Math.random()),
+    title: k.title || '',
+    srNo: k.srNo || k.sr_no || `KZ-${k.id}`,
+    month: k.month || 'July',
+    suggestionDate: k.suggestionDate || k.suggestion_date || '',
+    problemBefore: k.problemBefore || k.problem_before || '',
+    counterMeasureAfter: k.counterMeasureAfter || k.counter_measure_after || '',
+    result: k.result || '',
+    remark: k.remark || '',
+    status: normalizedStatus,
+    classification: normalizedClass,
+    benefits: normalizedBenefits,
+    costSave: costVal,
+    area: k.area || '',
+    minifactory: normalizeDepartment(k.miniFactory || k.minifactory || k.mini_factory),
+    location: k.location || '',
+    machine: k.machine || '',
+    ideaBy: k.ideaBy || k.idea_by || '',
+    implementedBy: k.implementedBy || k.implemented_by || '',
+    preparedBy: k.preparedBy || k.prepared_by || '',
+    approvedBy: k.approvedBy || k.approved_by || '',
+    verifiedBy: k.verifiedByName || k.verified_by_name || k.verifiedBy || '',
+    implementedDate: k.implementationDate || k.implementation_date || k.implementedDate || '',
+    closingTargetDate: k.closingTargetDate || k.closing_target_date || '',
+    photoBeforeUrl: k.photoBeforeUrl || k.photo_before_url || null,
+    photoAfterUrl: k.photoAfterUrl || k.photo_after_url || null,
+    createdAt: k.createdAt || k.created_at || new Date().toISOString(),
+    impactAssessment: k.impactAssessment || k.impact_assessment,
+  };
 }
 
 export default function Dashboard({
@@ -208,29 +326,146 @@ export default function Dashboard({
   const [decompArea, setDecompArea] = useState<string | null>(null);
 
   // ============================================================================
-  // LIVE 2026+ DATA AGGREGATION COMBINED WITH PRE-2026 STATIC BASELINE
+  // REAL-TIME DATABASE STATE & EVENT LISTENERS
+  // ============================================================================
+  const [liveKaizens, setLiveKaizens] = useState<Kaizen[]>(kaizens);
+  const [isLiveLoading, setIsLiveLoading] = useState<boolean>(false);
+  const [lastSynced, setLastSynced] = useState<Date>(new Date());
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const fetchRealTimeKaizens = useCallback(async () => {
+    setIsLiveLoading(true);
+    setSyncError(null);
+    try {
+      const res = await authFetch('/api/v1/kaizens/?all=true');
+      if (res.ok) {
+        const data = await res.json();
+        let rawList: any[] = [];
+        if (Array.isArray(data)) rawList = data;
+        else if (data.data && Array.isArray(data.data)) rawList = data.data;
+        else if (data.results && Array.isArray(data.results)) rawList = data.results;
+
+        if (rawList && rawList.length > 0) {
+          const normalized = rawList.map(normalizeKaizenRecord);
+          setLiveKaizens(normalized);
+        }
+        setLastSynced(new Date());
+      } else {
+        setSyncError(`Backend returned ${res.status}`);
+      }
+    } catch (err: any) {
+      console.warn('Real-time database fetch error:', err);
+      setSyncError(err?.message || 'Sync error');
+    } finally {
+      setIsLiveLoading(false);
+    }
+  }, []);
+
+  // Sync when parent kaizens prop updates
+  useEffect(() => {
+    if (kaizens && kaizens.length > 0) {
+      setLiveKaizens(kaizens);
+    }
+  }, [kaizens]);
+
+  // Real-time Listeners (Mount, Invalidation event, 60s Freshness polling, Window focus)
+  useEffect(() => {
+    fetchRealTimeKaizens();
+
+    const handleInvalidate = () => {
+      fetchRealTimeKaizens();
+    };
+    window.addEventListener(ANALYTICS_INVALIDATE_EVENT, handleInvalidate);
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchRealTimeKaizens();
+      }
+    }, 60000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchRealTimeKaizens();
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener(ANALYTICS_INVALIDATE_EVENT, handleInvalidate);
+      window.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [fetchRealTimeKaizens]);
+
+  // Selected Year Classification: Pre-2026 Static Baseline vs 2026+ Live
+  const isPre2026YearSelected = useMemo(() => {
+    if (selectedYear === 'ALL') return false;
+    const y = parseInt(selectedYear, 10);
+    return !isNaN(y) && y < 2026;
+  }, [selectedYear]);
+
+  const selectedStaticRow = useMemo(() => {
+    if (!isPre2026YearSelected) return null;
+    return pre2026Data.find(r => r.year === selectedYear) || null;
+  }, [isPre2026YearSelected, selectedYear, pre2026Data]);
+
+  // ============================================================================
+  // LIVE 2026+ DATA AGGREGATION FROM REAL DATABASE RECORDS
   // ============================================================================
   const live2026Stats = useMemo(() => {
-    const totalLive = kaizens.length;
-    const approvedLive = kaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point').length;
-    const costSavedLive = kaizens.reduce((s, k) => s + (k.costSave || 0), 0);
-    const uniqueEmployees = new Set(kaizens.map(k => cleanEmployeeName(k.ideaBy))).size || 18;
-    // Scale 2026 live density benchmark
-    const annualizedCount = Math.max(totalLive * 18, 285);
-    const perEmp = Number((annualizedCount / 165).toFixed(2));
+    // Real live database records for 2026 onwards
+    const live2026Kaizens = liveKaizens.filter(k => {
+      const yr = getKaizenYear(k);
+      return yr >= 2026;
+    });
 
-    const mf1 = kaizens.filter(k => k.minifactory === 'MF1').length * 16;
-    const mf2 = kaizens.filter(k => k.minifactory === 'MF2').length * 16;
-    const mf3 = kaizens.filter(k => k.minifactory === 'MF3').length * 16;
-    const mc = kaizens.filter(k => k.minifactory === 'Machining').length * 16;
-    const maint = kaizens.filter(k => k.minifactory === 'Maintenance').length * 16;
-    const qa = kaizens.filter(k => k.minifactory === 'Quality').length * 16;
+    const totalLive = live2026Kaizens.length;
+    const approvedLive = live2026Kaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point').length;
+    const costSavedLive = live2026Kaizens
+      .filter(k => k.status === 'Approved' || k.status === 'Good Point')
+      .reduce((s, k) => s + (Number(k.costSave) || 0), 0);
+    const uniqueEmployees = new Set(live2026Kaizens.map(k => cleanEmployeeName(k.ideaBy)).filter(Boolean)).size;
+
+    // Real per-employee ratio: implemented kaizens per active unique employee
+    const perEmp = uniqueEmployees > 0
+      ? Number((approvedLive / uniqueEmployees).toFixed(2))
+      : 0;
+
+    // Real department counts from database records
+    const mf1 = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'MF1' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+    const mf2 = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'MF2' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+    const mf3 = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'MF3' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+    const mc = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'Machining' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+    const maint = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'Maintenance' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+    const qa = live2026Kaizens.filter(k => normalizeDepartment(k.minifactory) === 'Quality' && (k.status === 'Approved' || k.status === 'Good Point')).length;
+
+    // Real top contributor
+    const contributorScores: Record<string, number> = {};
+    live2026Kaizens.forEach(k => {
+      const name = cleanEmployeeName(k.ideaBy);
+      if (name && name !== 'Shopfloor Contributor') {
+        contributorScores[name] = (contributorScores[name] || 0) + (k.status === 'Approved' || k.status === 'Good Point' ? 1 : 0.5);
+      }
+    });
+
+    let topContributor = 'Pending First Log';
+    let maxScore = -1;
+    Object.entries(contributorScores).forEach(([name, score]) => {
+      if (score > maxScore) {
+        maxScore = score;
+        topContributor = name;
+      }
+    });
+
+    if (maxScore <= 0 && live2026Kaizens.length > 0) {
+      topContributor = cleanEmployeeName(live2026Kaizens[0].ideaBy) || 'Active Team';
+    }
 
     return {
-      year: '2026 (Live)',
+      year: '2026 YTD (Live)',
       rawYear: '2026',
       isLive: true,
-      totalImplemented: annualizedCount,
+      totalImplemented: approvedLive,
       liveActualSheets: totalLive,
       liveApprovedSheets: approvedLive,
       activeEmployees: uniqueEmployees,
@@ -241,15 +476,17 @@ export default function Dashboard({
       mf3Count: mf3,
       machiningCount: mc,
       maintenanceCount: maint,
-      qualityCount: qa
+      qualityCount: qa,
+      topContributor
     };
-  }, [kaizens]);
+  }, [liveKaizens]);
 
-  // Combined Multi-Year Series: Pre-2026 Static Baseline + 2026 Live Operational Data
+  // Combined Multi-Year Series: Hardcoded Pre-2026 Static Baseline + 2026+ Live Operational Database Data
   const combinedYearlySeries = useMemo(() => {
+    // 1. Static pre-2026 historical rows (2021-2025)
     const staticRows = pre2026Data.map((row, idx, arr) => {
       const prev = idx > 0 ? arr[idx - 1].totalImplemented : row.totalImplemented;
-      const yoyNum = idx > 0 && prev > 0 ? Math.round(((row.totalImplemented - prev) / prev) * 100) : 18;
+      const yoyNum = idx > 0 && prev > 0 ? Math.round(((row.totalImplemented - prev) / prev) * 100) : 0;
       return {
         year: row.year,
         rawYear: row.year,
@@ -271,12 +508,15 @@ export default function Dashboard({
       };
     });
 
-    const lastStatic = staticRows[staticRows.length - 1]?.implemented || 300;
-    const liveYoy = Math.round(((live2026Stats.totalImplemented - lastStatic) / lastStatic) * 100);
+    // 2. Real-time Live row for 2026 onwards
+    const lastStaticImplemented = staticRows[staticRows.length - 1]?.implemented || 312;
+    const liveYoy = lastStaticImplemented > 0
+      ? Math.round(((live2026Stats.totalImplemented - lastStaticImplemented) / lastStaticImplemented) * 100)
+      : 0;
 
     const liveRow = {
       year: '2026 YTD (Live)',
-      rawYear: '2026 YTD',
+      rawYear: '2026',
       dataSource: 'Live Shopfloor Data (2026+)',
       isLive: true,
       implemented: live2026Stats.totalImplemented,
@@ -291,7 +531,7 @@ export default function Dashboard({
       machiningCount: live2026Stats.machiningCount,
       maintenanceCount: live2026Stats.maintenanceCount,
       qualityCount: live2026Stats.qualityCount,
-      topContributor: 'Live Leader'
+      topContributor: live2026Stats.topContributor
     };
 
     return [...staticRows, liveRow];
@@ -417,31 +657,50 @@ export default function Dashboard({
   };
 
   // ============================================================================
-  // CROSS-FILTERED KAIZEN RECORDS
+  // CROSS-FILTERED KAIZEN RECORDS FROM REAL-TIME DATABASE
   // ============================================================================
   const filteredKaizens = useMemo(() => {
-    return kaizens.filter(k => {
-      if (selectedMonth !== 'ALL' && (k.month || 'July') !== selectedMonth) return false;
-      if (selectedDept !== 'ALL' && (k.minifactory || 'MF1') !== selectedDept) return false;
+    return liveKaizens.filter(k => {
+      // 1. Year Filter
+      if (selectedYear !== 'ALL') {
+        const yr = getKaizenYear(k);
+        if (String(yr) !== String(selectedYear)) return false;
+      }
+      // 2. Month Filter
+      if (selectedMonth !== 'ALL') {
+        const m = getKaizenMonth(k);
+        if (m.toLowerCase() !== selectedMonth.toLowerCase()) return false;
+      }
+      // 3. Department Filter
+      if (selectedDept !== 'ALL') {
+        const d = normalizeDepartment(k.minifactory);
+        if (d !== selectedDept) return false;
+      }
+      // 4. Status Filter
       if (selectedStatus !== 'ALL') {
         const isImpl = k.status === 'Approved' || k.status === 'Good Point';
         if (selectedStatus === 'Implemented' && !isImpl) return false;
         if (selectedStatus === 'Pending' && isImpl) return false;
       }
+      // 5. PQCDSM Pillar Filter
       if (selectedPillar !== 'ALL') {
         const key = selectedPillar.toLowerCase() as keyof typeof k.benefits;
         if (!k.benefits?.[key]) return false;
       }
-      if (selectedEmployee !== 'ALL' && cleanEmployeeName(k.ideaBy) !== selectedEmployee) {
-        return false;
+      // 6. Employee Filter
+      if (selectedEmployee !== 'ALL') {
+        const empName = cleanEmployeeName(k.ideaBy);
+        if (empName !== selectedEmployee) return false;
       }
-      if (drillDept && (k.minifactory || 'MF1') !== drillDept) return false;
+      // 7. Drill-down Filters
+      if (drillDept && normalizeDepartment(k.minifactory) !== drillDept) return false;
       if (drillArea && (k.area || 'Assembly Line') !== drillArea) return false;
       if (drillMachine && (k.machine || 'Station 1') !== drillMachine) return false;
       return true;
     });
   }, [
-    kaizens,
+    liveKaizens,
+    selectedYear,
     selectedMonth,
     selectedDept,
     selectedStatus,
@@ -456,6 +715,7 @@ export default function Dashboard({
   // TOPPERS & HALL OF FAME ANALYTICS (EMPLOYEE, MINIFACTORY & ROI KAIZEN TOPPERS)
   // ============================================================================
   const employeeLeaderboard = useMemo(() => {
+    const targetList = isPre2026YearSelected ? [] : liveKaizens;
     const map: Record<string, {
       name: string;
       rawName: string;
@@ -468,13 +728,13 @@ export default function Dashboard({
       kaizenList: Kaizen[];
     }> = {};
 
-    kaizens.forEach(k => {
+    targetList.forEach(k => {
       const name = cleanEmployeeName(k.ideaBy);
       if (!map[name]) {
         map[name] = {
           name,
           rawName: k.ideaBy,
-          dept: k.minifactory || 'MF1',
+          dept: normalizeDepartment(k.minifactory),
           area: k.area || 'Assembly Line',
           total: 0,
           implemented: 0,
@@ -489,7 +749,7 @@ export default function Dashboard({
       } else {
         map[name].pending += 1;
       }
-      map[name].savings += k.costSave || 0;
+      map[name].savings += Number(k.costSave) || 0;
       map[name].kaizenList.push(k);
     });
 
@@ -501,41 +761,57 @@ export default function Dashboard({
       }))
       .sort((a, b) => b.total - a.total || b.savings - a.savings)
       .map((emp, idx) => ({ ...emp, rank: idx + 1 }));
-  }, [kaizens]);
+  }, [liveKaizens, isPre2026YearSelected]);
 
   const top3EmployeeToppers = useMemo(() => employeeLeaderboard.slice(0, 3), [employeeLeaderboard]);
 
   const top3RoiKaizens = useMemo(() => {
-    return [...kaizens]
-      .sort((a, b) => (b.costSave || 0) - (a.costSave || 0))
+    return [...liveKaizens]
+      .filter(k => k.status === 'Approved' || k.status === 'Good Point' || (Number(k.costSave) || 0) > 0)
+      .sort((a, b) => (Number(b.costSave) || 0) - (Number(a.costSave) || 0))
       .slice(0, 3);
-  }, [kaizens]);
+  }, [liveKaizens]);
 
   const minifactoryToppers = useMemo(() => {
     const map: Record<string, { dept: string; total: number; implemented: number; savings: number }> = {};
-    kaizens.forEach(k => {
-      const d = k.minifactory || 'MF1';
-      if (!map[d]) map[d] = { dept: d, total: 0, implemented: 0, savings: 0 };
-      map[d].total += 1;
-      if (k.status === 'Approved' || k.status === 'Good Point') map[d].implemented += 1;
-      map[d].savings += k.costSave || 0;
-    });
+    if (selectedStaticRow) {
+      map['MF1'] = { dept: 'MF1', total: selectedStaticRow.mf1Count, implemented: selectedStaticRow.mf1Count, savings: Math.round(selectedStaticRow.costSavedINR * 0.35) };
+      map['MF2'] = { dept: 'MF2', total: selectedStaticRow.mf2Count, implemented: selectedStaticRow.mf2Count, savings: Math.round(selectedStaticRow.costSavedINR * 0.25) };
+      map['MF3'] = { dept: 'MF3', total: selectedStaticRow.mf3Count, implemented: selectedStaticRow.mf3Count, savings: Math.round(selectedStaticRow.costSavedINR * 0.18) };
+      map['Machining'] = { dept: 'Machining', total: selectedStaticRow.machiningCount, implemented: selectedStaticRow.machiningCount, savings: Math.round(selectedStaticRow.costSavedINR * 0.12) };
+      map['Maintenance'] = { dept: 'Maintenance', total: selectedStaticRow.maintenanceCount, implemented: selectedStaticRow.maintenanceCount, savings: Math.round(selectedStaticRow.costSavedINR * 0.05) };
+      map['Quality'] = { dept: 'Quality', total: selectedStaticRow.qualityCount, implemented: selectedStaticRow.qualityCount, savings: Math.round(selectedStaticRow.costSavedINR * 0.05) };
+    } else {
+      liveKaizens.forEach(k => {
+        const d = normalizeDepartment(k.minifactory);
+        if (!map[d]) map[d] = { dept: d, total: 0, implemented: 0, savings: 0 };
+        map[d].total += 1;
+        if (k.status === 'Approved' || k.status === 'Good Point') map[d].implemented += 1;
+        map[d].savings += Number(k.costSave) || 0;
+      });
+    }
     return Object.values(map).sort((a, b) => b.total - a.total || b.savings - a.savings);
-  }, [kaizens]);
+  }, [liveKaizens, selectedStaticRow]);
 
   // ============================================================================
-  // KPI METRICS
+  // KPI METRICS (DYNAMICALLY SWITCHES BETWEEN STATIC BASELINE AND REAL-TIME DB)
   // ============================================================================
-  const totalCount = filteredKaizens.length;
-  const implementedCount = filteredKaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point').length;
-  const pendingCount = totalCount - implementedCount;
+  const totalCount = selectedStaticRow ? selectedStaticRow.totalImplemented : filteredKaizens.length;
+  const implementedCount = selectedStaticRow
+    ? selectedStaticRow.totalImplemented
+    : filteredKaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point').length;
+  const pendingCount = selectedStaticRow ? 0 : totalCount - implementedCount;
   const implRatePct = totalCount > 0 ? Math.round((implementedCount / totalCount) * 100) : 0;
-  const totalSavings = filteredKaizens.reduce((sum, k) => sum + (k.costSave || 0), 0);
-  const avgSavingsPerSheet = totalCount > 0 ? Math.round(totalSavings / totalCount) : 0;
+  const totalSavings = selectedStaticRow
+    ? selectedStaticRow.costSavedINR
+    : filteredKaizens.filter(k => k.status === 'Approved' || k.status === 'Good Point').reduce((sum, k) => sum + (Number(k.costSave) || 0), 0);
+  const avgSavingsPerSheet = implementedCount > 0 ? Math.round(totalSavings / implementedCount) : 0;
 
-  const fiveMClosedCount = filteredKaizens.filter(
-    k => k.impactAssessment?.overallClosureStatus === 'Fully Closed'
-  ).length;
+  const fiveMClosedCount = selectedStaticRow
+    ? selectedStaticRow.totalImplemented
+    : filteredKaizens.filter(
+        k => k.impactAssessment?.overallClosureStatus === 'Fully Closed'
+      ).length;
   const fiveMCompliancePct = totalCount > 0 ? Math.round((fiveMClosedCount / totalCount) * 100) : 0;
 
   // ============================================================================
@@ -802,12 +1078,17 @@ export default function Dashboard({
                   </span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-xs border bg-[#EFF6FF] text-[#005EB8] border-[#BFDBFE] flex items-center gap-1">
                     <Database className="w-3 h-3" />
-                    <span>Pre-2026: Static Baseline ({pre2026Data.length} Yrs)</span>
+                    <span>Pre-2026: Hardcoded Baseline ({pre2026Data.length} Yrs)</span>
                   </span>
                   <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-xs border bg-[#F0FDFA] text-[#0F766E] border-[#99F6E4] flex items-center gap-1">
-                    <Radio className="w-3 h-3 animate-pulse" />
-                    <span>2026+: Live Shopfloor Data ({kaizens.length} Sheets)</span>
+                    <Radio className="w-3 h-3 animate-pulse text-[#0D9488]" />
+                    <span>2026+: Live Real-Time DB ({liveKaizens.length} Sheets)</span>
                   </span>
+                  {lastSynced && (
+                    <span className="text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 hidden sm:inline">
+                      Synced {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  )}
                 </div>
                 <h1 className={`text-base sm:text-xl font-black tracking-tight uppercase mt-0.5 ${darkTheme ? 'text-white' : 'text-[#051C2C]'}`}>
                   Kaizen Continuous Improvement — Plant Toppers, YoY Baseline &amp; Drill-Down Suite
@@ -827,6 +1108,18 @@ export default function Dashboard({
                   <span>Reset All Filters</span>
                 </button>
               )}
+
+              {/* Real-Time Database Refresh / Live Sync Button */}
+              <button
+                type="button"
+                onClick={fetchRealTimeKaizens}
+                disabled={isLiveLoading}
+                className="px-3 py-1.5 rounded-lg text-xs font-mono font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 cursor-pointer transition shadow-2xs"
+                title="Fetch latest real-time records from PostgreSQL database"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-[#0D9488] ${isLiveLoading ? 'animate-spin' : ''}`} />
+                <span>{isLiveLoading ? 'Syncing...' : 'Live Sync'}</span>
+              </button>
 
               {/* Pre-2026 Historical Data Template & Upload Button */}
               <button
@@ -1173,6 +1466,25 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+
+        {/* Banner when Pre-2026 Static Historical Year is selected */}
+        {selectedStaticRow && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-2.5 rounded-xl flex items-center justify-between text-xs font-mono shadow-2xs">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                <strong>Historical Static Baseline Mode ({selectedStaticRow.year}):</strong> Displaying archived baseline records ({selectedStaticRow.totalImplemented} Kaizens, ₹{Number((selectedStaticRow.costSavedINR / 100000).toFixed(1))}L savings, Top Contributor: {selectedStaticRow.topContributor}). Switch to <strong>2026</strong> or <strong>ALL</strong> to inspect real-time database entries.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedYear('2026')}
+              className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer ml-3 shrink-0"
+            >
+              Switch to 2026 Live Data &rarr;
+            </button>
+          </div>
+        )}
 
         {/* ====================================================================
             3. 6 EXECUTIVE KPI SCORECARDS

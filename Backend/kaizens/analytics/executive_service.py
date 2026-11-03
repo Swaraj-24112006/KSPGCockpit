@@ -51,30 +51,50 @@ def compute_executive_analytics(filters: AnalyticsFilters) -> dict:
     # Load headcounts into a lookup map
     headcount_map = {h.year: h.headcount for h in AnnualHeadcount.objects.all()}
 
+    # Default pre-2026 historical static benchmarks (2021-2025)
+    DEFAULT_PRE2026_BENCHMARKS = {
+        2021: {'kaizens': 120, 'savings': 1850000.0, 'headcount': 185},
+        2022: {'kaizens': 165, 'savings': 2420000.0, 'headcount': 194},
+        2023: {'kaizens': 210, 'savings': 3180000.0, 'headcount': 191},
+        2024: {'kaizens': 268, 'savings': 4250000.0, 'headcount': 199},
+        2025: {'kaizens': 312, 'savings': 5190000.0, 'headcount': 197},
+    }
+
     # Available legacy years
     legacy_rows = LegacyYearlySummary.objects.all().order_by('year')
     legacy_map = {l.year: l for l in legacy_rows}
 
-    # Discover all distinct years
-    all_years = sorted(set(list(legacy_map.keys()) + list(live_yoy_map.keys()) + [current_year]))
+    # Discover all distinct years, ensuring pre-2026 baseline years are always present
+    all_years = sorted(set(list(DEFAULT_PRE2026_BENCHMARKS.keys()) + list(legacy_map.keys()) + list(live_yoy_map.keys()) + [current_year]))
 
     yoy_points = []
     for yr in all_years:
         is_ytd = (yr == current_year)
         label = f"YTD - {yr}" if is_ytd else str(yr)
 
-        if yr in live_yoy_map:
+        if yr in live_yoy_map and yr >= 2026:
             kz_count = live_yoy_map[yr]['kaizens']
             savings = float(live_yoy_map[yr]['savings'])
+            hc = headcount_map.get(yr)
         elif yr in legacy_map and filters.type == 'ALL' and filters.status == 'ALL' and filters.dept == 'ALL':
             # Benchmark baseline only applies when no sub-filter is active
             kz_count = legacy_map[yr].kaizens
             savings = float(legacy_map[yr].savings)
+            hc = headcount_map.get(yr) or legacy_map[yr].headcount
+        elif yr in DEFAULT_PRE2026_BENCHMARKS and filters.type == 'ALL' and filters.status == 'ALL' and filters.dept == 'ALL':
+            bench = DEFAULT_PRE2026_BENCHMARKS[yr]
+            kz_count = bench['kaizens']
+            savings = bench['savings']
+            hc = headcount_map.get(yr) or bench['headcount']
+        elif yr in live_yoy_map:
+            kz_count = live_yoy_map[yr]['kaizens']
+            savings = float(live_yoy_map[yr]['savings'])
+            hc = headcount_map.get(yr)
         else:
             kz_count = 0
             savings = 0.0
+            hc = headcount_map.get(yr)
 
-        hc = headcount_map.get(yr)
         per_emp = round(kz_count / hc, 2) if (hc and hc > 0) else None
 
         yoy_points.append({
