@@ -693,6 +693,16 @@ export default function RedFlagPresentationMode({
                       <img crossOrigin="anonymous" src={redFlag.evidencePhoto}
                         alt="Defect"
                         className="w-full h-full object-contain cursor-pointer transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const parent = (e.target as HTMLElement).parentElement;
+                        if (parent && !parent.querySelector('.offline-fallback')) {
+                          const fallback = document.createElement('span');
+                          fallback.className = 'offline-fallback text-xs text-slate-400 font-mono text-center px-1';
+                          fallback.textContent = '📷 Defect Photo (Offline)';
+                          parent.appendChild(fallback);
+                        }
+                      }}
                         onClick={() => setZoomedPhoto({
                           url: redFlag.evidencePhoto,
                           title: `Point-of-Defect Evidence [${redFlag.redFlagNo}]`,
@@ -760,7 +770,18 @@ export default function RedFlagPresentationMode({
                   </div>
                   <div className="aspect-video bg-rose-50/40 rounded-xl overflow-hidden border border-rose-200 flex items-center justify-center">
                     {redFlag.evidencePhoto ? (
-                      <img crossOrigin="anonymous" src={redFlag.evidencePhoto} alt="T0 Defect" className="w-full h-full object-contain" />
+                      <img crossOrigin="anonymous" src={redFlag.evidencePhoto} alt="T0 Defect" className="w-full h-full object-contain"
+                        onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const parent = (e.target as HTMLElement).parentElement;
+                        if (parent && !parent.querySelector('.offline-fallback')) {
+                          const fallback = document.createElement('span');
+                          fallback.className = 'offline-fallback text-xs text-slate-400 font-mono text-center px-1';
+                          fallback.textContent = '📷 Defect Photo (Offline)';
+                          parent.appendChild(fallback);
+                        }
+                      }}
+                      />
                     ) : (
                       <span className="text-xs text-slate-400">No Photo</span>
                     )}
@@ -791,7 +812,18 @@ export default function RedFlagPresentationMode({
                   </div>
                   <div className="aspect-video bg-emerald-50/40 rounded-xl overflow-hidden border border-emerald-200 flex items-center justify-center">
                     {redFlag.countermeasurePhoto || redFlag.closureEvidence ? (
-                      <img crossOrigin="anonymous" src={redFlag.countermeasurePhoto || redFlag.closureEvidence} alt="T1 Containment" className="w-full h-full object-contain" />
+                      <img crossOrigin="anonymous" src={redFlag.countermeasurePhoto || redFlag.closureEvidence} alt="T1 Containment" className="w-full h-full object-contain"
+                        onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const parent = (e.target as HTMLElement).parentElement;
+                        if (parent && !parent.querySelector('.offline-fallback')) {
+                          const fallback = document.createElement('span');
+                          fallback.className = 'offline-fallback text-xs text-slate-400 font-mono text-center px-1';
+                          fallback.textContent = '📷 Containment Photo (Offline)';
+                          parent.appendChild(fallback);
+                        }
+                      }}
+                      />
                     ) : (
                       <span className="text-xs text-amber-700 font-bold font-mono">Pending Target Person T1 Photo</span>
                     )}
