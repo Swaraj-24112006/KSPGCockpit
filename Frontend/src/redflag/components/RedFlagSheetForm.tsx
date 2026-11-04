@@ -41,6 +41,53 @@ interface RedFlagSheetFormProps {
 }
 
 // Preset SVGs for demo testing
+// Convert any base64/SVG data URI into a clean PNG Blob for upload
+export async function dataUriToPngBlob(dataUri: string): Promise<Blob> {
+  return new Promise((resolve) => {
+    // Fast path: if already a JPEG/PNG/WebP data URI, fetch directly
+    if (dataUri.startsWith('data:image/png') || dataUri.startsWith('data:image/jpeg') || dataUri.startsWith('data:image/webp')) {
+      try {
+        fetch(dataUri).then(r => r.blob()).then(blob => {
+          if (blob && blob.size > 0) resolve(blob);
+          else rasterize();
+        }).catch(() => rasterize());
+        return;
+      } catch {
+        rasterize();
+        return;
+      }
+    }
+
+    rasterize();
+
+    function rasterize() {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || 400;
+          canvas.height = img.naturalHeight || 250;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+              if (blob) resolve(blob);
+              else fetch(dataUri).then(r => r.blob()).then(resolve).catch(() => resolve(new Blob([], { type: 'image/png' })));
+            }, 'image/png');
+            return;
+          }
+        } catch {}
+        fetch(dataUri).then(r => r.blob()).then(resolve).catch(() => resolve(new Blob([], { type: 'image/png' })));
+      };
+      img.onerror = () => {
+        fetch(dataUri).then(r => r.blob()).then(resolve).catch(() => resolve(new Blob([], { type: 'image/png' })));
+      };
+      img.src = dataUri;
+    }
+  });
+}
+
 export const presetRedFlagImages = {
   torqueDefectBefore: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="100%" height="100%" fill="%23fff1f2"/><g stroke="%23e11d48" stroke-width="2" fill="none"><circle cx="200" cy="110" r="45" stroke-dasharray="6,4" stroke-width="3"/><path d="M170,110 L230,110 M200,80 L200,140" stroke-width="3"/><path d="M180,90 L220,130" stroke-width="4"/><polygon points="200,60 215,85 185,85" fill="%23e11d48"/></g><text x="200" y="195" font-family="sans-serif" font-weight="bold" font-size="13" fill="%23be123c" text-anchor="middle">TORQUE CALIBRATION SLIPPED (12.4 Nm vs 18 Nm)</text><rect x="15" y="15" width="165" height="24" rx="4" fill="%23e11d48"/><text x="97" y="31" font-family="sans-serif" font-weight="bold" font-size="10" fill="white" text-anchor="middle">INITIATOR: POINT OF DEFECT</text></svg>`,
   torqueDefectAfter: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="250" viewBox="0 0 400 250"><rect width="100%" height="100%" fill="%23f0fdf4"/><g stroke="%2316a34a" stroke-width="2" fill="none"><circle cx="200" cy="110" r="45" stroke="%2316a34a" stroke-width="4"/><circle cx="200" cy="110" r="15" fill="%2386efac"/><path d="M192,110 L198,116 L210,102" stroke-width="4" stroke="%2315803d"/></g><text x="200" y="195" font-family="sans-serif" font-weight="bold" font-size="13" fill="%2315803d" text-anchor="middle">TARGET PERSON: RE-CALIBRATED &amp; LOT QUARANTINED</text><rect x="15" y="15" width="185" height="24" rx="4" fill="%2316a34a"/><text x="107" y="31" font-family="sans-serif" font-weight="bold" font-size="10" fill="white" text-anchor="middle">TARGET: CONTAINMENT PHOTO</text></svg>`,
@@ -392,10 +439,12 @@ export default function RedFlagSheetForm({
     let attachmentId = beforeAttachmentId;
     if (!attachmentId && photoBefore && photoBefore.startsWith('data:')) {
       try {
-        const b = await (await fetch(photoBefore)).blob();
+        const b = await dataUriToPngBlob(photoBefore);
         const up = await actions.uploadAttachment(b, 'evidence_photo');
-        attachmentId = up.id;
-        setBeforeAttachmentId(up.id);
+        if (up && up.id) {
+          attachmentId = up.id;
+          setBeforeAttachmentId(up.id);
+        }
       } catch (err) {
         console.warn('Could not upload preset/base64 attachment to server:', err);
       }
@@ -427,12 +476,16 @@ export default function RedFlagSheetForm({
         raisedTimestamp: formattedRaisedTs
       });
 
-      onAddRedFlag(created);
-      setSuccessBanner(`Stage 1 Complete: Red Flag raised with Point-of-Defect Photo and routed to Target Person (${targetPerson}) for Stage 2 Containment.`);
-      setTimeout(() => {
-        setSuccessBanner(null);
-        if (onNavigateToTracker) onNavigateToTracker();
-      }, 1200);
+      if (created && created.id) {
+        onAddRedFlag(created);
+        setSuccessBanner(`Stage 1 Complete: Red Flag raised with Point-of-Defect Photo and routed to Target Person (${targetPerson}) for Stage 2 Containment.`);
+        setTimeout(() => {
+          setSuccessBanner(null);
+          if (onNavigateToTracker) onNavigateToTracker();
+        }, 1200);
+      } else {
+        throw new Error('Server did not return a valid created Red Flag record.');
+      }
     } catch (err: any) {
       console.error('Failed to raise Red Flag:', err);
       setError(err.message || 'Failed to raise Red Flag. Please check required fields.');
@@ -459,10 +512,12 @@ export default function RedFlagSheetForm({
     let attachmentId = afterAttachmentId;
     if (!attachmentId && photoAfter && photoAfter.startsWith('data:')) {
       try {
-        const b = await (await fetch(photoAfter)).blob();
+        const b = await dataUriToPngBlob(photoAfter);
         const up = await actions.uploadAttachment(b, 'countermeasure_photo');
-        attachmentId = up.id;
-        setAfterAttachmentId(up.id);
+        if (up && up.id) {
+          attachmentId = up.id;
+          setAfterAttachmentId(up.id);
+        }
       } catch (err) {
         console.warn('Could not upload containment photo blob:', err);
       }

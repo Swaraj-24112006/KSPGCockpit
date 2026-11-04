@@ -182,11 +182,23 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   }
 
   let data: any = null;
-  try {
-    data = await response.json();
-  } catch (err) {
-    if (!response.ok) {
-      throw new ApiError(response.status, `HTTP ${response.status}: Server returned non-JSON response.`);
+  const isJson = contentType.includes('application/json');
+  if (isJson) {
+    try {
+      data = await response.json();
+    } catch (err) {
+      if (!response.ok) {
+        throw new ApiError(response.status, `HTTP ${response.status}: Server returned invalid JSON response.`);
+      }
+    }
+  } else {
+    const rawText = await response.text();
+    const isHtml = rawText.includes('<html') || rawText.includes('<!DOCTYPE') || rawText.includes('<!doctype');
+    if (isHtml) {
+      throw new ApiError(
+        response.status,
+        `Backend returned HTML (${response.status} ${response.statusText}). Check that config/urls.py on port 8003 has redflag routes configured.`
+      );
     }
   }
 
@@ -268,7 +280,10 @@ export async function deleteRedFlag(id: string, reason: string): Promise<void> {
 
 export async function uploadAttachment(file: Blob | File, kind: string = 'evidence_photo'): Promise<{ id: string; url: string; kind: string }> {
   const formData = new FormData();
-  formData.append('file', file);
+  const filename = (file instanceof File && file.name)
+    ? file.name
+    : (kind === 'countermeasure_photo' ? 'containment.png' : 'evidence.png');
+  formData.append('file', file, filename);
   formData.append('kind', kind);
 
   return apiFetch<{ id: string; url: string; kind: string }>('/api/redflags/attachments', {

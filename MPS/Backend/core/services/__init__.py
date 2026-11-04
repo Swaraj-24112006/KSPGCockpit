@@ -20,6 +20,16 @@ from .auto_fill_deficit_service import AutoFillDeficitService
 
 from .monthly_plan_distribution_service import MonthlyPlanDistributionService
 from .monthly_plan_upload_service import MonthlyPlanUploadService
+from .mb52_lock_service import (
+    MB52LockService,
+    normalize_to_iso_date,
+    normalize_to_iso_str,
+    get_line_item_mb52_upload_date,
+    is_date_before_mb52_upload,
+    is_stock_record_read_only,
+    is_mb51_tx_read_only,
+    is_schedule_read_only,
+)
 
 __all__ = [
     'StorageService',
@@ -43,4 +53,12 @@ __all__ = [
     'ConsolidatedMatrixService',
     'BulkScheduleUploadService',
     'AutoFillDeficitService',
+    'MB52LockService',
+    'normalize_to_iso_date',
+    'normalize_to_iso_str',
+    'get_line_item_mb52_upload_date',
+    'is_date_before_mb52_upload',
+    'is_stock_record_read_only',
+    'is_mb51_tx_read_only',
+    'is_schedule_read_only',
 ]

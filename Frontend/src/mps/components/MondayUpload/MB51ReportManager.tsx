@@ -19,10 +19,12 @@ import {
   Loader2,
   FileSpreadsheet,
   Info,
-  X
+  X,
+  Lock
 } from 'lucide-react';
-import { MB51TransactionItem, MB51Classification, WeekDefinition } from '../../types';
+import { MB51TransactionItem, MB51Classification, WeekDefinition, StockReportItem } from '../../types';
 import { getWeekForTransaction } from '../../utils/weeklyMrpEngine';
+import { isMB51TxReadOnly, getLineItemMB52UploadDate } from '../../utils/mb52LockEngine';
 import { mb51Service } from '../../services/mb51Service';
 
 interface MB51ReportManagerProps {
@@ -30,13 +32,17 @@ interface MB51ReportManagerProps {
   onUpdateMB51: (items: MB51TransactionItem[]) => void;
   weeks: WeekDefinition[];
   selectedMonth: string;
+  stockList?: StockReportItem[];
+  openingStockDate?: string;
 }
 
 export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   mb51List,
   onUpdateMB51,
   weeks,
-  selectedMonth
+  selectedMonth,
+  stockList = [],
+  openingStockDate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState<
@@ -86,18 +92,25 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
     return 'OTHER';
   };
 
+  const isTxReadOnly = (tx: MB51TransactionItem) => {
+    return isMB51TxReadOnly(tx, stockList, openingStockDate);
+  };
+
   // Filtered List
   const filteredList = mb51List.filter((tx) => {
+    const term = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      tx.materialDocument.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tx.materialDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (tx.vendorOrCustomer || '').toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      tx.partNumber.toLowerCase().includes(term) ||
+      tx.materialDescription.toLowerCase().includes(term) ||
+      tx.materialDocument.toLowerCase().includes(term) ||
+      (tx.vendorOrCustomer || '').toLowerCase().includes(term);
 
-    const matchesWeek =
-      selectedWeekFilter === 'ALL' ||
-      tx.weekId === selectedWeekFilter ||
-      (tx.postingDate && tx.postingDate.startsWith(selectedMonth));
+    let matchesWeek = true;
+    if (selectedWeekFilter !== 'ALL') {
+      const mappedWeek = getWeekForTransaction(tx, weeks);
+      matchesWeek = tx.weekId === selectedWeekFilter || mappedWeek?.id === selectedWeekFilter;
+    }
 
     let matchesTab = true;
     if (selectedTab === '101_FG') {
@@ -111,12 +124,13 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
     return matchesSearch && matchesWeek && matchesTab;
   });
 
-  // Checkbox selection logic
+  // Checkbox selection logic - only selectable (non-read-only) records
+  const selectableFiltered = filteredList.filter((tx) => !isTxReadOnly(tx));
   const isAllSelected =
-    filteredList.length > 0 &&
-    filteredList.every((tx) => selectedIds.has(tx.id));
+    selectableFiltered.length > 0 &&
+    selectableFiltered.every((tx) => selectedIds.has(tx.id));
   const isSomeSelected =
-    filteredList.some((tx) => selectedIds.has(tx.id)) && !isAllSelected;
+    selectableFiltered.some((tx) => selectedIds.has(tx.id)) && !isAllSelected;
 
   useEffect(() => {
     if (selectAllCheckboxRef.current) {
@@ -127,16 +141,18 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
       const next = new Set(selectedIds);
-      filteredList.forEach((tx) => next.delete(tx.id));
+      selectableFiltered.forEach((tx) => next.delete(tx.id));
       setSelectedIds(next);
     } else {
       const next = new Set(selectedIds);
-      filteredList.forEach((tx) => next.add(tx.id));
+      selectableFiltered.forEach((tx) => next.add(tx.id));
       setSelectedIds(next);
     }
   };
 
   const handleToggleSelect = (id: string) => {
+    const tx = mb51List.find((t) => t.id === id);
+    if (tx && isTxReadOnly(tx)) return; // Block selecting read-only records
     const next = new Set(selectedIds);
     if (next.has(id)) {
       next.delete(id);
@@ -148,7 +164,12 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    const count = selectedIds.size;
+    const toDelete = Array.from(selectedIds).filter((id) => {
+      const tx = mb51List.find((t) => t.id === id);
+      return tx && !isTxReadOnly(tx);
+    });
+    if (toDelete.length === 0) return;
+    const count = toDelete.length;
     if (
       window.confirm(
         `Are you sure you want to delete ${count} selected MB51 transaction record${
@@ -156,7 +177,6 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
         }?`
       )
     ) {
-      const toDelete: string[] = Array.from(selectedIds);
       for (const id of toDelete) {
         if (!id.startsWith('mb51-') && !isNaN(Number(id))) {
           try {
@@ -166,7 +186,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
           }
         }
       }
-      const remaining = mb51List.filter((tx) => !selectedIds.has(tx.id));
+      const remaining = mb51List.filter((tx) => !toDelete.includes(tx.id));
       onUpdateMB51(remaining);
       setSelectedIds(new Set());
     }
@@ -189,6 +209,19 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
     e.preventDefault();
     if (!formData.materialDocument || !formData.partNumber || !formData.quantity) {
       alert('Please fill material document, part number, and quantity.');
+      return;
+    }
+
+    const postingDate = formData.postingDate || new Date().toISOString().slice(0, 10);
+    const minAllowedDate = getLineItemMB52UploadDate(
+      formData.partNumber.trim(),
+      stockList,
+      openingStockDate
+    );
+    if (postingDate < minAllowedDate) {
+      alert(
+        `Cannot add MB51 transaction: Posting date (${postingDate}) is before the MB52 upload baseline date (${minAllowedDate}) for line item ${formData.partNumber}. All data prior to the upload date is read-only.`
+      );
       return;
     }
 
@@ -379,6 +412,13 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   };
 
   const handleDelete = async (id: string) => {
+    const tx = mb51List.find((t) => t.id === id);
+    if (tx && isTxReadOnly(tx)) {
+      alert(
+        `Cannot delete MB51 transaction: posting date (${tx.postingDate}) is before the MB52 upload baseline date for this material (${getLineItemMB52UploadDate(tx.partNumber, stockList, openingStockDate)}). All prior data is read-only.`
+      );
+      return;
+    }
     if (window.confirm('Delete this MB51 transaction record?')) {
       try {
         if (!id.startsWith('mb51-') && !isNaN(Number(id))) {
@@ -637,15 +677,36 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
           </select>
         </div>
 
-        <div className="relative min-w-[240px] w-full md:w-auto">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search Doc No, Part, Partner..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* Real-time Text-Based Search Input */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative min-w-[280px] w-full md:w-80">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search Doc No, Part, Partner..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchTerm('');
+              }}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+                title="Clear search (Esc)"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchTerm.trim() && (
+            <span className="hidden sm:inline-flex shrink-0 items-center px-2.5 py-1 text-xs font-medium text-blue-800 bg-blue-50 border border-blue-200 rounded-lg">
+              {filteredList.length} matching
+            </span>
+          )}
         </div>
       </div>
 
@@ -684,12 +745,28 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-slate-400">
-                    No SAP MB51 material documents found.
+                  <td colSpan={12} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <FileText className="w-8 h-8 mb-2 opacity-50" />
+                      <p className="text-sm font-medium text-slate-600">No SAP MB51 material documents found</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {searchTerm ? 'Try adjusting your search criteria' : 'Upload MB51 export file or add a record to get started'}
+                      </p>
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="mt-3 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                        >
+                          Clear search filter
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredList.map((tx) => {
+                  const isReadOnly = isTxReadOnly(tx);
                   const isFG101 = tx.classification === 'FG_PRODUCTION_RECEIPT';
                   const isRM101 = tx.classification === 'RMPM_RECEIPT';
                   const isDisp601 = tx.classification === 'FG_DISPATCH';
@@ -699,23 +776,41 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                     <tr
                       key={tx.id}
                       className={`transition-colors ${
-                        isSelected ? 'bg-blue-50/70 hover:bg-blue-50' : 'hover:bg-slate-50'
+                        isReadOnly
+                          ? 'bg-slate-50/70 text-slate-500'
+                          : isSelected
+                          ? 'bg-blue-50/70 hover:bg-blue-50'
+                          : 'hover:bg-slate-50'
                       }`}
                     >
                       {/* Row Checkbox */}
                       <td className="py-3 px-4 w-12 text-center">
                         <div className="flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSelect(tx.id)}
-                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                            aria-label={`Select ${tx.materialDocument}`}
-                          />
+                          {isReadOnly ? (
+                            <div title={`Read-Only: Posting date (${tx.postingDate}) is before MB52 baseline. Cannot modify.`}>
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelect(tx.id)}
+                              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                              aria-label={`Select ${tx.materialDocument}`}
+                            />
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-slate-900 text-xs">
-                        {tx.materialDocument}
+                        <span
+                          className={`px-1.5 py-0.5 rounded border ${
+                            isReadOnly
+                              ? 'bg-slate-100 text-slate-600 border-slate-300'
+                              : 'bg-slate-50 text-slate-800 border-slate-200'
+                          }`}
+                        >
+                          {tx.materialDocument}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-xs font-mono text-slate-600">
                         {tx.postingDate}
@@ -772,13 +867,23 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                         {tx.vendorOrCustomer || '-'}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleDelete(tx.id)}
-                          className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                          title="Delete transaction"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isReadOnly ? (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
+                            title={`Read-Only: Posting date (${tx.postingDate}) is before MB52 baseline. Cannot delete.`}
+                          >
+                            <Lock className="w-3 h-3 text-slate-400" />
+                            Locked
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleDelete(tx.id)}
+                            className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

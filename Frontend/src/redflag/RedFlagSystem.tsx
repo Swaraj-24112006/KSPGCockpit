@@ -164,13 +164,14 @@ export default function RedFlagSystem({
     return matchesSearch && matchesStatus && matchesSeverity && matches5M && matchesTargetDept && matchesRaisedDept;
   });
 
-  // Calculate Metrics
-  const totalFlags = redFlags.length;
-  const openCount = redFlags.filter(r => r.status === 'Open').length;
-  const containedCount = redFlags.filter(r => r.status === 'Contained').length;
-  const inProgressCount = redFlags.filter(r => r.status === 'In-Progress').length;
-  const underSustenanceCount = redFlags.filter(r => r.status === 'Under-Sustenance' || (r.sustenanceStartDate && !r.sustenanceAchieved)).length;
-  const closedCount = redFlags.filter(r => r.status === 'Closed' && r.sustenanceAchieved).length;
+  // Calculate Metrics (safely guarding against null/undefined records)
+  const safeFlags = Array.isArray(redFlags) ? redFlags.filter(r => r && typeof r === 'object' && r.id) : [];
+  const totalFlags = safeFlags.length;
+  const openCount = safeFlags.filter(r => r.status === 'Open').length;
+  const containedCount = safeFlags.filter(r => r.status === 'Contained').length;
+  const inProgressCount = safeFlags.filter(r => r.status === 'In-Progress').length;
+  const underSustenanceCount = safeFlags.filter(r => r.status === 'Under-Sustenance' || (r.sustenanceStartDate && !r.sustenanceAchieved)).length;
+  const closedCount = safeFlags.filter(r => r.status === 'Closed' && r.sustenanceAchieved).length;
 
   // Presentation Mode Slides
   const presentationSlides: SlideItem[] = useMemo(() => [

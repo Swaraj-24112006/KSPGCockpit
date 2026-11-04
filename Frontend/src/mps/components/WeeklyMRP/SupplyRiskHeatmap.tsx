@@ -10,6 +10,7 @@ import {
   FGPlanFreezeItem,
   VendorDeliveryScheduleChangeLog
 } from '../../types';
+import { getCurrentISODate } from '../../utils/dateUtils';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -163,7 +164,7 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
 
     // Reference Date for Overdue Calculations:
     // If selected week has a startDate, use it as baseline
-    const referenceDateStr = selectedWeek?.startDate || '2026-08-08';
+    const referenceDateStr = selectedWeek?.startDate || getCurrentISODate();
     const referenceDate = new Date(referenceDateStr).getTime();
 
     const result: VendorRiskData[] = [];

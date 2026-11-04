@@ -70,6 +70,7 @@ import { WeeklyFGSupplyView } from './components/WeeklyMRP/WeeklyFGSupplyView';
 import { WeeklyRMSupplyView } from './components/WeeklyMRP/WeeklyRMSupplyView';
 import { AuditLogView } from './components/WeeklyMRP/AuditLogView';
 import { computeRMWeeklyRequirements } from './utils/weeklyMrpEngine';
+import { normalizeToISODate } from './utils/mb52LockEngine';
 
 // ─── Props contract from MODULE_INTEGRATION_SPEC.md ───────────────
 export interface MpsModuleProps {
@@ -315,7 +316,12 @@ export default function MpsModule({
     stockService.getStockReport()
       .then((items) => {
         if (Array.isArray(items)) {
-          setStockList(items);
+          const normalized = items.map((item) => ({
+            ...item,
+            stockDate: item.stockDate ? normalizeToISODate(item.stockDate) : item.stockDate,
+            uploadDate: item.uploadDate ? normalizeToISODate(item.uploadDate) : item.uploadDate
+          }));
+          setStockList(normalized);
         }
       })
       .catch(() => {});
@@ -330,7 +336,7 @@ export default function MpsModule({
     vendorBuyers,
     mb51List,
     stockList,
-    vendorDeliverySchedules
+    openingStockDate
   );
   const criticalShortagesCount = rmSummaries.filter((s) => s.overallStatus === 'SHORTAGE').length;
 
@@ -601,6 +607,8 @@ export default function MpsModule({
                 onUpdateMB51={setMb51List}
                 weeks={weeks}
                 selectedMonth={selectedMonth}
+                stockList={stockList}
+                openingStockDate={openingStockDate}
               />
             )}
 

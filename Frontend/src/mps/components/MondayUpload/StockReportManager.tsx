@@ -17,10 +17,17 @@ import {
   Info,
   X,
   Loader2,
-  Calendar
+  Calendar,
+  Lock
 } from 'lucide-react';
 import { StockReportItem } from '../../types';
 import { stockService } from '../../services/stockService';
+import {
+  isStockRecordReadOnly,
+  isDateBeforeMB52Upload,
+  getLineItemMB52UploadDate,
+  normalizeToISODate
+} from '../../utils/mb52LockEngine';
 
 interface StockReportManagerProps {
   stockList: StockReportItem[];
@@ -78,24 +85,31 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
     return 'RM';
   };
 
+  const isItemReadOnly = (item: StockReportItem) => {
+    return isStockRecordReadOnly(item, stockList, openingStockDate);
+  };
+
   const filteredStocks = stockList.filter((item) => {
+    const term = searchTerm.trim().toLowerCase();
     const matchesSearch =
-      item.partNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.materialDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.storageLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.stockDate && item.stockDate.includes(searchTerm));
+      !term ||
+      item.partNumber.toLowerCase().includes(term) ||
+      item.materialDescription.toLowerCase().includes(term) ||
+      item.storageLocation.toLowerCase().includes(term) ||
+      (item.stockDate && item.stockDate.toLowerCase().includes(term));
 
     const matchesType = typeFilter === 'ALL' || item.materialType === typeFilter;
 
     return matchesSearch && matchesType;
   });
 
-  // Checkbox selection logic
+  // Checkbox selection logic - only selectable (non-read-only) items
+  const selectableFiltered = filteredStocks.filter((item) => !isItemReadOnly(item));
   const isAllSelected =
-    filteredStocks.length > 0 &&
-    filteredStocks.every((item) => selectedIds.has(item.id));
+    selectableFiltered.length > 0 &&
+    selectableFiltered.every((item) => selectedIds.has(item.id));
   const isSomeSelected =
-    filteredStocks.some((item) => selectedIds.has(item.id)) && !isAllSelected;
+    selectableFiltered.some((item) => selectedIds.has(item.id)) && !isAllSelected;
 
   useEffect(() => {
     if (selectAllCheckboxRef.current) {
@@ -106,16 +120,18 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
   const handleToggleSelectAll = () => {
     if (isAllSelected) {
       const next = new Set(selectedIds);
-      filteredStocks.forEach((item) => next.delete(item.id));
+      selectableFiltered.forEach((item) => next.delete(item.id));
       setSelectedIds(next);
     } else {
       const next = new Set(selectedIds);
-      filteredStocks.forEach((item) => next.add(item.id));
+      selectableFiltered.forEach((item) => next.add(item.id));
       setSelectedIds(next);
     }
   };
 
   const handleToggleSelect = (id: string) => {
+    const item = stockList.find((s) => s.id === id);
+    if (item && isItemReadOnly(item)) return; // Block selecting read-only records
     const next = new Set(selectedIds);
     if (next.has(id)) {
       next.delete(id);
@@ -127,7 +143,12 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    const count = selectedIds.size;
+    const toDelete = Array.from(selectedIds).filter((id) => {
+      const item = stockList.find((s) => s.id === id);
+      return item && !isItemReadOnly(item);
+    });
+    if (toDelete.length === 0) return;
+    const count = toDelete.length;
     if (
       window.confirm(
         `Are you sure you want to delete ${count} selected stock record${
@@ -135,7 +156,6 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         }?`
       )
     ) {
-      const toDelete: string[] = Array.from(selectedIds);
       for (const id of toDelete) {
         if (!id.startsWith('stk-') && !isNaN(Number(id))) {
           try {
@@ -145,7 +165,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           }
         }
       }
-      const remaining = stockList.filter((item) => !selectedIds.has(item.id));
+      const remaining = stockList.filter((item) => !toDelete.includes(item.id));
       onUpdateStock(remaining);
       setSelectedIds(new Set());
     }
@@ -153,22 +173,26 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
 
   // KPI calculations
   const totalFGStock = stockList
-    .filter((s) => s.materialType === 'FG')
+    .filter((s) => s.materialType === 'FG' && !s.isPreviousUpload)
     .reduce((sum, s) => sum + s.unrestrictedStock, 0);
 
   const totalRMStock = stockList
-    .filter((s) => s.materialType === 'RM')
+    .filter((s) => s.materialType === 'RM' && !s.isPreviousUpload)
     .reduce((sum, s) => sum + s.unrestrictedStock, 0);
 
   const totalPMStock = stockList
-    .filter((s) => s.materialType === 'PM')
+    .filter((s) => s.materialType === 'PM' && !s.isPreviousUpload)
     .reduce((sum, s) => sum + s.unrestrictedStock, 0);
 
   const lowStockCount = stockList.filter(
-    (s) => s.unrestrictedStock < s.safetyStock
+    (s) => !isItemReadOnly(s) && s.unrestrictedStock < s.safetyStock
   ).length;
 
   const handleOpenAddModal = (existing?: StockReportItem) => {
+    if (existing && isItemReadOnly(existing)) {
+      alert(`This stock record is read-only because it was uploaded before the MB52 upload baseline date (${existing.stockDate || openingStockDate}). All prior data is locked.`);
+      return;
+    }
     if (existing) {
       setEditingItem(existing);
       setFormData(existing);
@@ -281,6 +305,11 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
   };
 
   const handleDelete = async (id: string) => {
+    const item = stockList.find((s) => s.id === id);
+    if (item && isItemReadOnly(item)) {
+      alert('Cannot delete this stock record: data prior to MB52 upload baseline date is read-only.');
+      return;
+    }
     if (window.confirm('Delete this stock record?')) {
       try {
         if (!id.startsWith('stk-') && !isNaN(Number(id))) {
@@ -330,7 +359,8 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
       const resp = await stockService.bulkUpload({
         file: selectedFile || undefined,
         csv_text: selectedFile ? undefined : csvInput.trim(),
-        mode: uploadMode
+        mode: uploadMode,
+        stockDate: uploadStockDate
       });
 
       const refreshed = await stockService.getStockReport();
@@ -664,15 +694,36 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
           </button>
         </div>
 
-        <div className="relative min-w-[260px]">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search part number, description, SLOC..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
+        {/* Real-time Text-Based Search Input */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative min-w-[280px] w-full md:w-80">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search part number, description, SLOC..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchTerm('');
+              }}
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white transition-all shadow-inner"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
+                title="Clear search (Esc)"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchTerm.trim() && (
+            <span className="hidden sm:inline-flex shrink-0 items-center px-2.5 py-1 text-xs font-medium text-teal-800 bg-teal-50 border border-teal-200 rounded-lg">
+              {filteredStocks.length} matching
+            </span>
+          )}
         </div>
       </div>
 
@@ -711,38 +762,66 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredStocks.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-slate-400">
-                    No stock records match your search or filter.
+                  <td colSpan={12} className="py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <Boxes className="w-8 h-8 mb-2 opacity-50" />
+                      <p className="text-sm font-medium text-slate-600">No stock records found</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {searchTerm ? 'Try adjusting your search criteria' : 'Upload MB52 stock report or add a record to get started'}
+                      </p>
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="mt-3 px-3 py-1.5 text-xs font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
+                        >
+                          Clear search filter
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredStocks.map((stock) => {
-                  const isLow = stock.unrestrictedStock < stock.safetyStock;
+                  const isReadOnly = isItemReadOnly(stock);
+                  const isLow = !isReadOnly && stock.unrestrictedStock < stock.safetyStock;
                   const isSelected = selectedIds.has(stock.id);
 
                   return (
                     <tr
                       key={stock.id}
                       className={`transition-colors ${
-                        isSelected ? 'bg-teal-50/70 hover:bg-teal-50' : 'hover:bg-slate-50'
+                        isReadOnly
+                          ? 'bg-slate-50/70 text-slate-500'
+                          : isSelected
+                          ? 'bg-teal-50/70 hover:bg-teal-50'
+                          : 'hover:bg-slate-50'
                       }`}
                     >
                       {/* Row Checkbox */}
                       <td className="py-3 px-4 w-12 text-center">
                         <div className="flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSelect(stock.id)}
-                            className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
-                            aria-label={`Select ${stock.partNumber}`}
-                          />
+                          {isReadOnly ? (
+                            <div title="Read-Only: Historical data before MB52 upload baseline is locked">
+                              <Lock className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelect(stock.id)}
+                              className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+                              aria-label={`Select ${stock.partNumber}`}
+                            />
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-slate-900 text-xs">
                         <span
                           className={`px-1.5 py-0.5 rounded border ${
-                            stock.materialType === 'FG'
+                            isReadOnly
+                              ? 'bg-slate-100 text-slate-600 border-slate-300'
+                              : stock.materialType === 'FG'
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-slate-50 text-slate-800 border-slate-200'
                           }`}
@@ -750,13 +829,20 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                           {stock.partNumber}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-800 font-medium text-xs">
+                      <td className={`py-3 px-4 font-medium text-xs ${isReadOnly ? 'text-slate-500 italic' : 'text-slate-800'}`}>
                         {stock.materialDescription}
+                        {stock.isPreviousUpload && (
+                          <span className="ml-2 text-[10px] text-slate-400 font-normal">
+                            (Zeroed Previous Upload)
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-center">
                         <span
                           className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                            stock.materialType === 'FG'
+                            isReadOnly
+                              ? 'bg-slate-200 text-slate-600'
+                              : stock.materialType === 'FG'
                               ? 'bg-blue-100 text-blue-800'
                               : stock.materialType === 'PM'
                               ? 'bg-purple-100 text-purple-800'
@@ -766,7 +852,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                           {stock.materialType}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                      <td className={`py-3 px-4 text-right font-mono font-bold ${isReadOnly ? 'text-slate-400' : 'text-slate-900'}`}>
                         {stock.unrestrictedStock.toLocaleString()}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate-500 text-xs">
@@ -785,7 +871,12 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                         {stock.stockDate || stock.lastUpdated?.slice(0, 10) || openingStockDate}
                       </td>
                       <td className="py-3 px-4 text-center">
-                        {isLow ? (
+                        {isReadOnly ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold border border-slate-300">
+                            <Lock className="w-3 h-3 text-slate-500" />
+                            {stock.isPreviousUpload ? 'Zeroed Past' : 'Read-Only'}
+                          </span>
+                        ) : isLow ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-semibold border border-amber-200">
                             <AlertTriangle className="w-3 h-3 text-amber-600" />
                             Low Stock
@@ -793,26 +884,38 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-semibold border border-emerald-200">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Adequate
+                            Active Baseline
                           </span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenAddModal(stock)}
-                            className="p-1.5 text-slate-400 hover:text-teal-600 rounded transition-colors"
-                            title="Edit Stock"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(stock.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isReadOnly ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
+                              title={`Read-Only: Upload date (${stock.stockDate || openingStockDate}) is prior to active baseline. Data before upload is locked.`}
+                            >
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              Locked
+                            </span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleOpenAddModal(stock)}
+                                className="p-1.5 text-slate-400 hover:text-teal-600 rounded transition-colors"
+                                title="Edit Stock"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(stock.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

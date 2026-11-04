@@ -18,6 +18,10 @@ export interface BackendStockItem {
   upload_batch_id?: number;
   created_at?: string;
   updated_at?: string;
+  stock_date?: string;
+  upload_date?: string;
+  is_read_only?: boolean;
+  is_previous_upload?: boolean;
   // CamelCase aliases from serializer
   partNumber?: string;
   materialDescription?: string;
@@ -26,6 +30,10 @@ export interface BackendStockItem {
   inQualityInsp?: number;
   storageLocation?: string;
   safetyStock?: number;
+  stockDate?: string;
+  uploadDate?: string;
+  isReadOnly?: boolean;
+  isPreviousUpload?: boolean;
   lastUpdated?: string;
 }
 
@@ -53,6 +61,10 @@ export function mapBackendStockToFrontend(item: BackendStockItem): StockReportIt
     uom: item.uom || 'PC',
     safetyStock: Number(item.safetyStock ?? item.safety_stock) || 0,
     plant: item.plant || '1001',
+    stockDate: item.stockDate || item.stock_date || (item.created_at ? item.created_at.slice(0, 10) : undefined),
+    uploadDate: item.uploadDate || item.upload_date || (item.created_at ? item.created_at.slice(0, 10) : undefined),
+    isReadOnly: Boolean(item.isReadOnly ?? item.is_read_only ?? false),
+    isPreviousUpload: Boolean(item.isPreviousUpload ?? item.is_previous_upload ?? false),
     lastUpdated: item.lastUpdated || (item.updated_at ? item.updated_at.slice(0, 10) : new Date().toISOString().slice(0, 10))
   };
 }
@@ -116,18 +128,28 @@ export const stockService = {
     file?: File;
     csv_text?: string;
     mode?: 'replace' | 'append';
+    stock_date?: string;
+    stockDate?: string;
   }): Promise<StockUploadResponse> {
     const mode = content.mode || 'replace';
+    const effectiveStockDate = content.stockDate || content.stock_date;
     if (content.file) {
       const formData = new FormData();
       formData.append('file', content.file);
       formData.append('mode', mode);
+      if (effectiveStockDate) {
+        formData.append('stock_date', effectiveStockDate);
+      }
       return api.upload<StockUploadResponse>('/uploads/stock-report/', formData);
     } else {
-      return api.post<StockUploadResponse>('/uploads/stock-report/', {
+      const payload: Record<string, any> = {
         csv_text: content.csv_text || '',
         mode
-      });
+      };
+      if (effectiveStockDate) {
+        payload.stock_date = effectiveStockDate;
+      }
+      return api.post<StockUploadResponse>('/uploads/stock-report/', payload);
     }
   },
 

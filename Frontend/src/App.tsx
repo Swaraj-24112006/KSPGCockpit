@@ -888,15 +888,27 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
   // Red Flags
   const handleAddRedFlag = async (rfData: Partial<RedFlag>) => {
+    if (!rfData) return;
+    // If flag already created by RedFlagContext (has id), simply update local list
+    if (rfData.id) {
+      setRedFlags(prev => [rfData as RedFlag, ...(Array.isArray(prev) ? prev.filter(r => r && r.id !== rfData.id) : [])]);
+      return;
+    }
+
     try {
       const res = await authFetch('/api/redflags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rfData)
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.warn('Server returned non-JSON response for /api/redflags');
+        return;
+      }
       const data = await res.json();
-      if (data.success) {
-        setRedFlags(prev => [data.data, ...prev]);
+      if (data && data.success && data.data) {
+        setRedFlags(prev => [data.data, ...(Array.isArray(prev) ? prev : [])]);
         alert(`Red Flag raised on shopfloor! Serial Number: ${data.data.redFlagNo}. Under responsible team: ${data.data.responsibleDepartment}`);
       }
     } catch (err) {
@@ -905,19 +917,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   };
 
   const handleUpdateRedFlag = async (id: string, rfData: Partial<RedFlag>) => {
-    try {
-      const res = await authFetch(`/api/redflags/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rfData)
-      });
-      const data = await res.json();
-      if (data.success) {
-        setRedFlags(prev => prev.map(r => r.id === id ? data.data : r));
-      }
-    } catch (err) {
-      console.error('Error updating Redflag:', err);
-    }
+    if (!id || !rfData) return;
+    setRedFlags(prev => (Array.isArray(prev) ? prev.map(r => (r && r.id === id ? { ...r, ...rfData } : r)) : []));
   };
 
   // 5S Audits

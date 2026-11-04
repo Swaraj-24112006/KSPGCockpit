@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import models
 from django.contrib.postgres.indexes import GinIndex
+from django.utils import timezone
 
 
 class RMPMComponentMaster(models.Model):
@@ -486,12 +487,29 @@ class MB51Transaction(models.Model):
     def week_code(self):
         return self.week_id
 
+    @property
+    def is_read_only(self):
+        """
+        Computed read-only status based on part baseline date.
+        If posting_date is strictly before the part's MB52 upload baseline, it is read-only.
+        """
+        if hasattr(self, '_is_read_only'):
+            return self._is_read_only
+        baseline_date = get_part_mb52_baseline_date(self.part_number)
+        if baseline_date and self.posting_date:
+            return self.posting_date < baseline_date
+        return False
+
+    @is_read_only.setter
+    def is_read_only(self, value):
+        self._is_read_only = value
+
 
 class StockReport(models.Model):
     """
     SAP MB52 Unrestricted Stock Snapshot Report.
-    Stores on-hand, blocked, quality inspection, and safety stock per part number and storage location.
-    Unique on (part_number, storage_location).
+    Stores on-hand, blocked, quality inspection, and safety stock per part number, storage location, and stock date.
+    Unique on (part_number, storage_location, stock_date).
     """
     MATERIAL_TYPE_CHOICES = (
         ('FG', 'Finished Good'),
@@ -556,6 +574,30 @@ class StockReport(models.Model):
         default='1001',
         help_text="Plant code (default 1001)"
     )
+    stock_date = models.DateField(
+        null=True,
+        blank=True,
+        default=timezone.now,
+        db_index=True,
+        help_text="Opening stock date (YYYY-MM-DD)"
+    )
+    upload_date = models.DateField(
+        null=True,
+        blank=True,
+        default=timezone.now,
+        db_index=True,
+        help_text="Date MB52 upload was performed (YYYY-MM-DD)"
+    )
+    is_read_only = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Set to true if superseded or locked prior to upload"
+    )
+    is_previous_upload = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True if this record was superseded/zeroed by a subsequent upload"
+    )
     upload_batch = models.ForeignKey(
         UploadBatch,
         null=True,
@@ -572,22 +614,25 @@ class StockReport(models.Model):
         db_table = 'stock_report'
         verbose_name = 'Stock Report'
         verbose_name_plural = 'Stock Reports'
-        ordering = ['part_number', 'storage_location']
-        unique_together = [('part_number', 'storage_location')]
+        ordering = ['part_number', 'storage_location', '-stock_date']
+        unique_together = [('part_number', 'storage_location', 'stock_date')]
         constraints = [
             models.UniqueConstraint(
-                fields=['part_number', 'storage_location'],
-                name='unique_part_storage_location'
+                fields=['part_number', 'storage_location', 'stock_date'],
+                name='unique_part_storage_location_stock_date'
             )
         ]
         indexes = [
             models.Index(fields=['part_number']),
             models.Index(fields=['part_number', 'storage_location']),
             models.Index(fields=['material_type']),
+            models.Index(fields=['stock_date']),
+            models.Index(fields=['upload_date']),
+            models.Index(fields=['is_previous_upload']),
         ]
 
     def __str__(self):
-        return f"{self.part_number} [{self.storage_location}]: {self.unrestricted_stock} {self.uom} ({self.material_type})"
+        return f"{self.part_number} [{self.storage_location}] @ {self.stock_date}: {self.unrestricted_stock} {self.uom} ({self.material_type})"
 
     @property
     def total_stock(self):
@@ -596,6 +641,31 @@ class StockReport(models.Model):
     @property
     def is_below_safety_stock(self):
         return self.unrestricted_stock < self.safety_stock
+
+
+def get_part_mb52_baseline_date(part_number):
+    """
+    Returns the effective MB52 upload / baseline date for a given part number.
+    Aligned with UPD/mb52LockEngine.ts:
+    Looks for the most recent stock upload date recorded for this material code.
+    """
+    if not part_number:
+        return None
+    latest = StockReport.objects.filter(
+        part_number=part_number,
+        is_previous_upload=False
+    ).exclude(stock_date__isnull=True).order_by('-stock_date', '-upload_date').first()
+    if latest and latest.stock_date:
+        return latest.stock_date
+
+    latest_up = StockReport.objects.filter(
+        part_number=part_number,
+        is_previous_upload=False
+    ).exclude(upload_date__isnull=True).order_by('-upload_date').first()
+    if latest_up and latest_up.upload_date:
+        return latest_up.upload_date
+
+    return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -727,6 +797,23 @@ class VendorDeliverySchedule(models.Model):
     @property
     def week_code(self):
         return self.week_id
+
+    @property
+    def is_read_only(self):
+        """
+        Computed read-only status based on component baseline date.
+        If expected_delivery_date is strictly before the component's MB52 upload baseline, it is read-only.
+        """
+        if hasattr(self, '_is_read_only'):
+            return self._is_read_only
+        baseline_date = get_part_mb52_baseline_date(self.component_id)
+        if baseline_date and self.expected_delivery_date:
+            return self.expected_delivery_date < baseline_date
+        return False
+
+    @is_read_only.setter
+    def is_read_only(self, value):
+        self._is_read_only = value
 
 
 class DeliveryScheduleChangeLog(models.Model):

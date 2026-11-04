@@ -331,7 +331,7 @@ class AttachmentUploadView(APIView):
             uploaded_by=request.user,
         )
 
-        url = presign(attachment)
+        url = presign(attachment, request=request)
         return Response({
             'id': attachment.id,
             'url': url,

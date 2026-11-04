@@ -588,10 +588,12 @@ class MB51TransactionSerializer(serializers.ModelSerializer):
     classification and week_code are read-only computed fields:
     - classification is computed via MB51ClassificationService
     - week_code is computed via WeekMappingService based on posting_date
+    - is_read_only is computed dynamically based on the part's MB52 baseline date
     """
     classification = serializers.CharField(read_only=True)
     week_code = serializers.CharField(source='week_id', read_only=True, allow_null=True)
     upload_batch_id = serializers.IntegerField(source='upload_batch.id', read_only=True, allow_null=True)
+    is_read_only = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = MB51Transaction
@@ -610,6 +612,7 @@ class MB51TransactionSerializer(serializers.ModelSerializer):
             'po_order_number',
             'classification',
             'week_code',
+            'is_read_only',
             'upload_batch_id',
             'created_at',
             'updated_at',
@@ -618,6 +621,7 @@ class MB51TransactionSerializer(serializers.ModelSerializer):
             'id',
             'classification',
             'week_code',
+            'is_read_only',
             'upload_batch_id',
             'created_at',
             'updated_at',
@@ -676,6 +680,7 @@ class MB51TransactionSerializer(serializers.ModelSerializer):
         ret['vendorOrCustomer'] = instance.vendor_customer
         ret['poOrOrderNumber'] = instance.po_order_number
         ret['weekId'] = instance.week_id or ''
+        ret['isReadOnly'] = bool(instance.is_read_only)
         return ret
 
 
@@ -705,6 +710,10 @@ class StockReportSerializer(serializers.ModelSerializer):
             'uom',
             'safety_stock',
             'plant',
+            'stock_date',
+            'upload_date',
+            'is_read_only',
+            'is_previous_upload',
             'total_stock',
             'is_below_safety_stock',
             'upload_batch_id',
@@ -731,10 +740,23 @@ class StockReportSerializer(serializers.ModelSerializer):
             'inQualityInsp': 'in_quality_insp',
             'storageLocation': 'storage_location',
             'safetyStock': 'safety_stock',
+            'stockDate': 'stock_date',
+            'uploadDate': 'upload_date',
+            'isReadOnly': 'is_read_only',
+            'isPreviousUpload': 'is_previous_upload',
         }
         for camel, snake in camel_to_snake.items():
             if camel in normalized and snake not in normalized:
                 normalized[snake] = normalized[camel]
+
+        # Normalize date strings to standard ISO YYYY-MM-DD
+        import re
+        for date_field in ('stock_date', 'upload_date'):
+            if date_field in normalized and normalized[date_field]:
+                raw_val = str(normalized[date_field]).strip()
+                dmy_match = re.match(r'^(\d{1,2})[-/](\d{1,2})[-/](\d{4})', raw_val)
+                if dmy_match:
+                    normalized[date_field] = f"{dmy_match.group(3)}-{dmy_match.group(2).zfill(2)}-{dmy_match.group(1).zfill(2)}"
 
         return super().to_internal_value(normalized)
 
@@ -783,6 +805,10 @@ class StockReportSerializer(serializers.ModelSerializer):
         ret['safetyStock'] = float(instance.safety_stock)
         ret['totalStock'] = float(instance.total_stock)
         ret['isBelowSafetyStock'] = instance.is_below_safety_stock
+        ret['stockDate'] = instance.stock_date.isoformat() if instance.stock_date else None
+        ret['uploadDate'] = instance.upload_date.isoformat() if instance.upload_date else None
+        ret['isReadOnly'] = bool(instance.is_read_only)
+        ret['isPreviousUpload'] = bool(instance.is_previous_upload)
         ret['lastUpdated'] = instance.updated_at.strftime('%Y-%m-%d %H:%M') if instance.updated_at else ''
         return ret
 
@@ -799,9 +825,11 @@ class VendorDeliveryScheduleSerializer(serializers.ModelSerializer):
     - Resolves week_code server-side from expected_delivery_date
     - Auto-generates po_number if blank
     - Accepts component_code as a writable field
+    - is_read_only is computed dynamically based on the component's MB52 baseline date
     """
     component_code = serializers.CharField(source='component_id')
     week_code = serializers.CharField(source='week_id', read_only=True)
+    is_read_only = serializers.BooleanField(read_only=True)
 
     # For mutations: changed_by and reason_for_change are write-only pass-through fields
     # They are NOT stored on the schedule itself but used by the view to create audit logs
@@ -823,12 +851,13 @@ class VendorDeliveryScheduleSerializer(serializers.ModelSerializer):
             'carrier_or_tracking',
             'delivery_status',
             'notes',
+            'is_read_only',
             'changed_by',
             'reason_for_change',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'week_code', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'week_code', 'is_read_only', 'created_at', 'updated_at']
 
     def validate_delivery_status(self, value):
         valid_statuses = [c[0] for c in VendorDeliverySchedule.DELIVERY_STATUS_CHOICES]
@@ -876,6 +905,7 @@ class VendorDeliveryScheduleSerializer(serializers.ModelSerializer):
         ret['carrierOrTracking'] = instance.carrier_or_tracking or ''
         ret['deliveryStatus'] = instance.delivery_status
         ret['notes'] = instance.notes or ''
+        ret['isReadOnly'] = bool(instance.is_read_only)
         return ret
 
 

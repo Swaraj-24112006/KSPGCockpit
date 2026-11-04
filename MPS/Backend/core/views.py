@@ -67,6 +67,13 @@ from .services import (
     PlanFreezeService,
     CockpitDataLoaderService,
     CockpitEngineService,
+    MB52LockService,
+    normalize_to_iso_date,
+    get_line_item_mb52_upload_date,
+    is_date_before_mb52_upload,
+    is_stock_record_read_only,
+    is_mb51_tx_read_only,
+    is_schedule_read_only,
 )
 
 
@@ -1760,6 +1767,14 @@ class MB51ListCreateView(generics.ListCreateAPIView):
                 {"movement_type": ["Single MB51 transaction creation only supports movement types '101' and '601'."]},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        part_no = (request.data.get('part_number') or request.data.get('partNumber') or '').strip()
+        posting_d = normalize_to_iso_date(request.data.get('posting_date') or request.data.get('postingDate'))
+        baseline = get_line_item_mb52_upload_date(part_no)
+        if is_date_before_mb52_upload(posting_d, baseline):
+            return Response(
+                {"posting_date": [f"Cannot create transaction: posting date '{posting_d}' is before part '{part_no}' MB52 upload baseline date ({baseline})."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         return super().create(request, *args, **kwargs)
 
 
@@ -1773,8 +1788,31 @@ class MB51DetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = MB51TransactionSerializer
     permission_classes = [AllowAny] if settings.DEBUG else [IsAuthenticated]
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if is_mb51_tx_read_only(instance):
+            return Response(
+                {"error": "Cannot edit this MB51 transaction: posting date is before MB52 upload baseline date."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        new_date_str = request.data.get('posting_date') or request.data.get('postingDate')
+        if new_date_str:
+            new_date = normalize_to_iso_date(new_date_str)
+            baseline = get_line_item_mb52_upload_date(instance.part_number)
+            if is_date_before_mb52_upload(new_date, baseline):
+                return Response(
+                    {"error": f"Cannot set posting date to '{new_date}': it is before MB52 upload baseline date ({baseline})."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        return super().update(request, *args, **kwargs)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        if is_mb51_tx_read_only(instance):
+            return Response(
+                {"error": "Cannot delete this MB51 transaction: posting date is before MB52 upload baseline date."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         doc_id = instance.material_document
         self.perform_destroy(instance)
         return Response(
@@ -1873,7 +1911,23 @@ class MB51BulkUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 5. Check duplicate material_document values (warn, do not block)
+        # 5. Filter out rows prior to part's MB52 upload baseline (record under skipped_rows)
+        filtered_valid_rows = []
+        for row in valid_rows:
+            baseline = get_line_item_mb52_upload_date(row['part_number'])
+            posting_d = normalize_to_iso_date(row['posting_date'])
+            if is_date_before_mb52_upload(posting_d, baseline):
+                error_rows.append({
+                    "row_index": row.get('row_index', 0),
+                    "material_document": row['material_document'],
+                    "part_number": row['part_number'],
+                    "reason": f"Posting date '{row['posting_date']}' is before part '{row['part_number']}' MB52 upload baseline date ({baseline})."
+                })
+            else:
+                filtered_valid_rows.append(row)
+        valid_rows = filtered_valid_rows
+
+        # 6. Check duplicate material_document values (warn, do not block)
         doc_counts = Counter(r['material_document'] for r in valid_rows)
         duplicate_docs = [doc for doc, count in doc_counts.items() if count > 1]
 
@@ -2102,14 +2156,21 @@ class StockDetailView(generics.RetrieveUpdateDestroyAPIView):
     GET /api/stock/{id}/
     PATCH /api/stock/{id}/ — re-derives material_type if part_number changes
     DELETE /api/stock/{id}/ — hard delete
+    Rejects PATCH and DELETE on read-only rows.
     """
     queryset = StockReport.objects.all()
     serializer_class = StockReportSerializer
     permission_classes = [AllowAny] if settings.DEBUG else [IsAuthenticated]
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
         instance = self.get_object()
+        if is_stock_record_read_only(instance):
+            return Response(
+                {"error": "Cannot edit this stock record: data prior to MB52 upload baseline date is read-only."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        partial = kwargs.pop('partial', False)
         old_part_number = instance.part_number
 
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -2128,6 +2189,12 @@ class StockDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        if is_stock_record_read_only(instance):
+            return Response(
+                {"error": "Cannot delete this stock record: data prior to MB52 upload baseline date is read-only."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         part = instance.part_number
         sloc = instance.storage_location
         self.perform_destroy(instance)
@@ -2144,7 +2211,9 @@ class StockBulkUploadView(APIView):
     1. Uploads file to MinIO storage (with local fallback)
     2. Parses content with StockParser
     3. Derives material_type per row via MaterialTypeService
-    4. Upserts on (part_number, storage_location) when mode=replace (default)
+    4. Upserts on (part_number, storage_location, stock_date) when mode=replace (default)
+       - Older rows of the same parts are marked is_previous_upload=True and is_read_only=True
+       - Only an upload with the same part, location and date overwrites a row
     5. INSERT when mode=append
     6. Completes UploadBatch audit log
     """
@@ -2155,6 +2224,16 @@ class StockBulkUploadView(APIView):
         file_obj = request.FILES.get('file')
         csv_text = request.data.get('csv_text') or request.data.get('content')
         mode = (request.data.get('mode') or request.query_params.get('mode') or 'replace').strip().lower()
+
+        raw_stock_date = (
+            request.data.get('stock_date') or
+            request.data.get('stockDate') or
+            request.query_params.get('stock_date') or
+            request.query_params.get('stockDate')
+        )
+        target_stock_date = normalize_to_iso_date(raw_stock_date) if raw_stock_date else timezone.now().date()
+        if not target_stock_date:
+            target_stock_date = timezone.now().date()
 
         if not file_obj and not csv_text:
             return Response(
@@ -2226,14 +2305,28 @@ class StockBulkUploadView(APIView):
 
         try:
             with transaction.atomic():
-                for row in valid_rows:
-                    mat_type = MaterialTypeService.derive(row['part_number'])
+                if mode == 'replace':
+                    # Gather unique incoming parts
+                    incoming_parts = list(set(r['part_number'] for r in valid_rows if r.get('part_number')))
 
-                    if mode == 'replace':
-                        # Upsert on (part_number, storage_location)
+                    # Mark older rows of the same parts as is_previous_upload and read-only
+                    StockReport.objects.filter(
+                        part_number__in=incoming_parts
+                    ).filter(
+                        Q(stock_date__lt=target_stock_date) | Q(stock_date__isnull=True)
+                    ).update(
+                        is_previous_upload=True,
+                        is_read_only=True
+                    )
+
+                    for row in valid_rows:
+                        mat_type = MaterialTypeService.derive(row['part_number'])
+
+                        # Only an upload with the same part, location and date overwrites a row
                         StockReport.objects.update_or_create(
                             part_number=row['part_number'],
                             storage_location=row['storage_location'],
+                            stock_date=target_stock_date,
                             defaults={
                                 'material_description': row['material_description'],
                                 'material_type': mat_type,
@@ -2243,18 +2336,25 @@ class StockBulkUploadView(APIView):
                                 'safety_stock': row['safety_stock'],
                                 'uom': row['uom'],
                                 'plant': row['plant'],
+                                'upload_date': timezone.now().date(),
+                                'is_read_only': False,
+                                'is_previous_upload': False,
                                 'upload_batch': batch,
                             }
                         )
-                    else:
-                        # Append mode — always insert, check for duplicates
+                        imported_count += 1
+                else:
+                    # Append mode — always insert, check for duplicates
+                    for row in valid_rows:
+                        mat_type = MaterialTypeService.derive(row['part_number'])
                         existing = StockReport.objects.filter(
                             part_number=row['part_number'],
-                            storage_location=row['storage_location']
+                            storage_location=row['storage_location'],
+                            stock_date=target_stock_date
                         ).exists()
                         if existing:
                             warnings.append(
-                                f"Part '{row['part_number']}' at '{row['storage_location']}' "
+                                f"Part '{row['part_number']}' at '{row['storage_location']}' on '{target_stock_date}' "
                                 f"already exists (appended duplicate)."
                             )
                         StockReport.objects.create(
@@ -2268,10 +2368,13 @@ class StockBulkUploadView(APIView):
                             uom=row['uom'],
                             storage_location=row['storage_location'],
                             plant=row['plant'],
+                            stock_date=target_stock_date,
+                            upload_date=timezone.now().date(),
+                            is_read_only=False,
+                            is_previous_upload=False,
                             upload_batch=batch,
                         )
-
-                    imported_count += 1
+                        imported_count += 1
 
             UploadBatchService.complete(
                 batch,
@@ -2291,6 +2394,7 @@ class StockBulkUploadView(APIView):
                     "imported_rows": imported_count,
                     "error_rows": len(error_rows),
                     "mode": mode,
+                    "stock_date": target_stock_date.isoformat(),
                     "warnings": warnings,
                     "skipped_rows": error_rows,
                 },
@@ -2309,11 +2413,12 @@ class StockExportCSVView(APIView):
     """
     GET /api/exports/stock-csv/?material_type=FG|RM|PM
     Streams filtered stock report as CSV using Django StreamingHttpResponse.
+    Includes 'Opening Stock Date' column.
     """
     permission_classes = [AllowAny] if settings.DEBUG else [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        qs = StockReport.objects.all().order_by('part_number', 'storage_location')
+        qs = StockReport.objects.all().order_by('part_number', 'storage_location', '-stock_date')
 
         material_type = request.query_params.get('material_type')
         if material_type:
@@ -2347,7 +2452,8 @@ class StockExportCSVView(APIView):
             'Storage Location',
             'Plant',
             'Total Stock',
-            'Below Safety Stock'
+            'Below Safety Stock',
+            'Opening Stock Date',
         ]
 
         def row_generator():
@@ -2365,7 +2471,8 @@ class StockExportCSVView(APIView):
                     item.storage_location,
                     item.plant,
                     float(item.total_stock),
-                    'Yes' if item.is_below_safety_stock else 'No'
+                    'Yes' if item.is_below_safety_stock else 'No',
+                    item.stock_date.isoformat() if item.stock_date else (item.created_at.strftime('%Y-%m-%d') if item.created_at else '')
                 ])
 
         timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')

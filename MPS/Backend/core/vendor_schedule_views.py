@@ -41,6 +41,13 @@ from core.services.bulk_schedule_upload_service import (
     BulkScheduleUploadService, VALID_STATUSES
 )
 from core.services.auto_fill_deficit_service import AutoFillDeficitService
+from core.services.mb52_lock_service import (
+    MB52LockService,
+    normalize_to_iso_date,
+    get_line_item_mb52_upload_date,
+    is_date_before_mb52_upload,
+    is_schedule_read_only,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -163,6 +170,14 @@ class VendorScheduleListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate delivery date against MB52 baseline
+        baseline = get_line_item_mb52_upload_date(comp_code)
+        if is_date_before_mb52_upload(parsed_date, baseline):
+            return Response(
+                {'error': f'Cannot add delivery schedule for component {comp_code}: delivery date {parsed_date} is before the MB52 upload baseline date ({baseline}).'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Resolve week_code from date
         if not month:
             month = str(parsed_date)[:7]
@@ -259,6 +274,12 @@ class VendorScheduleDetailView(APIView):
         if not sched:
             return Response({'error': 'Schedule not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        if is_schedule_read_only(sched):
+            return Response(
+                {'error': 'Cannot edit this delivery schedule: expected delivery date is before MB52 upload baseline date.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         data = request.data
         changed_by = data.get('changed_by', '').strip()
         reason = data.get('reason_for_change', '').strip()
@@ -322,6 +343,12 @@ class VendorScheduleDetailView(APIView):
                     {'error': 'expected_delivery_date must be YYYY-MM-DD'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            baseline = get_line_item_mb52_upload_date(sched.component_id)
+            if is_date_before_mb52_upload(parsed_date, baseline):
+                return Response(
+                    {'error': f'Cannot set expected delivery date to {parsed_date}: before MB52 upload baseline date ({baseline}).'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             sched.expected_delivery_date = parsed_date
             month = str(parsed_date)[:7]
             sched.week_id = VendorScheduleWeekResolver.resolve(parsed_date, month)
@@ -344,6 +371,12 @@ class VendorScheduleDetailView(APIView):
         sched = self.get_object(pk)
         if not sched:
             return Response({'error': 'Schedule not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if is_schedule_read_only(sched):
+            return Response(
+                {'error': 'Cannot delete this delivery schedule: expected delivery date is before MB52 upload baseline date.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         data = request.data
         changed_by = data.get('changed_by', '').strip()
@@ -441,6 +474,24 @@ class VendorScheduleBulkUploadView(APIView):
             for raw in raw_rows
         ]
 
+        # Filter out rows where expected delivery date is before MB52 baseline
+        filtered_parsed_rows = []
+        baseline_skipped_rows = []
+        for idx, r in enumerate(parsed_rows, start=1):
+            comp = r.get('component_code')
+            d_date = normalize_to_iso_date(r.get('expected_delivery_date'))
+            baseline = get_line_item_mb52_upload_date(comp)
+            if is_date_before_mb52_upload(d_date, baseline):
+                baseline_skipped_rows.append({
+                    'row': idx,
+                    'po_number': r.get('po_number', ''),
+                    'component_code': comp,
+                    'reason': f"Expected delivery date '{d_date}' is before MB52 upload baseline date ({baseline})."
+                })
+            else:
+                filtered_parsed_rows.append(r)
+        parsed_rows = filtered_parsed_rows
+
         # Create upload batch
         batch = UploadBatch.objects.create(
             upload_type='VENDOR_DELIVERY_SCHEDULE',
@@ -465,13 +516,17 @@ class VendorScheduleBulkUploadView(APIView):
             batch=batch,
         )
 
+        combined_errors = baseline_skipped_rows + result['errors']
+        total_skipped = len(baseline_skipped_rows) + result['skipped']
+
         return Response({
             'batch_id': batch.id,
             'month': month,
             'total_rows': len(raw_rows),
             'imported_rows': result['imported'],
-            'error_rows': result['skipped'],
-            'errors': result['errors'],
+            'error_rows': total_skipped,
+            'errors': combined_errors,
+            'skipped_rows': combined_errors,
             'message': (
                 f"Successfully imported {result['imported']} delivery schedule(s) "
                 f"for {month}."

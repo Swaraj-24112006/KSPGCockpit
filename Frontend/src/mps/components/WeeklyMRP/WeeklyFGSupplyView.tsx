@@ -30,6 +30,7 @@ interface WeeklyFGSupplyViewProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   openingStockDate?: string;
+  globalSearchTerm?: string;
 }
 
 export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
@@ -39,7 +40,8 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
   stockList,
   selectedMonth,
   onSelectMonth,
-  openingStockDate
+  openingStockDate,
+  globalSearchTerm = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFG, setSelectedFG] = useState<string>('ALL');
@@ -57,21 +59,25 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
     openingStockDate
   );
 
-  const uniqueFGs = Array.from(
-    new Map(
-      coverageSummaries.map((s) => [s.fgCode, { fgCode: s.fgCode, fgDescription: s.fgDescription }])
-    ).values()
-  );
-
   const filteredSummaries = coverageSummaries.filter((s) => {
+    const term = searchTerm.trim().toLowerCase();
+    const globalTerm = globalSearchTerm.trim().toLowerCase();
+
     const matchesSearch =
-      s.fgCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.fgDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      s.fgCode.toLowerCase().includes(term) ||
+      s.fgDescription.toLowerCase().includes(term) ||
+      (s.customerName || '').toLowerCase().includes(term);
+
+    const matchesGlobal =
+      !globalTerm ||
+      s.fgCode.toLowerCase().includes(globalTerm) ||
+      s.fgDescription.toLowerCase().includes(globalTerm) ||
+      (s.customerName || '').toLowerCase().includes(globalTerm);
 
     const matchesFG = selectedFG === 'ALL' || s.fgCode === selectedFG;
 
-    return matchesSearch && matchesFG;
+    return matchesSearch && matchesGlobal && matchesFG;
   });
 
   // KPI Calculations
@@ -148,19 +154,13 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Weekly Finished Goods (FG) Supply Matrix</h1>
-            {/* <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500">
               Prorated weekly plan vs MB51 actual production receipts (101 prefix 7), dispatches (601) & stock balance
-            </p> */}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {openingStockDate && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-700">
-              <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span>Opening Stock Date: <span className="font-mono font-bold text-blue-900">{openingStockDate}</span></span>
-            </div>
-          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
@@ -216,7 +216,9 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           <div className="text-2xl font-bold text-emerald-700 mt-1 font-mono">
             {totalActualProduced.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-
+          <div className="text-xs text-emerald-600 font-medium mt-1">
+            Finished Goods received from lines
+          </div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -224,9 +226,9 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
           <div className="text-2xl font-bold text-purple-700 mt-1 font-mono">
             {totalActualDispatched.toLocaleString()} <span className="text-xs text-slate-500 font-normal">Units</span>
           </div>
-          {/* <div className="text-xs text-slate-500 mt-1">
+          <div className="text-xs text-slate-500 mt-1">
             Delivered to OEM assembly lines
-          </div> */}
+          </div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -240,49 +242,22 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
             )}
           </div>
           <div className="text-xs text-slate-500 mt-1">
-            {/* MB51 101 production vs monthly prorated plan */}
+            MB51 101 production vs monthly prorated plan
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="relative min-w-[260px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search FG code, name, customer OEM..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <select
-            value={selectedFG}
-            onChange={(e) => setSelectedFG(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white text-slate-700 font-medium focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="ALL">All Finished Goods ({uniqueFGs.length})</option>
-            {uniqueFGs.map((fg) => (
-              <option key={fg.fgCode} value={fg.fgCode}>
-                {fg.fgCode} — {fg.fgDescription}
-              </option>
-            ))}
-          </select>
-
-          {(searchTerm || selectedFG !== 'ALL') && (
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedFG('ALL');
-              }}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-            >
-              Reset Filters
-            </button>
-          )}
+        <div className="relative min-w-[280px]">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search FG code, name, customer OEM..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
@@ -393,12 +368,13 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
                             {s.totalActualProduction.toLocaleString()} / {s.monthlyPlanTarget.toLocaleString()}
                           </span>
                           <span
-                            className={`px-1 py-0.2 rounded font-mono font-bold text-[9px] ${s.overallAchievementRate >= 90
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : s.overallAchievementRate >= 70
+                            className={`px-1 py-0.2 rounded font-mono font-bold text-[9px] ${
+                              s.overallAchievementRate >= 90
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : s.overallAchievementRate >= 70
                                 ? 'bg-blue-100 text-blue-800'
                                 : 'bg-amber-100 text-amber-800'
-                              }`}
+                            }`}
                           >
                             {s.overallAchievementRate}%
                           </span>
@@ -407,12 +383,13 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
                         {/* Visual Progress Bar Track & Fill */}
                         <div className="w-full bg-slate-200/90 h-2 rounded-full overflow-hidden flex shadow-inner relative">
                           <div
-                            className={`h-full transition-all duration-300 rounded-full ${s.overallAchievementRate >= 90
-                              ? 'bg-emerald-500'
-                              : s.overallAchievementRate >= 70
+                            className={`h-full transition-all duration-300 rounded-full ${
+                              s.overallAchievementRate >= 90
+                                ? 'bg-emerald-500'
+                                : s.overallAchievementRate >= 70
                                 ? 'bg-indigo-600'
                                 : 'bg-amber-500'
-                              }`}
+                            }`}
                             style={{ width: `${Math.min(100, Math.max(0, s.overallAchievementRate))}%` }}
                           />
                         </div>

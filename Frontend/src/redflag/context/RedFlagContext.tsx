@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import {
   RedFlag,
   UserMe,
@@ -54,6 +54,10 @@ export function RedFlagProvider({
   initialFlags?: RedFlag[];
   onFlagListChanged?: (flags: RedFlag[]) => void;
 }) {
+  const onFlagListChangedRef = useRef(onFlagListChanged);
+  useEffect(() => {
+    onFlagListChangedRef.current = onFlagListChanged;
+  }, [onFlagListChanged]);
   const [currentUser, setCurrentUser] = useState<UserMe | null>(null);
   const [lookups, setLookups] = useState<LookupsResponse | null>(null);
   const [redFlags, setRedFlags] = useState<RedFlag[]>(initialFlags);
@@ -132,15 +136,20 @@ export function RedFlagProvider({
   };
 
   const updateFlagInList = useCallback((updated: RedFlag) => {
+    if (!updated || !updated.id) return;
     setRedFlags(prev => {
       const exists = prev.some(r => r.id === updated.id);
       const nextList = exists
         ? prev.map(r => (r.id === updated.id ? updated : r))
         : [updated, ...prev];
-      if (onFlagListChanged) onFlagListChanged(nextList);
-      return nextList;
+      return nextList.filter(Boolean);
     });
-  }, [onFlagListChanged]);
+    if (onFlagListChangedRef.current) {
+      setTimeout(() => {
+        onFlagListChangedRef.current?.([updated, ...(Array.isArray(redFlags) ? redFlags.filter(r => r.id !== updated.id) : [])].filter(Boolean));
+      }, 0);
+    }
+  }, [redFlags]);
 
   const reloadFlag = useCallback(async (id: string): Promise<RedFlag> => {
     const flag = await api.fetchRedFlag(id);
@@ -163,12 +172,15 @@ export function RedFlagProvider({
   const actions: RedFlagActions = {
     raiseRedFlag: async (payload) => {
       const created = await api.raiseRedFlag(payload);
-      setRedFlags(prev => {
-        const nextList = [created, ...prev];
-        if (onFlagListChanged) onFlagListChanged(nextList);
-        return nextList;
-      });
-      setTotalCount(prev => prev + 1);
+      if (created && created.id) {
+        setRedFlags(prev => [created, ...(Array.isArray(prev) ? prev : [])].filter(Boolean));
+        setTotalCount(prev => prev + 1);
+        if (onFlagListChangedRef.current) {
+          setTimeout(() => {
+            onFlagListChangedRef.current?.([created, ...(Array.isArray(redFlags) ? redFlags : [])].filter(Boolean));
+          }, 0);
+        }
+      }
       return created;
     },
 

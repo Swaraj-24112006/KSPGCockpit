@@ -10,6 +10,7 @@ import {
   ManagementCriticalLossItem,
   ImpactedFGProgram
 } from '../types';
+import { getCurrentISODate } from './dateUtils';
 import { isDateInWeek } from './weeklyMrpEngine';
 
 // Standard Unit Prices (INR) for OEM Finished Goods
@@ -371,7 +372,7 @@ export function computeManagementProductionLossReport(
     const decisionStatus = saved?.decisionStatus || 'PENDING_EXECUTIVE_DECISION';
     const managementNotes = saved?.managementNotes || (decisionStatus === 'PENDING_EXECUTIVE_DECISION' ? 'Awaiting Plant Head & Supply Chain Director intervention.' : '');
     const actionOwner = saved?.actionOwner || buyerName;
-    const targetResolutionDate = saved?.targetResolutionDate || (selectedWeek.startDate || '2026-08-10');
+    const targetResolutionDate = saved?.targetResolutionDate || (selectedWeek.startDate || getCurrentISODate());
 
     // Working days coverage
     const dailyBurnRate = totalGrossRequiredQty / (selectedWeek.workingDays || 6);
