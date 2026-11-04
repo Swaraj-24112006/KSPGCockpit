@@ -190,6 +190,7 @@ export interface FGWeeklyCoverageSummary {
     variance: number; // actual - plan
     actualDispatch: number; // Sum of MB51 Mvt 601
     closingStock: number;
+    openingStock?: number;
   }[];
   totalActualProduction: number;
   totalActualDispatch: number;
