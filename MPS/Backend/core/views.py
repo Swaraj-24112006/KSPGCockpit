@@ -188,18 +188,17 @@ class BOMFGHeaderDetailView(generics.RetrieveUpdateDestroyAPIView):
         # Block if active monthly_plan rows exist for this fg_code
         has_monthly_plan = False
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT 1 FROM information_schema.tables WHERE table_name = 'monthly_plan'"
-                )
-                if cursor.fetchone():
+            has_monthly_plan = MonthlyPlan.objects.filter(fg=instance).exists()
+        except Exception:
+            try:
+                with connection.cursor() as cursor:
                     cursor.execute(
                         "SELECT 1 FROM monthly_plan WHERE fg_code = %s LIMIT 1",
                         [instance.fg_code]
                     )
                     has_monthly_plan = cursor.fetchone() is not None
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         if has_monthly_plan:
             return Response(

@@ -4,7 +4,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
 // Local date, NOT toISOString() (that is UTC and shows yesterday in IST before 05:30)
 export const todayISO = (now: Date = new Date()): string => {
-  if (import.meta.env.DEV) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
     try {
       const override = localStorage.getItem('mps_debug_today');
       if (override && /^\d{4}-\d{2}-\d{2}$/.test(override)) {

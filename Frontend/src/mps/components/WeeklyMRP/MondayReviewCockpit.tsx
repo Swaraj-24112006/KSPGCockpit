@@ -72,9 +72,12 @@ import {
   USER_ROLES
 } from '../../types';
 import { computeMondayReviewCockpit } from '../../utils/mondayReviewEngine';
+import { isScheduleReadOnly, getLineItemMB52UploadDate } from '../../utils/mb52LockEngine';
 import { BOMGanttChart, MultiComponentMasterGantt } from './BOMGanttChart';
 import { HistoryDrawer, HistoryDrawerFilter } from './HistoryDrawer';
 import { SupplyRiskHeatmap } from './SupplyRiskHeatmap';
+import { MonthSelect, TodayButton } from '../PeriodControls';
+import { todayISO, findWeekForDate, currentMonthISO } from '../../utils/dateContext';
 
 interface MondayReviewCockpitProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -93,13 +96,14 @@ interface MondayReviewCockpitProps {
   onUpdateDeliveryScheduleChangeLogs: (logs: VendorDeliveryScheduleChangeLog[]) => void;
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
-  selectedWeekId?: string;
-  onSelectWeek?: (weekId: string) => void;
-  onToday?: () => void;
   currentRole?: UserRole;
   onSelectRole?: (role: UserRole) => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  openingStockDate?: string;
+  selectedWeekId?: string;
+  onSelectWeek?: (weekId: string) => void;
+  onToday?: () => void;
 }
 
 export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
@@ -119,24 +123,25 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   onUpdateDeliveryScheduleChangeLogs,
   selectedMonth,
   onSelectMonth,
-  selectedWeekId: selectedWeekIdProp,
-  onSelectWeek,
-  onToday,
   currentRole = 'supply_planner',
   onSelectRole,
   isSidebarCollapsed = true,
-  onToggleSidebar
+  onToggleSidebar,
+  openingStockDate,
+  selectedWeekId: selectedWeekIdProp,
+  onSelectWeek,
+  onToday
 }) => {
   // Role-Based Access Control (RBAC)
   const isSupplyPlanner = currentRole === 'supply_planner';
   const currentRoleDef = USER_ROLES.find((r) => r.id === currentRole) || USER_ROLES[1];
 
   // Top Filter States
-  const [localSelectedWeekId, setLocalSelectedWeekId] = useState<string>('');
-  const selectedWeekId = selectedWeekIdProp || localSelectedWeekId;
+  const [localWeekId, setLocalWeekId] = useState<string>('w-default');
+  const selectedWeekId = selectedWeekIdProp || localWeekId;
   const setSelectedWeekId = (id: string) => {
     if (onSelectWeek) onSelectWeek(id);
-    setLocalSelectedWeekId(id);
+    else setLocalWeekId(id);
   };
   const [selectedMiniFactory, setSelectedMiniFactory] = useState<string>('ALL');
   const [criticalityFilter, setCriticalityFilter] = useState<
@@ -153,8 +158,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   // Accordion Expand State: which FGs have their BOM exploded (Default all collapsed as per landing page attachment)
   const [expandedFGMap, setExpandedFGMap] = useState<Record<string, boolean>>({});
 
-  // Prominent Notification Section State (Role Attention Radar)
-  const [isNotificationExpanded, setIsNotificationExpanded] = useState<boolean>(true);
+  // Prominent Notification Section State (Role Attention Radar - Default Minimized)
+  const [isNotificationExpanded, setIsNotificationExpanded] = useState<boolean>(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState<boolean>(false);
 
   // View Mode per FG: 'TABLE' or 'GANTT' (Small compact Gantt Matrix)
@@ -215,7 +220,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     vendorName: '',
     buyerName: '',
     expectedDeliveryDate: todayISO(),
-    weekId: '',
+    weekId: selectedWeekId,
     promisedQty: 1000,
     carrierOrTracking: 'Direct Truck Delivery',
     deliveryStatus: 'CONFIRMED_ON_TRACK',
@@ -233,7 +238,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     currentStatus: PlanFreezeStatus;
   } | null>(null);
   const [freezePlannerName, setFreezePlannerName] = useState('Vikram Mehta (Supply Planner)');
-  const [freezeNotes, setFreezeNotes] = useState('Plan frozen for the selected week. BOM stock reserved.');
+  const [freezeNotes, setFreezeNotes] = useState('Plan frozen for Week 2 production. BOM stock reserved.');
 
   // 4. Inline History Drawer & Change Audit State
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
@@ -311,7 +316,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     stockList,
     vendorDeliverySchedules,
     mondayReviewActions,
-    planFreezeList
+    planFreezeList,
+    openingStockDate
   );
 
   // Identify all "OK" Finished Goods (100% component availability, no deficits, max buildable covers gross target)
@@ -370,6 +376,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   // Mini-Factories List
   const miniFactories = ['ALL', 'Pumps_Division', 'Valves_Division', 'Oil_Systems', 'EGR_Division'];
 
+  // Months available
+  const availableMonths = ['2026-07', '2026-08', '2026-09'];
 
   // Helper date formatter
   const formatDateDisplay = (dateStr?: string) => {
@@ -507,7 +515,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
           ? `Supplier ${comp.vendorName} to expedite batch via express transit before Wednesday morning shift.`
           : 'Production line to sequence high-stock variants first while inward arrives.',
         assignedOwner: comp ? `${comp.buyerName} (Buyer)` : 'Vikram Mehta (Supply Planner)',
-        targetResolutionDate: todayISO(),
+        targetResolutionDate: `${selectedMonth}-12`,
         escalatedTo: ''
       });
     }
@@ -612,6 +620,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
       : `${currentRoleDef.label} (${currentRoleDef.shortLabel})`;
 
     if (existingSched) {
+      if (isScheduleReadOnly(existingSched, stockList)) {
+        alert(
+          `This delivery schedule is read-only: Expected delivery date (${existingSched.expectedDeliveryDate}) is prior to the MB52 upload date (${getLineItemMB52UploadDate(existingSched.componentCode, stockList)}). All data prior to the upload date is locked.`
+        );
+        return;
+      }
       setEditingScheduleId(existingSched.id);
       setDeliveryFormData({
         scheduleRefId: existingSched.id,
@@ -630,6 +644,10 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         reasonForChange: 'Rescheduled arrival date & quantity commitment for weekly production plan.'
       });
     } else {
+      const minDate = getLineItemMB52UploadDate(comp.componentCode, stockList);
+      const targetDate = todayISO();
+      const defaultDate = targetDate >= minDate ? targetDate : minDate;
+
       setEditingScheduleId(null);
       setDeliveryFormData({
         scheduleRefId: `SCH-${Date.now().toString().slice(-6)}`,
@@ -638,7 +656,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         vendorCode: comp.vendorCode,
         vendorName: comp.vendorName,
         buyerName: comp.buyerName,
-        expectedDeliveryDate: todayISO(),
+        expectedDeliveryDate: defaultDate,
         weekId: selectedWeekId,
         promisedQty: Math.max(500, Math.abs(comp.stockDeficit) || 1000),
         carrierOrTracking: 'Direct Road Express',
@@ -658,6 +676,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     const vendorBuyer = vendorBuyers.find((vb) => vb.suppliedComponents.includes(componentCode));
 
     if (schedule) {
+      if (isScheduleReadOnly(schedule, stockList)) {
+        alert(
+          `This delivery schedule is read-only: Expected delivery date (${schedule.expectedDeliveryDate}) is prior to the MB52 upload date (${getLineItemMB52UploadDate(schedule.componentCode, stockList)}). All data prior to the upload date is locked.`
+        );
+        return;
+      }
       setEditingScheduleId(schedule.id);
       setDeliveryFormData({
         scheduleRefId: schedule.id,
@@ -676,6 +700,10 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         reasonForChange: 'Rescheduled arrival date & quantity commitment from Supply Risk Heatmap.'
       });
     } else {
+      const minDate = getLineItemMB52UploadDate(componentCode, stockList);
+      const targetDate = todayISO();
+      const defaultDate = targetDate >= minDate ? targetDate : minDate;
+
       setEditingScheduleId(null);
       setDeliveryFormData({
         scheduleRefId: `SCH-${Date.now().toString().slice(-6)}`,
@@ -684,7 +712,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         vendorCode: vendorBuyer?.vendorCode || 'V-1001',
         vendorName: vendorBuyer?.vendorName || 'Vendor',
         buyerName: vendorBuyer?.buyerName || 'Rajesh Kumar (Buyer)',
-        expectedDeliveryDate: todayISO(),
+        expectedDeliveryDate: defaultDate,
         weekId: selectedWeekId,
         promisedQty: 1000,
         carrierOrTracking: 'Direct Road Express',
@@ -753,9 +781,16 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     }
   };
 
-  // Save Delivery Schedule & Log Reason (Seamless Editing for All Roles)
   const handleSaveDeliverySchedule = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const minAllowedDate = getLineItemMB52UploadDate(deliveryFormData.componentCode, stockList);
+    if (deliveryFormData.expectedDeliveryDate < minAllowedDate) {
+      alert(
+        `Invalid Delivery Date: Expected delivery date (${deliveryFormData.expectedDeliveryDate}) cannot be before the MB52 upload baseline date (${minAllowedDate}) for line item ${deliveryFormData.componentCode}. Buyer can only add schedules for future dates on or after the upload date.`
+      );
+      return;
+    }
 
     const changeReason = deliveryFormData.reasonForChange.trim() || 'Delivery commitment updated during Monday review.';
 
@@ -859,6 +894,13 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     const existing = vendorDeliverySchedules.find((s) => s.id === scheduleId);
     if (!existing) return;
 
+    if (isScheduleReadOnly(existing, stockList)) {
+      alert(
+        `Cannot delete this delivery schedule: delivery date (${existing.expectedDeliveryDate}) is prior to the MB52 upload baseline date (${getLineItemMB52UploadDate(existing.componentCode, stockList)}). All data prior to the upload date is read-only.`
+      );
+      return;
+    }
+
     const reason = prompt('Please enter reason for deleting/cancelling this delivery schedule:', 'Vendor cancelled order / Line rescheduled');
     if (reason === null) return;
 
@@ -894,6 +936,10 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
       'Prior Backlog',
       'Current Week Plan',
       'Gross Target',
+      'Current Rate (units/day)',
+      'Asking Rate (units/day)',
+      'Monthly Asking Rate (units/day)',
+      'Rate Pace Gap',
       'Net Shortage Gap',
       'W3 Plan',
       'W4 Plan',
@@ -918,6 +964,10 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         item.priorBacklog,
         item.currentWeekPlanTarget,
         item.totalWeekGrossTarget,
+        item.currentDailyRate,
+        item.askingDailyRate,
+        item.monthlyAskingDailyRate,
+        item.ratePaceGap,
         netGap,
         w3,
         w4,
@@ -1058,7 +1108,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             priorityColor: 'rose' as const,
             metric: `${totalBacklogUnits.toLocaleString()} Backlog Units`,
             title: 'W1 Production Backlog Carryovers',
-            description: `${totalBacklogUnits.toLocaleString()} units unfulfilled from prior weeks require demand rebalancing into Week ${cockpit.selectedWeek.weekNo} gross targets.`,
+            description: `${totalBacklogUnits.toLocaleString()} units unfulfilled from W1 (Panther: 108, FAM B: 56, Oil Pump: 1,400) require demand rebalancing into Week 2 gross targets.`,
             actionLabel: 'Inspect Backlog Lines',
             actionDisabled: false,
             onAction: () => {
@@ -1085,7 +1135,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             priorityColor: 'blue' as const,
             metric: `${totalGrossTarget.toLocaleString()} Gross Target`,
             title: `Validate W${cockpit.selectedWeek.weekNo} Customer Gross Production Targets`,
-            description: `Total Week ${cockpit.selectedWeek.weekNo} gross demand is ${totalGrossTarget.toLocaleString()} units across ${cockpit.fgPlans.length} OEM programs awaiting final customer order confirmation.`,
+            description: `Total Week ${cockpit.selectedWeek.weekNo} gross demand is ${totalGrossTarget.toLocaleString()} units across ${cockpit.cockpitItems.length} OEM programs awaiting final customer order confirmation.`,
             actionLabel: 'Export Demand Summary',
             actionDisabled: false,
             onAction: () => handleExportCSV(),
@@ -1182,18 +1232,18 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   const roleTasks = computeRoleTasks();
 
   return (
-    <div className="space-y-2.5 w-full">
-      {/* 1. Header Control Bar (CLEAN 2-ROW LAYOUT - NO SCROLLER) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-2 space-y-2 shadow-xs">
+    <div className="space-y-4 w-full">
+      {/* 1. Header Control Bar (SPACIOUS & CLEAN LAYOUT) */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-3.5 shadow-xs">
         {/* ROW 1: Navigation, Horizon, Factory, Status, and Role */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Toggle Left Navigation Panel for Full-Screen */}
             {onToggleSidebar && (
               <button
                 onClick={onToggleSidebar}
                 title={isSidebarCollapsed ? 'Expand Navigation Sidebar' : 'Hide Navigation Sidebar (Max Full Screen)'}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
                   isSidebarCollapsed
                     ? 'bg-slate-900 text-white border-slate-900 shadow-2xs hover:bg-slate-800'
                     : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -1201,12 +1251,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
               >
                 {isSidebarCollapsed ? (
                   <>
-                    <Maximize2 className="w-3.5 h-3.5" />
+                    <Maximize2 className="w-4 h-4" />
                     <span>Full Screen</span>
                   </>
                 ) : (
                   <>
-                    <PanelLeftClose className="w-3.5 h-3.5" />
+                    <PanelLeftClose className="w-4 h-4" />
                     <span>Hide Panel</span>
                   </>
                 )}
@@ -1214,74 +1264,66 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             )}
 
             {/* Month Dropdown */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700">
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span className="font-medium text-[11px]">Month:</span>
-              <select
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700">
+              <Calendar className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-xs text-slate-500">Month:</span>
+              <MonthSelect
                 value={selectedMonth}
-                onChange={(e) => onSelectMonth(e.target.value)}
-                className="bg-transparent font-bold text-slate-900 focus:outline-hidden cursor-pointer text-xs"
-              >
-                {availableMonths.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Week Selector Tabs */}
-            <div className="flex items-center gap-1">
-              <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
-                {cockpit.monthWeeks.map((w) => {
-                  const isSelected = w.id === cockpit.selectedWeek.id;
-                  const isCur = !!findWeekForDate([w], todayISO());
-                  return (
-                    <button
-                      key={w.id}
-                      onClick={() => setSelectedWeekId(w.id)}
-                      className={`px-2.5 py-1 rounded font-medium transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-slate-900 text-white shadow-xs font-bold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                      }`}
-                    >
-                      {w.weekLabel}
-                      {isCur && (
-                        <span className="ml-1 text-[10px] opacity-80 font-normal">(Current)</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                onChange={onSelectMonth}
+                className="bg-transparent font-bold text-slate-900 focus:outline-hidden cursor-pointer text-sm"
+              />
               {onToday && <TodayButton onClick={onToday} />}
             </div>
 
+            {/* Week Selector Tabs */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-sm">
+              {cockpit.monthWeeks.map((w) => {
+                const isSelected = w.id === cockpit.selectedWeek.id;
+                const isCur = !!findWeekForDate([w], todayISO());
+                return (
+                  <button
+                    key={w.id}
+                    onClick={() => setSelectedWeekId(w.id)}
+                    className={`px-3 py-1 rounded-md font-medium transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {w.weekLabel}
+                    {isCur && (
+                      <span className="ml-1 text-xs opacity-90 font-normal">(Current)</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Review Horizon Selector */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700">
-              <Radio className="w-3.5 h-3.5 text-slate-500" />
-              <span className="font-medium text-[11px]">Horizon:</span>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700">
+              <Radio className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-xs text-slate-500">Horizon:</span>
               <select
                 value={horizonFilter}
                 onChange={(e) => setHorizonFilter(e.target.value as any)}
-                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-xs"
+                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-sm"
               >
                 <option value="CURRENT_WEEK">Current Week (W{cockpit.selectedWeek.weekNo} Focus)</option>
                 <option value="NEXT_WEEK_AT_RISK">
                   ⚡ Next Week Radar ({cockpit.nextWeekCriticalFGsCount} Deficits)
                 </option>
-                <option value="ALL_WEEKS">Full Month (W1-W${cockpit.monthWeeks.length})</option>
+                <option value="ALL_WEEKS">Full Month (W1-W4)</option>
               </select>
             </div>
 
             {/* Mini-Factory Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700">
-              <Factory className="w-3.5 h-3.5 text-slate-500" />
-              <span className="font-medium text-[11px]">Factory:</span>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700">
+              <Factory className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-xs text-slate-500">Factory:</span>
               <select
                 value={selectedMiniFactory}
                 onChange={(e) => setSelectedMiniFactory(e.target.value)}
-                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-xs"
+                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-sm"
               >
                 {miniFactories.map((mf) => (
                   <option key={mf} value={mf}>
@@ -1292,13 +1334,13 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             </div>
 
             {/* Criticality / Status Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-700">
-              <Filter className="w-3.5 h-3.5 text-slate-500" />
-              <span className="font-medium text-[11px]">Filter:</span>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700">
+              <Filter className="w-4 h-4 text-slate-500" />
+              <span className="font-medium text-xs text-slate-500">Filter:</span>
               <select
                 value={criticalityFilter}
                 onChange={(e) => setCriticalityFilter(e.target.value as any)}
-                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-xs"
+                className="bg-transparent font-semibold text-slate-900 focus:outline-hidden cursor-pointer text-sm"
               >
                 <option value="ALL">All Lines ({cockpit.cockpitItems.length})</option>
                 <option value="CRITICAL_ONLY">Current Week Deficits ({cockpit.criticalFGsCount})</option>
@@ -1312,21 +1354,21 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
           </div>
         </div>
 
-        {/* ROW 2: RBAC Role & Prominent Notification Section (Immediate Attention Radar) */}
-        <div className="space-y-2 border-t border-slate-100 pt-1.5">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        {/* ROW 2: RBAC Role & Notification Radar Banner */}
+        <div className="space-y-2.5 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             {/* RBAC Role Indicator Pill with Interactive Switcher Dropdown */}
             <div className="relative">
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs border bg-slate-50 text-slate-800 border-slate-200 shadow-2xs"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border bg-slate-50 text-slate-800 border-slate-200 shadow-2xs"
               >
-                <Info className="w-3.5 h-3.5 text-blue-600" />
-                <span className="font-medium text-[11px] text-slate-500">Role:</span>
+                <Info className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-xs text-slate-500">Role:</span>
                 <span className="font-bold text-slate-900">{currentRoleDef.label}</span>
                 {onSelectRole && (
                   <button
                     onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
-                    className="text-[11px] underline text-blue-600 hover:text-blue-800 ml-1 font-semibold cursor-pointer"
+                    className="text-xs underline text-blue-600 hover:text-blue-800 ml-1 font-semibold cursor-pointer"
                     title="Switch active user role"
                   >
                     (Switch)
@@ -1336,14 +1378,14 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
 
               {/* Role Switcher Popover Dropdown */}
               {isRoleMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 w-72 bg-white rounded-lg shadow-xl border border-slate-200 p-1.5 z-40 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                <div className="absolute left-0 top-full mt-1.5 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-40 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="px-2.5 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
                     <span>Select User Role</span>
                     <button
                       onClick={() => setIsRoleMenuOpen(false)}
-                      className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   {USER_ROLES.map((r) => {
@@ -1355,28 +1397,28 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                           if (onSelectRole) onSelectRole(r.id);
                           setIsRoleMenuOpen(false);
                         }}
-                        className={`w-full text-left px-2 py-1.5 rounded-md transition-all flex items-start gap-2 cursor-pointer ${
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-start gap-2.5 cursor-pointer ${
                           isCurrent
                             ? 'bg-blue-50 text-blue-900 border border-blue-200 font-bold'
                             : 'hover:bg-slate-50 text-slate-700'
                         }`}
                       >
                         <div className="mt-0.5">
-                          {r.id === 'management' && <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />}
-                          {r.id === 'demand_planner' && <Layers className="w-3.5 h-3.5 text-blue-600" />}
-                          {r.id === 'supply_planner' && <Truck className="w-3.5 h-3.5 text-amber-600" />}
-                          {r.id === 'production' && <Factory className="w-3.5 h-3.5 text-emerald-600" />}
+                          {r.id === 'management' && <ShieldCheck className="w-4 h-4 text-purple-600" />}
+                          {r.id === 'demand_planner' && <Layers className="w-4 h-4 text-blue-600" />}
+                          {r.id === 'supply_planner' && <Truck className="w-4 h-4 text-amber-600" />}
+                          {r.id === 'production' && <Factory className="w-4 h-4 text-emerald-600" />}
                         </div>
                         <div className="flex-1">
-                          <div className="text-xs font-semibold flex items-center justify-between">
+                          <div className="text-sm font-semibold flex items-center justify-between">
                             <span>{r.label}</span>
                             {isCurrent && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-600 text-white font-mono">
+                              <span className="px-2 py-0.5 rounded text-xs bg-blue-600 text-white font-mono">
                                 Active
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-500 font-normal leading-tight mt-0.5">
+                          <div className="text-xs text-slate-500 font-normal leading-tight mt-0.5">
                             {r.description}
                           </div>
                         </div>
@@ -1388,24 +1430,24 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             </div>
 
             {/* Notification Toggle & Attention Summary Chip */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setIsNotificationExpanded(!isNotificationExpanded)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold border transition-all cursor-pointer ${
                   isNotificationExpanded
                     ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs hover:bg-amber-100'
                     : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                 }`}
                 title="Toggle Role Notification Radar"
               >
-                <Bell className={`w-3.5 h-3.5 ${isNotificationExpanded ? 'text-amber-600 fill-amber-500' : 'text-slate-500'}`} />
+                <Bell className={`w-4 h-4 ${isNotificationExpanded ? 'text-amber-600 fill-amber-500' : 'text-slate-500'}`} />
                 <span>
                   Immediate Attention ({roleTasks.length} Tasks)
                 </span>
                 {isNotificationExpanded ? (
-                  <ChevronUp className="w-3 h-3 text-slate-500" />
+                  <ChevronUp className="w-4 h-4 text-slate-500" />
                 ) : (
-                  <ChevronDown className="w-3 h-3 text-slate-500" />
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
                 )}
               </button>
             </div>
@@ -1523,22 +1565,22 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         </div>
 
         {/* ROW 2: Action Tools, Search, Toggles, Audit Log, Export, Expand/Collapse */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs border-t border-slate-100 pt-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             {/* Search Box */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Filter FG / Part / Buyer / Vendor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 pr-6 py-1 text-xs border border-slate-200 rounded w-48 focus:w-60 transition-all focus:outline-hidden focus:border-slate-400 bg-slate-50 focus:bg-white"
+                className="pl-9 pr-7 py-1.5 text-sm border border-slate-200 rounded-lg w-56 focus:w-72 transition-all focus:outline-hidden focus:border-slate-400 bg-slate-50 focus:bg-white text-slate-900 placeholder-slate-400"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm cursor-pointer"
                 >
                   ×
                 </button>
@@ -1548,7 +1590,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             {/* 1-Click Critical Materials Toggle */}
             <button
               onClick={() => setHideOkMaterials(!hideOkMaterials)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
                 hideOkMaterials
                   ? 'bg-rose-50 border border-rose-300 text-rose-800 shadow-2xs'
                   : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -1556,12 +1598,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             >
               {hideOkMaterials ? (
                 <>
-                  <Zap className="w-3 h-3 text-rose-600" />
+                  <Zap className="w-4 h-4 text-rose-600" />
                   <span>Showing Shortages Only</span>
                 </>
               ) : (
                 <>
-                  <EyeOff className="w-3 h-3 text-slate-500" />
+                  <EyeOff className="w-4 h-4 text-slate-500" />
                   <span>Hide OK Parts</span>
                 </>
               )}
@@ -1572,9 +1614,9 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
               <button
                 onClick={handleAutoFreezeAllOkPlans}
                 title="System Auto-Freeze: Automatically lock all Finished Goods with 100% component availability."
-                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-2xs cursor-pointer"
               >
-                <Zap className="w-3 h-3 text-emerald-200" />
+                <Zap className="w-4 h-4 text-emerald-200" />
                 <span>Auto-Freeze OK Plans ({okFGs.length})</span>
               </button>
             )}
@@ -1583,17 +1625,17 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             <button
               onClick={() => setIsHeatmapExpanded(!isHeatmapExpanded)}
               title="Toggle Supply Risk Heatmap highlighting vendors with overdue delivery schedules"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-bold transition-all cursor-pointer shadow-2xs ${
                 isHeatmapExpanded
                   ? 'bg-rose-600 hover:bg-rose-700 text-white'
                   : 'bg-rose-50 border border-rose-300 text-rose-800 hover:bg-rose-100'
               }`}
             >
-              <Flame className={`w-3.5 h-3.5 ${isHeatmapExpanded ? 'text-white animate-pulse' : 'text-rose-600'}`} />
+              <Flame className={`w-4 h-4 ${isHeatmapExpanded ? 'text-white animate-pulse' : 'text-rose-600'}`} />
               <span>Supply Risk Heatmap</span>
               {vendorDeliverySchedules.some((s) => s.deliveryStatus === 'DELAYED_AT_RISK' || s.deliveryStatus === 'CRITICAL_NO_PO') && (
                 <span
-                  className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] font-extrabold ${
+                  className={`px-2 py-0.5 rounded-full font-mono text-xs font-extrabold ${
                     isHeatmapExpanded ? 'bg-white text-rose-800' : 'bg-rose-600 text-white'
                   }`}
                 >
@@ -1611,9 +1653,9 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             <button
               onClick={() => setIsCommonPartsModalOpen(true)}
               title="Inspect stock reserved for common parts across multiple frozen FGs"
-              className="flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
-              <Share2 className="w-3 h-3 text-slate-600" />
+              <Share2 className="w-4 h-4 text-slate-600" />
               <span>Common Parts Matrix ({commonPartsList.length})</span>
             </button>
 
@@ -1621,37 +1663,37 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             <button
               onClick={() => handleOpenHistoryDrawer({ title: 'System-wide Delivery Schedule & Plan Audit Log' })}
               title="View all critical schedule changes, date shifts, and author modification logs"
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 hover:bg-indigo-100 rounded text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-800 hover:bg-indigo-100 rounded-lg text-sm font-semibold transition-colors cursor-pointer shadow-2xs"
             >
-              <History className="w-3.5 h-3.5 text-indigo-600" />
+              <History className="w-4 h-4 text-indigo-600" />
               <span>Change History ({deliveryScheduleChangeLogs.length})</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {/* Export CSV */}
             <button
               onClick={handleExportCSV}
               title="Download Monday review cockpit table as CSV"
-              className="flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-slate-600" />
+              <Download className="w-4 h-4 text-slate-600" />
               <span>Export CSV</span>
             </button>
 
             {/* Expand / Collapse All Toggle */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-sm">
               <button
                 onClick={() => handleExpandAll(true)}
                 title="Explode all FG BOMs"
-                className="px-2 py-0.5 text-slate-700 hover:text-slate-900 rounded font-medium text-[11px] cursor-pointer"
+                className="px-2.5 py-1 text-slate-700 hover:text-slate-900 rounded font-medium text-xs cursor-pointer"
               >
                 Expand All
               </button>
               <button
                 onClick={() => handleExpandAll(false)}
                 title="Collapse all BOMs"
-                className="px-2 py-0.5 text-slate-700 hover:text-slate-900 rounded font-medium text-[11px] cursor-pointer"
+                className="px-2.5 py-1 text-slate-700 hover:text-slate-900 rounded font-medium text-xs cursor-pointer"
               >
                 Collapse
               </button>
@@ -1711,32 +1753,44 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
       {/* 3. Main Tabular Cockpit */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-semibold tracking-tight">
-                <th className="py-2.5 px-3 w-8 text-center">BOM</th>
-                <th className="py-2.5 px-3 min-w-[130px]">FG Part No.</th>
-                <th className="py-2.5 px-3 min-w-[180px]">FG Description</th>
-                <th className="py-2.5 px-3 min-w-[140px] w-36">Monthly Plan Completion</th>
-                <th className="py-2.5 px-2 text-right w-20">Prior Plan</th>
-                <th className="py-2.5 px-2 text-right w-24">Prior Actual (101)</th>
-                <th className="py-2.5 px-2 text-right w-24">Prior Backlog</th>
-                <th className="py-2.5 px-2 text-right w-20">W{cockpit.selectedWeek.weekNo} Plan</th>
-                <th className="py-2.5 px-2 text-right w-24 bg-slate-200/60 font-bold text-slate-900">
+              <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider">
+                <th className="py-3.5 px-3.5 w-10 text-center">BOM</th>
+                <th className="py-3.5 px-3.5 min-w-[140px]">FG Part No.</th>
+                <th className="py-3.5 px-3.5 min-w-[200px]">FG Description</th>
+                <th className="py-3.5 px-3.5 min-w-[160px] w-44">Monthly Plan Completion</th>
+                <th className="py-3.5 px-2.5 text-right w-24">Prior Plan</th>
+                <th className="py-3.5 px-2.5 text-right w-28">Prior Actual (101)</th>
+                <th className="py-3.5 px-2.5 text-right w-28">Prior Backlog</th>
+                <th className="py-3.5 px-2.5 text-right w-24">W{cockpit.selectedWeek.weekNo} Plan</th>
+                <th className="py-3.5 px-2.5 text-right w-28 bg-slate-200/70 font-bold text-slate-900">
                   Gross Target
                 </th>
-                <th className="py-2.5 px-2 text-right w-20">Net Gap</th>
-                <th className="py-2.5 px-2 text-center w-16">W3 Plan</th>
-                <th className="py-2.5 px-2 text-center w-16">W4 Plan</th>
-                <th className="py-2.5 px-2 text-center w-24">Health</th>
-                <th className="py-2.5 px-2 text-center w-20">Freeze</th>
-                <th className="py-2.5 px-3 text-right w-36">Actions</th>
+                <th
+                  className="py-3.5 px-2.5 text-right w-28 bg-blue-50/80 font-bold text-blue-950 border-x border-slate-200/60"
+                  title="Current Actual Run Rate based on Mvt 101 production receipts / elapsed working days"
+                >
+                  Current Rate
+                </th>
+                <th
+                  className="py-3.5 px-2.5 text-right w-28 bg-amber-50/80 font-bold text-amber-950 border-r border-slate-200/60"
+                  title="Asking Rate required to fulfill Gross Target across operational working days"
+                >
+                  Asking Rate
+                </th>
+                <th className="py-3.5 px-2.5 text-right w-24">Net Gap</th>
+                <th className="py-3.5 px-2.5 text-center w-20">W3 Plan</th>
+                <th className="py-3.5 px-2.5 text-center w-20">W4 Plan</th>
+                <th className="py-3.5 px-2.5 text-center w-28">Health</th>
+                <th className="py-3.5 px-2.5 text-center w-24">Freeze</th>
+                <th className="py-3.5 px-3.5 text-right w-40">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredCockpitItems.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-8 text-center text-slate-400">
+                  <td colSpan={17} className="py-8 text-center text-slate-400">
                     No Finished Goods matched the selected filters.
                   </td>
                 </tr>
@@ -1758,9 +1812,11 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                   const progressExact = ((totalCompletedActual / totalMonthlyPlan) * 100).toFixed(1);
                   const remainingMonthlyTarget = Math.max(0, totalMonthlyPlan - totalCompletedActual);
 
-                  // Future weeks
+                  // Future weeks and working days
                   const w3 = fg.allWeeksDetail.find((w) => w.weekNo === 3);
                   const w4 = fg.allWeeksDetail.find((w) => w.weekNo === 4);
+                  const priorWeeksList = cockpit.monthWeeks.filter((w) => w.weekNo < cockpit.selectedWeek.weekNo);
+                  const priorWorkingDays = priorWeeksList.reduce((sum, w) => sum + (w.workingDays || w.daysCount || 6), 0) || 6;
 
                   return (
                     <React.Fragment key={fg.fgCode}>
@@ -1771,30 +1827,30 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         } ${isFrozen ? 'bg-emerald-50/20' : ''}`}
                       >
                         {/* Expand Button */}
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-3.5 px-3 text-center">
                           <button
                             onClick={() => toggleFGExpand(fg.fgCode)}
                             title={isExpanded ? 'Collapse BOM' : 'Explode BOM & Schedules'}
-                            className="p-1 text-slate-400 hover:text-slate-800 hover:bg-slate-200 rounded transition-colors"
+                            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-md transition-colors cursor-pointer"
                           >
                             {isExpanded ? (
-                              <ChevronDown className="w-3.5 h-3.5 text-slate-800" />
+                              <ChevronDown className="w-4 h-4 text-slate-800" />
                             ) : (
-                              <ChevronRight className="w-3.5 h-3.5" />
+                              <ChevronRight className="w-4 h-4" />
                             )}
                           </button>
                         </td>
 
                         {/* FG Part Number (Separate Column) */}
-                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                          <div className="flex items-center gap-1.5">
-                            <span>{fg.fgCode}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono font-normal">
+                        <td className="py-3.5 px-3.5 font-mono font-bold text-slate-900 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold">{fg.fgCode}</span>
+                            <span className="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-mono font-semibold">
                               {fg.line}
                             </span>
                             {fg.customerName && (
                               <span
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium truncate max-w-[85px]"
+                                className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold truncate max-w-[100px]"
                                 title={`Customer: ${fg.customerName}`}
                               >
                                 {fg.customerName}
@@ -1804,22 +1860,22 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* FG Description (Separate Column) */}
-                        <td className="py-2.5 px-3 text-slate-700 font-normal truncate max-w-[200px]" title={fg.fgDescription}>
+                        <td className="py-3.5 px-3.5 text-slate-800 font-medium text-sm truncate max-w-[220px]" title={fg.fgDescription}>
                           {fg.fgDescription}
                         </td>
 
                         {/* Monthly Production Plan Completion Progress Bar */}
-                        <td className="py-2.5 px-3 min-w-[140px] max-w-[170px]">
+                        <td className="py-3.5 px-3.5 min-w-[160px] max-w-[190px]">
                           <div
-                            className="flex flex-col gap-1 cursor-help"
+                            className="flex flex-col gap-1.5 cursor-help"
                             title={`Monthly Plan Completion Summary for ${fg.fgCode}:\n• Total Monthly Target: ${totalMonthlyPlan.toLocaleString()} units\n• Mvt 101 Completed to Date: ${totalCompletedActual.toLocaleString()} units (${progressExact}%)\n• Remaining to Build: ${remainingMonthlyTarget.toLocaleString()} units\n• Prior Weeks Actual (101): ${priorActualSum.toLocaleString()} units\n• Current Week Actual (101): ${(fg.currentWeekActualProd || 0).toLocaleString()} units\n• Breakdown: ${fg.allWeeksDetail.map((w) => `W${w.weekNo}: ${w.actualProd.toLocaleString()} / ${w.planTarget.toLocaleString()}`).join(' | ')}`}
                           >
-                            <div className="flex items-center justify-between text-[10px] font-mono leading-tight">
-                              <span className="text-slate-600 font-semibold truncate">
+                            <div className="flex items-center justify-between text-xs font-mono leading-tight">
+                              <span className="text-slate-700 font-bold truncate">
                                 {totalCompletedActual.toLocaleString()} / {totalMonthlyPlan.toLocaleString()}
                               </span>
                               <span
-                                className={`px-1 py-0.2 rounded font-bold text-[9px] ${
+                                className={`px-1.5 py-0.5 rounded font-bold text-xs ${
                                   monthlyProgressPercent >= 75
                                     ? 'bg-emerald-100 text-emerald-800'
                                     : monthlyProgressPercent >= 30
@@ -1832,7 +1888,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                             </div>
 
                             {/* Progress Track & Fill */}
-                            <div className="w-full bg-slate-200/90 h-2 rounded-full overflow-hidden flex shadow-inner relative">
+                            <div className="w-full bg-slate-200/90 h-2.5 rounded-full overflow-hidden flex shadow-inner relative">
                               <div
                                 className={`h-full transition-all duration-300 rounded-full ${
                                   monthlyProgressPercent >= 75
@@ -1844,11 +1900,24 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                 style={{ width: `${Math.min(100, Math.max(0, monthlyProgressPercent))}%` }}
                               />
                             </div>
+
+                            {/* Velocity Takt Summary */}
+                            <div className="flex items-center justify-between text-xs font-mono text-slate-500 leading-none pt-0.5">
+                              <span title={`Current Run Rate: ${fg.currentDailyRate} units/day`}>
+                                Cur: <strong className="text-slate-800">{fg.currentDailyRate > 0 ? `${fg.currentDailyRate}/d` : '-'}</strong>
+                              </span>
+                              <span
+                                title={`Asking Run Rate: ${fg.askingDailyRate} units/day`}
+                                className={fg.ratePaceGap > 0 ? 'text-amber-800 font-semibold' : 'text-emerald-700 font-semibold'}
+                              >
+                                Ask: {fg.askingDailyRate}/d
+                              </span>
+                            </div>
                           </div>
                         </td>
 
                         {/* Prior Plan */}
-                        <td className="py-2.5 px-2 text-right font-mono text-slate-700">
+                        <td className="py-3.5 px-2.5 text-right font-mono text-slate-700 text-sm">
                           <span
                             className="cursor-help"
                             title={
@@ -1862,7 +1931,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* Prior Actual (101 Production Movement) */}
-                        <td className="py-2.5 px-2 text-right font-mono text-slate-700">
+                        <td className="py-3.5 px-2.5 text-right font-mono text-slate-800 font-medium text-sm">
                           <span
                             className="cursor-help font-medium"
                             title={
@@ -1878,10 +1947,10 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* Prior Backlog (Carry Forward) */}
-                        <td className="py-2.5 px-2 text-right">
+                        <td className="py-3.5 px-2.5 text-right text-sm">
                           <span
-                            className={`font-mono font-semibold cursor-help ${
-                              priorBacklogSum > 0 ? 'text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded' : 'text-slate-500'
+                            className={`font-mono font-bold cursor-help px-2 py-0.5 rounded ${
+                              priorBacklogSum > 0 ? 'text-amber-800 bg-amber-100' : 'text-slate-500'
                             }`}
                             title={
                               fg.priorWeeksBreakdown.length > 0
@@ -1899,20 +1968,66 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* Selected Week Plan Target */}
-                        <td className="py-2.5 px-2 text-right font-mono text-slate-700">
+                        <td className="py-3.5 px-2.5 text-right font-mono text-slate-800 font-medium text-sm">
                           {fg.currentWeekPlanTarget.toLocaleString()}
                         </td>
 
                         {/* Total Gross Target (Week Plan + Prior Backlog) */}
-                        <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900 bg-slate-100/60">
+                        <td className="py-3.5 px-2.5 text-right font-mono font-bold text-slate-900 bg-slate-100/70 text-sm">
                           {fg.totalWeekGrossTarget.toLocaleString()}
                         </td>
 
+                        {/* Current Rate (Actual Run Rate based on 101 receipts) */}
+                        <td className="py-3.5 px-2.5 text-right bg-blue-50/30 border-x border-slate-200/50">
+                          <div
+                            className="flex flex-col items-end cursor-help"
+                            title={`Current Run Rate for ${fg.fgCode}:\n• Produced to Date (101): ${totalCompletedActual.toLocaleString()} units\n• Operating Days Elapsed: ${priorWorkingDays} days\n• Daily Run Rate: ${fg.currentDailyRate.toLocaleString()} units/day\n• Weekly Pace: ${priorActualSum.toLocaleString()} units/wk`}
+                          >
+                            <div className="flex items-baseline gap-1">
+                              <span className="font-mono font-bold text-slate-900 text-sm">
+                                {fg.currentDailyRate > 0 ? fg.currentDailyRate.toLocaleString() : '-'}
+                              </span>
+                              <span className="text-xs text-slate-500 font-normal">/day</span>
+                            </div>
+                            <span className="text-xs text-slate-500 font-mono">
+                              {priorActualSum > 0 ? `${priorActualSum.toLocaleString()}/wk` : 'No output'}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Asking Rate (Target Run Rate needed to achieve Gross Target) */}
+                        <td className="py-3.5 px-2.5 text-right bg-amber-50/30 border-r border-slate-200/50">
+                          <div
+                            className="flex flex-col items-end cursor-help"
+                            title={`Asking Rate for ${fg.fgCode}:\n• Week ${cockpit.selectedWeek.weekNo} Gross Target: ${fg.totalWeekGrossTarget.toLocaleString()} units\n• Week Operating Days: ${cockpit.selectedWeek.workingDays || cockpit.selectedWeek.daysCount || 6} days\n• Weekly Asking Rate: ${fg.askingDailyRate.toLocaleString()} units/day\n• Monthly Balance Target: ${remainingMonthlyTarget.toLocaleString()} units\n• Month Asking Rate: ${fg.monthlyAskingDailyRate.toLocaleString()} units/day\n• Pace Gap: ${fg.ratePaceGap > 0 ? `Shortfall of +${fg.ratePaceGap.toLocaleString()}/day vs current pace` : 'Current pace is on track'}`}
+                          >
+                            <div className="flex items-baseline gap-1">
+                              <span className="font-mono font-bold text-slate-900 text-sm">
+                                {fg.askingDailyRate.toLocaleString()}
+                              </span>
+                              <span className="text-xs text-slate-500 font-normal">/day</span>
+                            </div>
+                            {fg.currentDailyRate === 0 ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold bg-rose-100 text-rose-800">
+                                Line Idle
+                              </span>
+                            ) : fg.ratePaceGap > 0 ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold bg-amber-100 text-amber-800">
+                                ▲ +{fg.ratePaceGap.toLocaleString()}/d
+                              </span>
+                            ) : (
+                              <span className="text-xs px-1.5 py-0.5 rounded font-semibold bg-emerald-100 text-emerald-800">
+                                ✓ On Track
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
                         {/* Net Shortage Gap */}
-                        <td className="py-2.5 px-2 text-right">
+                        <td className="py-3.5 px-2.5 text-right">
                           <span
-                            className={`font-mono font-semibold ${
-                              netGap > 0 ? 'text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded' : 'text-emerald-700'
+                            className={`font-mono font-bold text-sm ${
+                              netGap > 0 ? 'text-rose-700 bg-rose-50 px-2 py-0.5 rounded' : 'text-emerald-700'
                             }`}
                             title={
                               netGap > 0
@@ -1925,12 +2040,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* W3 Forward Plan */}
-                        <td className="py-2.5 px-2 text-center font-mono text-slate-600" title={`Week 3 Plan: ${w3?.planTarget.toLocaleString()} units`}>
+                        <td className="py-3.5 px-2.5 text-center font-mono text-slate-700 text-sm" title={`Week 3 Plan: ${w3?.planTarget.toLocaleString()} units`}>
                           <div className="flex flex-col items-center">
                             <span>{w3 ? w3.planTarget.toLocaleString() : '-'}</span>
                             {fg.hasNextWeekRisk && (
                               <span
-                                className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 font-sans font-semibold cursor-help mt-0.5"
+                                className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-sans font-semibold cursor-help mt-1"
                                 title={`Next Week (W3) Shortage Alert: ${fg.nextWeekCriticalCount} component(s) face deficits next week! Bottleneck: ${fg.nextWeekBottleneckDesc}`}
                               >
                                 ⚠️ Deficit
@@ -1940,65 +2055,65 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* W4 Forward Plan */}
-                        <td className="py-2.5 px-2 text-center font-mono text-slate-600" title={`Week 4 Plan: ${w4?.planTarget.toLocaleString()} units`}>
+                        <td className="py-3.5 px-2.5 text-center font-mono text-slate-700 text-sm" title={`Week 4 Plan: ${w4?.planTarget.toLocaleString()} units`}>
                           <span>{w4 ? w4.planTarget.toLocaleString() : '-'}</span>
                         </td>
 
                         {/* Health Badge */}
-                        <td className="py-2.5 px-2 text-center">
+                        <td className="py-3.5 px-2.5 text-center">
                           {fg.fgHealthStatus === 'CLEAR_SEAMLESS' && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-help"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-help"
                               title="Stock on-hand + confirmed vendor delivery is 100% adequate. Line ready for seamless production."
                             >
-                              <CheckCircle2 className="w-3 h-3" />
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                               Seamless
                             </span>
                           )}
                           {fg.fgHealthStatus === 'SCHEDULE_ON_TRACK' && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 cursor-help"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 cursor-help"
                               title="Stock is short, but confirmed vendor inward arrives in time to fulfill 100% of weekly target."
                             >
-                              <Truck className="w-3 h-3" />
+                              <Truck className="w-3.5 h-3.5" />
                               On-Track
                             </span>
                           )}
                           {fg.fgHealthStatus === 'INADEQUATE_SCHEDULE' && (
                             <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 cursor-help"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 cursor-help"
                               title={`Inadequate Delivery: Shortfall of ${netGap.toLocaleString()} units. Requires immediate Monday review escalation!`}
                             >
-                              <AlertTriangle className="w-3 h-3" />
+                              <AlertTriangle className="w-3.5 h-3.5" />
                               Inadequate
                             </span>
                           )}
                         </td>
 
                         {/* Freeze Status */}
-                        <td className="py-2.5 px-2 text-center">
+                        <td className="py-3.5 px-2.5 text-center">
                           {isFrozen ? (
                             <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-white cursor-help ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold text-white cursor-help ${
                                 fg.frozenBy?.includes('System Auto') ? 'bg-emerald-700' : 'bg-slate-900'
                               }`}
                               title={`Plan Frozen by ${fg.frozenBy || 'Planner'} at ${fg.frozenAt || '08:30'}. Shared BOM components reserved.`}
                             >
-                              <Lock className="w-2.5 h-2.5 text-emerald-300" />
+                              <Lock className="w-3 h-3 text-emerald-300" />
                               {fg.frozenBy?.includes('System Auto') ? 'Auto-Frozen' : 'FROZEN'}
                             </span>
                           ) : fg.criticalComponentsCount === 0 && fg.maxBuildableFGWithDeliveries >= fg.totalWeekGrossTarget ? (
                             <button
                               onClick={() => handleAutoFreezeSingleFG(fg)}
                               title="System Rule: 100% components available. 1-click auto freeze without review discussion."
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
                             >
-                              <Zap className="w-2.5 h-2.5" />
+                              <Zap className="w-3 h-3" />
                               Auto-Freeze
                             </button>
                           ) : (
                             <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200"
                               title="Plan is in DRAFT review state. Click 'Freeze' to lock."
                             >
                               Draft
@@ -2007,15 +2122,15 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                         </td>
 
                         {/* Actions */}
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3.5 px-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             {/* Discuss / Escalate Button */}
                             <button
                               onClick={() => handleOpenDiscussModal(fg)}
                               title="Record discussion minutes, category buyer actions, or plant escalation"
-                              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
                             >
-                              <MessageSquare className="w-3 h-3 text-slate-600" />
+                              <MessageSquare className="w-3.5 h-3.5 text-slate-600" />
                               <span>Discuss</span>
                             </button>
 
@@ -2023,13 +2138,13 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                             <button
                               onClick={() => handleOpenFreezeModal(fg)}
                               title={isFrozen ? 'Unfreeze this plan' : 'Freeze plan and reserve common parts'}
-                              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                                 isFrozen
                                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                   : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
                               }`}
                             >
-                              {isFrozen ? <Unlock className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              {isFrozen ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
                               <span>{isFrozen ? 'Unfreeze' : 'Freeze'}</span>
                             </button>
                           </div>
@@ -2052,7 +2167,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
 
                         return (
                           <tr className="bg-slate-50/50">
-                            <td colSpan={15} className="p-3 pl-8 pr-4 bg-slate-50 border-b border-slate-200">
+                            <td colSpan={17} className="p-3 pl-8 pr-4 bg-slate-50 border-b border-slate-200">
                               <div className="bg-white border border-slate-200 rounded-md shadow-2xs overflow-hidden">
                                 {/* Subheader */}
                                 <div className="px-3 py-2 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
@@ -2210,6 +2325,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                             week={cockpit.selectedWeek}
                                             components={visibleComponents}
                                             deliverySchedules={vendorDeliverySchedules}
+                                            stockList={stockList}
+                                            openingStockDate={openingStockDate}
                                             onUpdateSchedule={handleUpdateSingleDeliverySchedule}
                                           />
                                         </div>
@@ -2217,24 +2334,24 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                         <table className="w-full text-left text-xs border-collapse divide-y divide-slate-200">
                                         <thead>
                                           <tr className="bg-slate-100/90 text-slate-700 font-semibold text-[11px]">
-                                            <th className="py-2.5 px-2 w-8 text-center" title="Click chevron to expand/collapse delivery schedules and logs">
+                                            <th className="py-3 px-2.5 w-10 text-center" title="Click chevron to expand/collapse delivery schedules and logs">
                                               <span className="sr-only">Expand</span>
                                             </th>
-                                            <th className="py-2.5 px-2.5 min-w-[200px]">Part No & Description</th>
-                                            <th className="py-2.5 px-2 text-center w-20">Usage</th>
+                                            <th className="py-3 px-3 min-w-[220px]">Part No & Description</th>
+                                            <th className="py-3 px-2.5 text-center w-24">Usage</th>
                                             <th className="py-2.5 px-2.5 min-w-[170px]" title="Total physical stock, reserved stock by frozen plans, and available stock">
                                               MB52 Stock (Tot / Res / Avail)
                                             </th>
-                                            <th className="py-2.5 px-2 text-right w-20">Gross Req</th>
-                                            <th className="py-2.5 px-2 text-center w-24">Balance</th>
+                                            <th className="py-3 px-2.5 text-right w-24">Gross Req</th>
+                                            <th className="py-3 px-2.5 text-center w-28">Balance</th>
                                             <th className="py-2.5 px-2 text-center min-w-[110px]" title="Next week gross requirement and shortage risk">
                                               Next W{cockpit.selectedWeek.weekNo + 1} Outlook
                                             </th>
-                                            <th className="py-2.5 px-2.5 min-w-[180px]">Vendor & Buyer</th>
-                                            <th className="py-2.5 px-2.5 min-w-[150px]">Expected Arrival</th>
-                                            <th className="py-2.5 px-2 text-center min-w-[110px]">Status</th>
-                                            <th className="py-2.5 px-2 text-right w-24">Buildable FGs</th>
-                                            <th className="py-2.5 px-3 text-right min-w-[170px]">Actions / Dropdown</th>
+                                            <th className="py-3 px-3 min-w-[200px]">Vendor & Buyer</th>
+                                            <th className="py-3 px-3 min-w-[170px]">Expected Arrival</th>
+                                            <th className="py-3 px-2.5 text-center min-w-[120px]">Status</th>
+                                            <th className="py-3 px-2.5 text-right w-28">Buildable FGs</th>
+                                            <th className="py-3 px-3.5 text-right min-w-[190px]">Actions / Dropdown</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200 bg-white">
@@ -2258,7 +2375,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   }`}
                                                 >
                                                   {/* 1. Expand/Collapse Chevron Dropdown */}
-                                                  <td className="py-2 px-2 text-center align-middle">
+                                                  <td className="py-3 px-2.5 text-center align-middle">
                                                     <button
                                                       type="button"
                                                       onClick={() => toggleCompExpand(comp.id)}
@@ -2277,14 +2394,14 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   <td className="py-2 px-2.5 align-middle">
                                                     <div className="flex flex-col gap-0.5">
                                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="font-mono font-bold text-slate-900 text-xs">
+                                                        <span className="font-mono font-bold text-slate-900 text-sm">
                                                           {comp.componentCode}
                                                         </span>
                                                         {comp.isCommonPart && (
                                                           <button
                                                             type="button"
                                                             onClick={() => setIsCommonPartsModalOpen(true)}
-                                                            className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer"
+                                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer"
                                                             title={`Common Part shared in ${comp.sharedInFGsCount} FGs. Click to view allocation.`}
                                                           >
                                                             <Share2 className="w-2.5 h-2.5" />
@@ -2292,21 +2409,21 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                           </button>
                                                         )}
                                                       </div>
-                                                      <span className="text-[11px] text-slate-700 font-medium line-clamp-1" title={comp.componentDescription}>
+                                                      <span className="text-sm text-slate-800 font-medium line-clamp-1" title={comp.componentDescription}>
                                                         {comp.componentDescription}
                                                       </span>
                                                     </div>
                                                   </td>
 
                                                   {/* 3. BOM Usage */}
-                                                  <td className="py-2 px-2 text-center align-middle font-mono text-[11px] text-slate-600">
+                                                  <td className="py-3 px-2.5 text-center align-middle font-mono text-xs text-slate-700">
                                                     <span className="bg-slate-100 px-1.5 py-0.5 rounded font-medium">
                                                       {comp.bomQty} {comp.uom}
                                                     </span>
                                                   </td>
 
                                                   {/* 4. MB52 Stock (Total / Reserved / Avail) */}
-                                                  <td className="py-2 px-2.5 align-middle font-mono text-xs">
+                                                  <td className="py-3 px-3 align-middle font-mono text-sm">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
                                                       <span className="text-slate-500 text-[11px]" title="Total physical stock in MB52">
                                                         {comp.totalPhysicalStock.toLocaleString()}
@@ -2329,12 +2446,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   </td>
 
                                                   {/* 5. Gross Requirement */}
-                                                  <td className="py-2 px-2 text-right align-middle font-mono font-semibold text-slate-800 text-xs">
+                                                  <td className="py-3 px-2.5 text-right align-middle font-mono font-bold text-slate-900 text-sm">
                                                     {comp.totalRequiredForWeekWithBacklog.toLocaleString()}
                                                   </td>
 
                                                   {/* 6. Balance (Deficit / Surplus) */}
-                                                  <td className="py-2 px-2 text-center align-middle font-mono text-xs">
+                                                  <td className="py-3 px-2.5 text-center align-middle font-mono text-sm">
                                                     <span
                                                       className={`inline-block px-1.5 py-0.5 rounded font-bold text-[11px] ${
                                                         comp.stockDeficit < 0
@@ -2347,7 +2464,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   </td>
 
                                                   {/* 7. Next Week Outlook */}
-                                                  <td className="py-2 px-2 text-center align-middle text-[11px]">
+                                                  <td className="py-3 px-2.5 text-center align-middle text-xs">
                                                     {comp.hasNextWeekRisk ? (
                                                       <span
                                                         className="inline-flex items-center gap-1 font-semibold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200"
@@ -2366,8 +2483,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   </td>
 
                                                   {/* 8. Primary Vendor & Buyer */}
-                                                  <td className="py-2 px-2.5 align-middle">
-                                                    <div className="flex flex-col gap-0.5 text-xs">
+                                                  <td className="py-3 px-3 align-middle">
+                                                    <div className="flex flex-col gap-0.5 text-sm">
                                                       <span className="font-semibold text-slate-900 truncate max-w-[170px]" title={primarySchedule ? primarySchedule.vendorName : comp.vendorName}>
                                                         {primarySchedule ? primarySchedule.vendorName : comp.vendorName}
                                                       </span>
@@ -2427,7 +2544,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   </td>
 
                                                   {/* 11. Buildable FGs */}
-                                                  <td className="py-2 px-2 text-right align-middle font-mono text-xs">
+                                                  <td className="py-3 px-2.5 text-right align-middle font-mono text-sm">
                                                     <span
                                                       className={`font-bold ${
                                                         comp.projectedCoverageFgUnits < fg.totalWeekGrossTarget
@@ -2441,7 +2558,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                   </td>
 
                                                   {/* 12. Actions & Dropdown Option */}
-                                                  <td className="py-2 px-3 text-right align-middle">
+                                                  <td className="py-3 px-3.5 text-right align-middle">
                                                     <div className="flex items-center justify-end gap-1.5">
                                                       {/* Direct Quick Gantt Timeline Button */}
                                                       <button
@@ -2540,19 +2657,19 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
                                                               <div className="flex flex-wrap items-center gap-3">
                                                                 <div className="flex items-center gap-1.5">
-                                                                  <span className="font-bold text-slate-900 text-xs font-mono">
+                                                                  <span className="font-bold text-slate-900 text-sm font-mono">
                                                                     {comp.componentCode}
                                                                   </span>
-                                                                  <span className="text-[11px] text-slate-600 font-medium">
+                                                                  <span className="text-sm text-slate-700 font-semibold">
                                                                     ({comp.componentDescription})
                                                                   </span>
-                                                                  <span className="text-[10px] text-slate-400 font-mono">
+                                                                  <span className="text-xs text-slate-500 font-mono">
                                                                     Usage: {comp.bomQty} {comp.uom}/FG
                                                                   </span>
                                                                 </div>
 
                                                                 {/* Sub-Tabs */}
-                                                                <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-slate-100 text-[11px]">
+                                                                <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-100 text-xs sm:text-sm">
                                                                   <button
                                                                     type="button"
                                                                     onClick={() => setComponentSubTab(comp.id, 'GANTT')}
@@ -2598,7 +2715,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                                 <button
                                                                   type="button"
                                                                   onClick={() => handleOpenDeliveryModal(comp)}
-                                                                  className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                                                                  className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
                                                                 >
                                                                   <Plus className="w-3 h-3" />
                                                                   <span>+ Add Delivery Batch</span>
@@ -2631,6 +2748,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                                   fgTotalGrossTarget={fg.totalWeekGrossTarget}
                                                                   week={cockpit.selectedWeek}
                                                                   deliverySchedules={vendorDeliverySchedules}
+                                                                  stockList={stockList}
+                                                                  openingStockDate={openingStockDate}
                                                                   onUpdateSchedule={handleUpdateSingleDeliverySchedule}
                                                                   onOpenDeliveryModal={(c, s) => handleOpenDeliveryModal(c, s)}
                                                                   onOpenDiscussModal={(c) => handleOpenDiscussModal(fg, c)}
@@ -2761,7 +2880,16 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                                 <div className="bg-slate-50 rounded p-3 border border-slate-200 text-xs space-y-2 font-mono">
                                                                   <div className="font-bold text-slate-800 font-sans text-xs">MRP Component Net Requirements Formula:</div>
                                                                   <div className="flex flex-wrap items-center gap-2 text-slate-700">
-                                                                    <span>MB52 Physical Stock: <strong className="text-slate-900">{comp.totalPhysicalStock.toLocaleString()} {comp.uom}</strong></span>
+                                                                    <span>
+                                                                      {comp.stockDate &&
+                                                                      cockpit.selectedWeek.startDate &&
+                                                                      cockpit.selectedWeek.endDate &&
+                                                                      comp.stockDate >= cockpit.selectedWeek.startDate &&
+                                                                      comp.stockDate <= cockpit.selectedWeek.endDate
+                                                                        ? 'MB52 Opening Stock:'
+                                                                        : 'Week Opening Stock (Carried Forward):'}{' '}
+                                                                      <strong className="text-slate-900">{comp.totalPhysicalStock.toLocaleString()} {comp.uom}</strong>
+                                                                    </span>
                                                                     <span>-</span>
                                                                     <span>Allocated / Reserved: <strong className="text-amber-700">{comp.reservedStock.toLocaleString()} {comp.uom}</strong></span>
                                                                     <span>+</span>
@@ -2771,8 +2899,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                                     <span>=</span>
                                                                     <span className="text-sm">
                                                                       Net Balance:{' '}
-                                                                      <strong className={comp.stockDeficit < 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}>
-                                                                        {comp.stockDeficit > 0 ? `+${comp.stockDeficit.toLocaleString()}` : comp.stockDeficit.toLocaleString()} {comp.uom}
+                                                                      <strong className={comp.projectedDeficitWithDeliveries < 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}>
+                                                                        {comp.projectedDeficitWithDeliveries > 0 ? `+${comp.projectedDeficitWithDeliveries.toLocaleString()}` : comp.projectedDeficitWithDeliveries.toLocaleString()} {comp.uom}
                                                                       </strong>
                                                                     </span>
                                                                   </div>
@@ -2781,7 +2909,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                                     <strong className="text-slate-900 font-bold font-mono">
                                                                       {comp.projectedCoverageFgUnits.toLocaleString()} units
                                                                     </strong>{' '}
-                                                                    out of {fg.totalWeekGrossTarget.toLocaleString()} target units ({Math.min(100, Math.round((comp.projectedCoverageFgUnits / (fg.totalWeekGrossTarget || 1)) * 100))}% coverage).
+                                                                    out of {fg.totalWeekGrossTarget.toLocaleString()} target units ({Math.max(0, Math.min(100, Math.round((comp.projectedCoverageFgUnits / (fg.totalWeekGrossTarget || 1)) * 100)))}% coverage).
                                                                   </div>
                                                                 </div>
                                                               </div>
@@ -2791,12 +2919,29 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                                                             <div className="bg-slate-50 rounded p-2.5 border border-slate-200 text-[11px] flex flex-wrap items-center justify-between gap-3 font-mono">
                                                               <div>
                                                                 <span className="text-slate-500">Quick Formula: </span>
-                                                                <span className="text-slate-700">MB52 ({comp.totalPhysicalStock.toLocaleString()})</span> -{' '}
+                                                                <span className="text-slate-700">
+                                                                  {comp.stockDate &&
+                                                                  cockpit.selectedWeek.startDate &&
+                                                                  cockpit.selectedWeek.endDate &&
+                                                                  comp.stockDate >= cockpit.selectedWeek.startDate &&
+                                                                  comp.stockDate <= cockpit.selectedWeek.endDate ? (
+                                                                    <>
+                                                                      MB52 ({comp.totalPhysicalStock.toLocaleString()}
+                                                                      {comp.inQualityInsp && comp.inQualityInsp > 0 ? (
+                                                                        <span className="text-[10px] text-teal-700 font-sans font-normal ml-0.5" title="Unrestricted Stock + In-Quality Inspection">
+                                                                          [{comp.unrestrictedStock?.toLocaleString() || (comp.totalPhysicalStock - comp.inQualityInsp).toLocaleString()} + {comp.inQualityInsp.toLocaleString()} QI]
+                                                                        </span>
+                                                                      ) : null})
+                                                                    </>
+                                                                  ) : (
+                                                                    <>Opening Stock ({comp.totalPhysicalStock.toLocaleString()})</>
+                                                                  )}
+                                                                </span> -{' '}
                                                                 <span className="text-slate-700">Reserved ({comp.reservedStock.toLocaleString()})</span> +{' '}
                                                                 <span className="text-emerald-700 font-semibold">Deliveries (+{comp.totalScheduledInward.toLocaleString()})</span> -{' '}
                                                                 <span className="text-slate-800">Gross Req ({comp.totalRequiredForWeekWithBacklog.toLocaleString()})</span> ={' '}
-                                                                <strong className={comp.stockDeficit < 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}>
-                                                                  {comp.stockDeficit > 0 ? `+${comp.stockDeficit.toLocaleString()}` : comp.stockDeficit.toLocaleString()} {comp.uom}
+                                                                <strong className={comp.projectedDeficitWithDeliveries < 0 ? 'text-rose-700 font-bold' : 'text-emerald-700 font-bold'}>
+                                                                  {comp.projectedDeficitWithDeliveries > 0 ? `+${comp.projectedDeficitWithDeliveries.toLocaleString()}` : comp.projectedDeficitWithDeliveries.toLocaleString()} {comp.uom}
                                                                 </strong>
                                                               </div>
                                                               <div className="text-slate-600 font-sans text-[11px]">
@@ -3122,9 +3267,15 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-600 font-medium mb-1">Expected Arrival Date</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-600 font-medium">Expected Arrival Date</label>
+                    <span className="text-[10px] text-amber-700 font-medium flex items-center gap-0.5">
+                      <Lock className="w-2.5 h-2.5" /> ≥ {getLineItemMB52UploadDate(deliveryFormData.componentCode, stockList)}
+                    </span>
+                  </div>
                   <input
                     type="date"
+                    min={getLineItemMB52UploadDate(deliveryFormData.componentCode, stockList)}
                     value={deliveryFormData.expectedDeliveryDate}
                     onChange={(e) =>
                       setDeliveryFormData({ ...deliveryFormData, expectedDeliveryDate: e.target.value })
@@ -3132,6 +3283,9 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                     className="w-full border border-slate-300 rounded px-2.5 py-1.5 font-mono text-slate-900 font-semibold bg-white focus:ring-1 focus:ring-slate-400"
                     required
                   />
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Buyer can add schedules for dates on or after MB52 upload date only.
+                  </p>
                 </div>
               </div>
 

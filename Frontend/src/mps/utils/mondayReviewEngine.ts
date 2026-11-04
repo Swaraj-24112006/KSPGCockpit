@@ -1,4 +1,3 @@
-import { pickDefaultWeek, buildStandardMonthWeeks } from './dateContext';
 import {
   BOMItem,
   VendorBuyerItem,
@@ -16,6 +15,9 @@ import {
   PreviousMonthPerformance
 } from '../types';
 import { isDateInWeek } from './weeklyMrpEngine';
+import { getLineItemMB52UploadDate, getEffectiveStockSnapshot } from './mb52LockEngine';
+import { simulateBOMComponentDailyTimeline } from './bomGanttEngine';
+import { pickDefaultWeek, buildStandardMonthWeeks } from './dateContext';
 
 /**
  * Monday Review & Seamless Production Execution Engine
@@ -39,7 +41,8 @@ export function computeMondayReviewCockpit(
   stockList: StockReportItem[],
   vendorDeliverySchedules: VendorDeliverySchedule[],
   mondayReviewActions: MondayReviewActionItem[],
-  planFreezeList: FGPlanFreezeItem[] = []
+  planFreezeList: FGPlanFreezeItem[] = [],
+  openingStockDate?: string
 ): {
   cockpitItems: FGWeekProductionCockpitItem[];
   selectedWeek: WeekDefinition;
@@ -57,10 +60,12 @@ export function computeMondayReviewCockpit(
     .filter((w) => w.month === selectedMonth)
     .sort((a, b) => a.weekNo - b.weekNo);
 
-  // Default to Week 2 if available (as requested by user scenario), else first week or fallback
+  // Resolve selected week (default to current week for dynamic calendar)
   let selectedWeek = monthWeeks.find((w) => w.id === selectedWeekId);
   if (!selectedWeek) {
-    selectedWeek = pickDefaultWeek(monthWeeks, selectedMonth) ?? buildStandardMonthWeeks(selectedMonth)[0];
+    selectedWeek =
+      pickDefaultWeek(monthWeeks, selectedMonth) ??
+      buildStandardMonthWeeks(selectedMonth)[0];
   }
 
   // 2. Identify all prior weeks in the current month
@@ -69,10 +74,34 @@ export function computeMondayReviewCockpit(
   // 3. Filter monthly plans for selected month
   const monthPlans = monthlyPlans.filter((p) => p.month === selectedMonth);
 
-  // 4. Precompute Gross Targets for each FG in the selected week (Plan + Backlog)
+  // 4. Precompute Gross Targets for each FG across all weeks in the month (Plan + Prior Backlog up to each week)
   const fgGrossTargetMap = new Map<string, { planTarget: number; priorBacklog: number; grossTarget: number }>();
-  
+  const fgAllWeeksGrossTargetsMap = new Map<string, Record<string, number>>();
+
   monthPlans.forEach((plan) => {
+    const perWeekGrossTargets: Record<string, number> = {};
+
+    monthWeeks.forEach((w) => {
+      const priorWeeksBeforeW = monthWeeks.filter((pw) => pw.weekNo < w.weekNo);
+      const backlogBeforeW = priorWeeksBeforeW.reduce((sum, pw) => {
+        const pTarget = plan.weeklyBreakdown[pw.id] || 0;
+        const actualProd = mb51List
+          .filter((tx) => {
+            const isMvt101 = tx.movementType === '101';
+            const isThisFG = tx.partNumber === plan.fgCode;
+            const matchesWeek = tx.weekId === pw.id || isDateInWeek(tx.postingDate, pw);
+            return isMvt101 && isThisFG && matchesWeek;
+          })
+          .reduce((s, tx) => s + tx.quantity, 0);
+        return sum + Math.max(0, pTarget - actualProd);
+      }, 0);
+
+      const wPlanTarget = plan.weeklyBreakdown[w.id] || 0;
+      perWeekGrossTargets[w.id] = wPlanTarget + backlogBeforeW;
+    });
+
+    fgAllWeeksGrossTargetsMap.set(plan.fgCode, perWeekGrossTargets);
+
     const priorBacklog = priorWeeks.reduce((sum, pw) => {
       const pTarget = plan.weeklyBreakdown[pw.id] || 0;
       const actualProd = mb51List
@@ -91,8 +120,8 @@ export function computeMondayReviewCockpit(
     fgGrossTargetMap.set(plan.fgCode, { planTarget: currentPlanTarget, priorBacklog, grossTarget });
   });
 
-  // 5. Precompute Stock Reservations for FROZEN FGs
-  // When an FG plan is FROZEN for this week/month, its required quantity of BOM components is reserved
+  // 5. Precompute Stock Reservations for FROZEN FGs in the selected week
+  // When an FG plan is FROZEN for this specific week, its required quantity of BOM components is reserved
   // Map: componentCode -> Array of { fgCode, fgDescription, reservedQty }
   const componentReservationMap = new Map<
     string,
@@ -101,7 +130,7 @@ export function computeMondayReviewCockpit(
 
   monthPlans.forEach((plan) => {
     const freezeRec = planFreezeList.find(
-      (f) => f.fgCode === plan.fgCode && (f.weekId === selectedWeek.id || f.month === selectedMonth)
+      (f) => f.fgCode === plan.fgCode && (f.weekId ? f.weekId === selectedWeek.id : f.month === selectedMonth)
     );
     const isFrozen = freezeRec?.status === 'FROZEN';
 
@@ -150,7 +179,7 @@ export function computeMondayReviewCockpit(
 
   const cockpitItems: FGWeekProductionCockpitItem[] = monthPlans.map((plan) => {
     const freezeRec = planFreezeList.find(
-      (f) => f.fgCode === plan.fgCode && (f.weekId === selectedWeek.id || f.month === selectedMonth)
+      (f) => f.fgCode === plan.fgCode && (f.weekId ? f.weekId === selectedWeek.id : f.month === selectedMonth)
     );
     const freezeStatus = freezeRec ? freezeRec.status : 'DRAFT';
     if (freezeStatus === 'FROZEN') {
@@ -215,6 +244,37 @@ export function computeMondayReviewCockpit(
 
     const currentWeekRemainingToBuild = Math.max(0, totalWeekGrossTarget - currentWeekActualProd);
 
+    // 6.3.1 Production Run-Rate & Asking Rate Computations (Takt & Velocity)
+    const priorElapsedWorkingDays = priorWeeks.reduce(
+      (sum, pw) => sum + (pw.workingDays || pw.daysCount || 6),
+      0
+    );
+    const priorActualSum = priorWeeksBreakdown.reduce((sum, item) => sum + item.actualProd, 0);
+    const totalMonthWorkingDays = monthWeeks.reduce(
+      (sum, w) => sum + (w.workingDays || w.daysCount || 6),
+      0
+    );
+    const currentWeekWorkingDays = selectedWeek.workingDays || selectedWeek.daysCount || 6;
+    const remainingMonthWorkingDays = Math.max(1, totalMonthWorkingDays - priorElapsedWorkingDays);
+    const totalCompletedActual = priorActualSum + currentWeekActualProd;
+    const remainingMonthlyTarget = Math.max(0, plan.monthlyTarget - totalCompletedActual);
+
+    // Current Rate (units/day based on actual Mvt 101 receipts):
+    const currentDailyRate = priorElapsedWorkingDays > 0
+      ? Math.round(priorActualSum / priorElapsedWorkingDays)
+      : (currentWeekActualProd > 0 ? Math.round(currentWeekActualProd) : 0);
+
+    // Asking Rate (units/day required to fulfill Gross Target in the current week):
+    const askingDailyRate = currentWeekWorkingDays > 0
+      ? Math.round(totalWeekGrossTarget / currentWeekWorkingDays)
+      : totalWeekGrossTarget;
+
+    // Monthly Asking Rate (units/day to complete remaining monthly target):
+    const monthlyAskingDailyRate = Math.round(remainingMonthlyTarget / remainingMonthWorkingDays);
+
+    // Rate Pace Gap (+ means asking rate exceeds current pace, shortfall to close):
+    const ratePaceGap = askingDailyRate - currentDailyRate;
+
     // 6.4 Explode BOM for this FG
     const fgBOMItems = boms.filter((b) => b.fgCode === plan.fgCode);
 
@@ -228,11 +288,23 @@ export function computeMondayReviewCockpit(
     let bottleneckCode = '';
     let bottleneckDesc = '';
 
+    const perWeekGrossTargets = fgAllWeeksGrossTargetsMap.get(plan.fgCode) || {};
+
     const explodedBOM: ExplodedBOMComponentSummary[] = fgBOMItems.map((bom) => {
-      // Stock Report (MB52)
-      const stockItem = stockList.find((s) => s.partNumber === bom.componentCode);
-      const totalPhysicalStock = stockItem ? stockItem.unrestrictedStock : 0;
-      const safetyStock = stockItem ? stockItem.safetyStock : 500;
+      // Stock Report (MB52) - Resolve stock snapshot for this component and selectedWeek
+      const stockSnapshot = getEffectiveStockSnapshot(
+        bom.componentCode,
+        stockList,
+        selectedWeek,
+        openingStockDate
+      );
+
+      const snapshotPhysicalStock = stockSnapshot.totalPhysicalStock;
+      const safetyStock = stockSnapshot.safetyStock;
+      const effectiveStockDate = stockSnapshot.effectiveDate;
+      const stockItem = stockSnapshot.primaryItem;
+      const unrestrictedStock = stockSnapshot.unrestrictedStock;
+      const inQualityInsp = stockSnapshot.inQualityInsp;
 
       // Common Part & Shared Usages
       const sharedInFGs = componentUsageMap.get(bom.componentCode) || [];
@@ -243,15 +315,6 @@ export function computeMondayReviewCockpit(
       const otherReservations = allReservations.filter((r) => r.fgCode !== plan.fgCode);
       const stockReservedByOtherFGs = otherReservations.reduce((sum, r) => sum + r.reservedQty, 0);
 
-      // Reserved by this FG specifically
-      const thisFGReservation = allReservations.find((r) => r.fgCode === plan.fgCode);
-      const isThisFGFrozen = freezeStatus === 'FROZEN';
-
-      // Effective Available Stock for this FG
-      // If this FG is frozen, it claims its share. If not frozen, it sees what remains after frozen plans.
-      const unreservedAvailableStock = Math.max(0, totalPhysicalStock - stockReservedByOtherFGs);
-      const currentStock = unreservedAvailableStock;
-
       const totalReservedStockAcrossAll = allReservations.reduce((sum, r) => sum + r.reservedQty, 0);
       const reservedByFGs = allReservations.map((r) => ({
         fgCode: r.fgCode,
@@ -260,26 +323,182 @@ export function computeMondayReviewCockpit(
         isThisFG: r.fgCode === plan.fgCode
       }));
 
+      // Vendor & Buyer Lookup
+      const vb = vendorBuyers.find((v) => (v.suppliedComponents && v.suppliedComponents.includes(bom.componentCode)) || (v as any).componentCode === bom.componentCode);
+      const vendorCode = vb ? vb.vendorCode : 'V-AUTO';
+      const vendorName = vb ? vb.vendorName : 'Primary Supplier';
+      const buyerName = vb ? vb.buyerName : 'Assigned Category Buyer';
+      const leadTimeDays = vb ? vb.leadTimeDays : 7;
+
+      // Initial weekDetails skeleton so simulateBOMComponentDailyTimeline has full month structure
+      const initialWeekDetails: ExplodedBOMWeekDetail[] = monthWeeks.map((w) => {
+        const wFgGross = perWeekGrossTargets[w.id] ?? (plan.weeklyBreakdown[w.id] || 0);
+        return {
+          weekId: w.id,
+          weekNo: w.weekNo,
+          weekLabel: w.weekLabel,
+          startDate: w.startDate,
+          endDate: w.endDate,
+          daysCount: w.daysCount,
+          workingDays: w.workingDays,
+          fgGrossTarget: wFgGross,
+          isPrior: w.weekNo < selectedWeek.weekNo,
+          isCurrent: w.weekNo === selectedWeek.weekNo,
+          isFuture: w.weekNo > selectedWeek.weekNo,
+          grossRequired: Math.round(wFgGross * bom.qty),
+          scheduledInward: 0,
+          projectedClosing: 0,
+          deficit: 0,
+          status: 'ADEQUATE',
+          currentStock: snapshotPhysicalStock,
+          safetyStock
+        };
+      });
+
+      const tempCompForSim: ExplodedBOMComponentSummary = {
+        id: `exp-${bom.id}`,
+        componentCode: bom.componentCode,
+        componentDescription: bom.componentDescription,
+        category: bom.category,
+        uom: bom.uom,
+        bomQty: bom.qty,
+        currentStock: Math.max(0, snapshotPhysicalStock - stockReservedByOtherFGs),
+        safetyStock,
+        isCommonPart,
+        sharedInFGsCount: sharedInFGs.length,
+        sharedInFGs,
+        totalPhysicalStock: snapshotPhysicalStock,
+        reservedStock: totalReservedStockAcrossAll,
+        reservedByFGs,
+        unreservedAvailableStock: Math.max(0, snapshotPhysicalStock - stockReservedByOtherFGs),
+        totalRequiredForWeekWithBacklog: Math.round(totalWeekGrossTarget * bom.qty),
+        stockDeficit: 0,
+        isCriticalShortage: false,
+        stockCoverageFgUnits: 0,
+        vendorCode,
+        vendorName,
+        buyerName,
+        leadTimeDays,
+        deliverySchedules: [],
+        totalScheduledInward: 0,
+        projectedStockWithDeliveries: 0,
+        projectedDeficitWithDeliveries: 0,
+        projectedCoverageFgUnits: 0,
+        scheduleHealth: 'ADEQUATE',
+        productionImpactSummary: '',
+        weekDetails: initialWeekDetails,
+        hasNextWeekRisk: false,
+        hasForwardRisk: false,
+        unrestrictedStock,
+        inQualityInsp,
+        stockDate: effectiveStockDate,
+        uploadDate: stockItem?.uploadDate || effectiveStockDate
+      };
+
+      // 6.5 Week-wise details across all weeks of the month using the unified daily rolling simulation
+      const weekDetails: ExplodedBOMWeekDetail[] = monthWeeks.map((w) => {
+        const isPrior = w.weekNo < selectedWeek.weekNo;
+        const isCurrent = w.weekNo === selectedWeek.weekNo;
+        const isFuture = w.weekNo > selectedWeek.weekNo;
+
+        const wFgGross = isCurrent
+          ? totalWeekGrossTarget
+          : (perWeekGrossTargets[w.id] ?? (plan.weeklyBreakdown[w.id] || 0));
+        const grossReq = Math.round(wFgGross * bom.qty);
+
+        // Find scheduled inward deliveries for this week
+        const weekDeliveries = vendorDeliverySchedules.filter((s) => {
+          const matchesComp = s.componentCode === bom.componentCode && s.deliveryStatus !== 'CANCELLED';
+          const matchesWeek =
+            s.weekId === w.id ||
+            (w.startDate &&
+              w.endDate &&
+              s.expectedDeliveryDate >= w.startDate &&
+              s.expectedDeliveryDate <= w.endDate);
+          return matchesComp && matchesWeek;
+        });
+
+        const scheduledInward = weekDeliveries.reduce((sum, s) => sum + s.promisedQty, 0);
+
+        // Simulate daily timeline for week w across the month to get exact rolled opening & closing stock
+        const wSim = simulateBOMComponentDailyTimeline(
+          tempCompForSim,
+          plan.fgCode,
+          plan.fgDescription,
+          wFgGross,
+          w,
+          vendorDeliverySchedules,
+          {
+            effectiveStockDate,
+            stockList,
+            monthWeeks,
+            weekGrossTargets: perWeekGrossTargets
+          }
+        );
+
+        const activeDays = wSim.days.filter((d) => !d.isFrozen);
+        const weekOpeningStock =
+          activeDays.length > 0
+            ? activeDays[0].openingStock
+            : (wSim.days[0]?.openingStock ?? 0);
+        const weekClosingStock =
+          activeDays.length > 0
+            ? activeDays[activeDays.length - 1].endingStock
+            : (wSim.days[wSim.days.length - 1]?.endingStock ?? 0);
+
+        const deficit = weekClosingStock < 0 ? weekClosingStock : 0;
+
+        let status: 'ADEQUATE' | 'INADEQUATE' | 'CRITICAL_NO_DELIVERY' | 'EXCESS' = 'ADEQUATE';
+        if (deficit < 0) {
+          status = scheduledInward === 0 ? 'CRITICAL_NO_DELIVERY' : 'INADEQUATE';
+        } else {
+          status = scheduledInward > 0 ? 'EXCESS' : 'ADEQUATE';
+        }
+
+        return {
+          weekId: w.id,
+          weekNo: w.weekNo,
+          weekLabel: w.weekLabel,
+          startDate: w.startDate,
+          endDate: w.endDate,
+          daysCount: w.daysCount,
+          workingDays: w.workingDays,
+          fgGrossTarget: wFgGross,
+          isPrior,
+          isCurrent,
+          isFuture,
+          grossRequired: grossReq,
+          scheduledInward,
+          projectedClosing: weekClosingStock,
+          deficit,
+          status,
+          currentStock: weekOpeningStock,
+          safetyStock
+        };
+      });
+
+      // Resolve selectedWeek's rolled opening stock from weekDetails
+      const currentWeekDetail = weekDetails.find((wd) => wd.weekId === selectedWeek.id);
+      const totalPhysicalStock =
+        currentWeekDetail !== undefined ? currentWeekDetail.currentStock : snapshotPhysicalStock;
+
+      // Effective Available Stock for this FG in selectedWeek
+      const unreservedAvailableStock = totalPhysicalStock - stockReservedByOtherFGs;
+      const currentStock = unreservedAvailableStock;
+
       // Requirement for this specific FG including backlog
       const totalRequiredForWeekWithBacklog = Math.round(totalWeekGrossTarget * bom.qty);
       const stockDeficit = currentStock - totalRequiredForWeekWithBacklog;
       const isCriticalShortage = stockDeficit < 0;
 
       const stockCoverageFgUnits =
-        bom.qty > 0 ? Math.floor(currentStock / bom.qty) : totalWeekGrossTarget;
+        bom.qty > 0 ? Math.max(0, Math.floor(currentStock / bom.qty)) : totalWeekGrossTarget;
 
       if (stockCoverageFgUnits < minStockBuildable) {
         minStockBuildable = stockCoverageFgUnits;
         bottleneckCode = bom.componentCode;
         bottleneckDesc = bom.componentDescription;
       }
-
-      // Vendor & Buyer Lookup
-      const vb = vendorBuyers.find((v) => v.suppliedComponents.includes(bom.componentCode));
-      const vendorCode = vb ? vb.vendorCode : 'V-AUTO';
-      const vendorName = vb ? vb.vendorName : 'Primary Supplier';
-      const buyerName = vb ? vb.buyerName : 'Assigned Category Buyer';
-      const leadTimeDays = vb ? vb.leadTimeDays : 7;
 
       // Vendor Delivery Commitments for selectedWeek
       const deliverySchedules = vendorDeliverySchedules.filter((s) => {
@@ -300,7 +519,7 @@ export function computeMondayReviewCockpit(
         projectedStockWithDeliveries - totalRequiredForWeekWithBacklog;
 
       const projectedCoverageFgUnits =
-        bom.qty > 0 ? Math.floor(projectedStockWithDeliveries / bom.qty) : totalWeekGrossTarget;
+        bom.qty > 0 ? Math.max(0, Math.floor(projectedStockWithDeliveries / bom.qty)) : totalWeekGrossTarget;
 
       if (projectedCoverageFgUnits < minProjectedBuildable) {
         minProjectedBuildable = projectedCoverageFgUnits;
@@ -330,58 +549,6 @@ export function computeMondayReviewCockpit(
           productionImpactSummary = `RECOVERABLE: Initial stock covers ${stockCoverageFgUnits.toLocaleString()} units. Vendor delivery of ${totalScheduledInward.toLocaleString()} ${bom.uom} [${dates}] fulfills 100% of plan.`;
         }
       }
-
-      // 6.5 Week-wise details across all 4 weeks of the month for this component
-      let rollingCompStock = totalPhysicalStock;
-      const weekDetails: ExplodedBOMWeekDetail[] = monthWeeks.map((w) => {
-        const isPrior = w.weekNo < selectedWeek.weekNo;
-        const isCurrent = w.weekNo === selectedWeek.weekNo;
-        const isFuture = w.weekNo > selectedWeek.weekNo;
-
-        // Calculate Gross requirement for this week across this FG
-        const fgWeekPlan = plan.weeklyBreakdown[w.id] || 0;
-        const grossReq = isCurrent
-          ? Math.round(totalWeekGrossTarget * bom.qty)
-          : Math.round(fgWeekPlan * bom.qty);
-
-        // Find scheduled inward deliveries for this week
-        const weekDeliveries = vendorDeliverySchedules.filter((s) => {
-          const matchesComp = s.componentCode === bom.componentCode;
-          const matchesWeek =
-            s.weekId === w.id ||
-            (w.startDate &&
-              w.endDate &&
-              s.expectedDeliveryDate >= w.startDate &&
-              s.expectedDeliveryDate <= w.endDate);
-          return matchesComp && matchesWeek;
-        });
-
-        const scheduledInward = weekDeliveries.reduce((sum, s) => sum + s.promisedQty, 0);
-
-        rollingCompStock = rollingCompStock + scheduledInward - grossReq;
-        const deficit = rollingCompStock < 0 ? rollingCompStock : 0;
-
-        let status: 'ADEQUATE' | 'INADEQUATE' | 'CRITICAL_NO_DELIVERY' | 'EXCESS' = 'ADEQUATE';
-        if (deficit < 0) {
-          status = scheduledInward === 0 ? 'CRITICAL_NO_DELIVERY' : 'INADEQUATE';
-        } else {
-          status = scheduledInward > 0 ? 'EXCESS' : 'ADEQUATE';
-        }
-
-        return {
-          weekId: w.id,
-          weekNo: w.weekNo,
-          weekLabel: w.weekLabel,
-          isPrior,
-          isCurrent,
-          isFuture,
-          grossRequired: grossReq,
-          scheduledInward,
-          projectedClosing: rollingCompStock,
-          deficit,
-          status
-        };
-      });
 
       // Next Week (W(N+1)) Forward Horizon Risk Detection
       const nextWeekObj = monthWeeks.find((w) => w.weekNo === selectedWeek.weekNo + 1);
@@ -442,7 +609,11 @@ export function computeMondayReviewCockpit(
         nextWeekClosingStock,
         nextWeekDeficit,
         hasNextWeekRisk,
-        hasForwardRisk
+        hasForwardRisk,
+        unrestrictedStock,
+        inQualityInsp,
+        stockDate: effectiveStockDate,
+        uploadDate: stockItem?.uploadDate || effectiveStockDate
       };
     });
 
@@ -583,7 +754,11 @@ export function computeMondayReviewCockpit(
       bottleneckComponentDesc: bottleneckDesc,
       fgHealthStatus,
       hasActiveEscalations,
-      mondayReviewActions: matchingActions
+      mondayReviewActions: matchingActions,
+      currentDailyRate,
+      askingDailyRate,
+      monthlyAskingDailyRate,
+      ratePaceGap
     };
   });
 

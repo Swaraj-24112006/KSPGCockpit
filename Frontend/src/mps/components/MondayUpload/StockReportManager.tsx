@@ -35,13 +35,15 @@ interface StockReportManagerProps {
   onUpdateStock: (items: StockReportItem[]) => void;
   openingStockDate?: string;
   onUpdateOpeningStockDate?: (date: string) => void;
+  globalSearchTerm?: string;
 }
 
 export const StockReportManager: React.FC<StockReportManagerProps> = ({
   stockList,
   onUpdateStock,
   openingStockDate = todayISO(),
-  onUpdateOpeningStockDate
+  onUpdateOpeningStockDate,
+  globalSearchTerm = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'FG' | 'RM' | 'PM'>('ALL');
@@ -92,16 +94,21 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
 
   const filteredStocks = stockList.filter((item) => {
     const term = searchTerm.trim().toLowerCase();
-    const matchesSearch =
+    const globalTerm = globalSearchTerm.trim().toLowerCase();
+    const matchesInternal =
       !term ||
       item.partNumber.toLowerCase().includes(term) ||
       item.materialDescription.toLowerCase().includes(term) ||
       item.storageLocation.toLowerCase().includes(term) ||
       (item.stockDate && item.stockDate.toLowerCase().includes(term));
-
+    const matchesGlobal =
+      !globalTerm ||
+      item.partNumber.toLowerCase().includes(globalTerm) ||
+      item.materialDescription.toLowerCase().includes(globalTerm) ||
+      item.storageLocation.toLowerCase().includes(globalTerm) ||
+      (item.stockDate && item.stockDate.toLowerCase().includes(globalTerm));
     const matchesType = typeFilter === 'ALL' || item.materialType === typeFilter;
-
-    return matchesSearch && matchesType;
+    return matchesInternal && matchesGlobal && matchesType;
   });
 
   // Checkbox selection logic - only selectable (non-read-only) items

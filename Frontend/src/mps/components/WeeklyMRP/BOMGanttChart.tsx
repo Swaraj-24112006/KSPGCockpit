@@ -37,6 +37,7 @@ import {
 } from '../../types';
 import { simulateBOMComponentDailyTimeline, formatGanttDate } from '../../utils/bomGanttEngine';
 import { getLineItemMB52UploadDate, normalizeToISODate } from '../../utils/mb52LockEngine';
+import { todayISO, currentMonthISO } from '../../utils/dateContext';
 
 interface BOMGanttChartProps {
   component: ExplodedBOMComponentSummary;

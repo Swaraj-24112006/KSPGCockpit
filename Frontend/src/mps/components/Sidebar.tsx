@@ -24,11 +24,13 @@ import {
   Truck,
   History,
   BarChart3,
+  Flame,
   Package,
   Share2
 } from 'lucide-react';
 
 export type SubViewTab =
+  | 'supply_chain_one_pager'
   | 'monday_review_cockpit'
   | 'management_loss_report'
   | 'performance_dashboard'
@@ -157,6 +159,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {(isCollapsed || expandedSections.reports) && (
             <div className="mt-1 space-y-1">
+              <button
+                id="sidebar-btn-supply-chain-one-pager"
+                onClick={() => onSelectSubView('supply_chain_one_pager')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeSubView === 'supply_chain_one_pager'
+                    ? 'bg-rose-700 text-white font-bold shadow-md ring-1 ring-rose-400'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+                title="Critical Material Shortages Report (Current Week)"
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <Flame className="w-4.5 h-4.5 shrink-0 text-amber-400" />
+                  {!isCollapsed && <span className="font-bold text-amber-200">Critical Material Shortages</span>}
+                </div>
+                {!isCollapsed && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-500/30 text-rose-200 border border-rose-500/50 uppercase tracking-wider">
+                    Current Wk
+                  </span>
+                )}
+              </button>
+
               <button
                 id="sidebar-btn-management-loss-report"
                 onClick={() => onSelectSubView('management_loss_report')}

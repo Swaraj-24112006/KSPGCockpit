@@ -19,6 +19,7 @@ import {
 import { WeekDefinition } from '../../types';
 import weekService, { dtoToFrontend } from '../../services/weekService';
 import { ApiError } from '../../services/api';
+import { MonthSelect, TodayButton } from '../PeriodControls';
 
 interface WeekDefinitionManagerProps {
   weeks: WeekDefinition[];

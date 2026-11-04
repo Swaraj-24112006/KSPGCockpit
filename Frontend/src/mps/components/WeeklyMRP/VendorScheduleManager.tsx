@@ -29,7 +29,8 @@ import {
   HelpCircle,
   X,
   History,
-  Flame
+  Flame,
+  Lock
 } from 'lucide-react';
 import {
   BOMItem,
@@ -42,12 +43,19 @@ import {
   VendorDeliveryScheduleChangeLog,
   DeliveryCommitmentStatus,
   UserRole,
-  USER_ROLES
+  USER_ROLES,
+  FGPlanFreezeItem
 } from '../../types';
 import { isDateInWeek } from '../../utils/weeklyMrpEngine';
+import {
+  isScheduleReadOnly,
+  isDateBeforeMB52Upload,
+  getLineItemMB52UploadDate,
+  getEffectiveStockSnapshot
+} from '../../utils/mb52LockEngine';
 import { HistoryDrawer, HistoryDrawerFilter } from './HistoryDrawer';
-import { SupplyRiskHeatmap } from './SupplyRiskHeatmap';
 import { MonthSelect, TodayButton } from '../PeriodControls';
+import { SupplyRiskHeatmap } from './SupplyRiskHeatmap';
 
 interface VendorScheduleManagerProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -64,6 +72,9 @@ interface VendorScheduleManagerProps {
   onSelectMonth: (month: string) => void;
   currentRole: UserRole;
   onSelectRole: (role: UserRole) => void;
+  openingStockDate?: string;
+  planFreezeList?: FGPlanFreezeItem[];
+  globalSearchTerm?: string;
   selectedWeekId?: string;
   onSelectWeek?: (weekId: string) => void;
   onToday?: () => void;
@@ -84,12 +95,12 @@ interface ConsolidatedComponentRow {
   totalPhysicalStock: number;
   reservedStock: number;
   availableStock: number;
-
+  
   // Weekly Breakdown
   weeklyGrossReq: Record<string, number>; // weekId -> gross requirement
   weeklyInwardDeliveries: Record<string, number>; // weekId -> promised inward deliveries
   weeklySchedules: Record<string, VendorDeliverySchedule[]>; // weekId -> list of schedules
-
+  
   // For Selected Scope
   selectedScopeGrossReq: number;
   selectedScopeInward: number;
@@ -97,7 +108,7 @@ interface ConsolidatedComponentRow {
   selectedScopeDeficit: number;
   hasShortage: boolean;
   activeSchedulesForScope: VendorDeliverySchedule[];
-
+  
   // Full Month Aggregations
   monthTotalGrossReq: number;
   monthTotalInward: number;
@@ -139,14 +150,21 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   onSelectMonth,
   currentRole,
   onSelectRole,
+  openingStockDate,
+  planFreezeList,
+  globalSearchTerm = '',
   selectedWeekId: selectedWeekIdProp,
   onSelectWeek: onSelectWeekProp,
   onToday
 }) => {
+  const getUploadDate = (compCode: string) => {
+    return getLineItemMB52UploadDate(compCode, stockList, openingStockDate);
+  };
+
   // Navigation & View Mode
   const [activeTab, setActiveTab] = useState<'supply_risk_heatmap' | 'consolidated_matrix' | 'schedules_list'>('consolidated_matrix');
   const [scopeMode, setScopeMode] = useState<'WEEK' | 'MONTH'>('WEEK');
-
+  
   // Active Weeks for Selected Month
   const monthWeeks = useMemo(() => {
     return weeks
@@ -311,24 +329,38 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const vendorCode = vbMapping ? vbMapping.vendorCode : 'V-NONE';
       const leadTimeDays = vbMapping ? vbMapping.leadTimeDays : 7;
 
-      // Stock Info (MB52 Unrestricted)
-      const stockItem = stockList.find((s) => s.partNumber === comp.componentCode);
-      const totalPhysicalStock = stockItem ? stockItem.unrestrictedStock : 0;
-
-      // Calculate reserved stock by frozen plans in the current review week
-      const isCommon = comp.usedInFGs.length > 1;
-      const reservedStock = isCommon ? Math.round(totalPhysicalStock * 0.15) : 0;
-      const availableStock = Math.max(0, totalPhysicalStock - reservedStock);
-
-      // Weekly Gross Requirements and Inward Deliveries
+      // Weekly Gross Requirements, Inward Deliveries, and Rolling Stock across weeks
       const weeklyGrossReq: Record<string, number> = {};
       const weeklyInwardDeliveries: Record<string, number> = {};
       const weeklySchedules: Record<string, VendorDeliverySchedule[]> = {};
+      const weeklyOpeningStock: Record<string, number> = {};
+      const weeklyClosingStock: Record<string, number> = {};
 
       let monthTotalGrossReq = 0;
       let monthTotalInward = 0;
+      let rollingPhysical = 0;
+      let hasRollingBaseline = false;
+      let lastSnapshotDate = '';
 
       monthWeeks.forEach((week) => {
+        const snap = getEffectiveStockSnapshot(comp.componentCode, stockList, week, openingStockDate);
+        const snapDate = snap.effectiveDate;
+        const isNewUploadInWeek =
+          snapDate &&
+          snapDate !== lastSnapshotDate &&
+          week.startDate &&
+          week.endDate &&
+          snapDate >= week.startDate &&
+          snapDate <= week.endDate;
+
+        if (!hasRollingBaseline || isNewUploadInWeek) {
+          rollingPhysical = snap.totalPhysicalStock;
+          hasRollingBaseline = true;
+          lastSnapshotDate = snapDate || '';
+        }
+
+        weeklyOpeningStock[week.id] = Math.round(rollingPhysical);
+
         // Calculate Gross Req across all FG plans in this month for this week
         let grossReq = 0;
         comp.usedInFGs.forEach((fgUsage) => {
@@ -354,7 +386,36 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
         const totalInwardForWeek = schedulesForWeek.reduce((sum, s) => sum + (s.promisedQty || 0), 0);
         weeklyInwardDeliveries[week.id] = totalInwardForWeek;
         monthTotalInward += totalInwardForWeek;
+
+        rollingPhysical = rollingPhysical + totalInwardForWeek - grossReq;
+        weeklyClosingStock[week.id] = Math.round(rollingPhysical);
       });
+
+      const isCommon = comp.usedInFGs.length > 1;
+      const baseStockForScope =
+        scopeMode === 'WEEK' && activeWeek && weeklyOpeningStock[activeWeek.id] !== undefined
+          ? weeklyOpeningStock[activeWeek.id]
+          : (monthWeeks[0] ? (weeklyOpeningStock[monthWeeks[0].id] ?? 0) : 0);
+      const totalPhysicalStock = baseStockForScope;
+      let reservedStock = 0;
+      if (planFreezeList && planFreezeList.length > 0) {
+        comp.usedInFGs.forEach((fgUsage) => {
+          const freeze = planFreezeList.find(
+            (f) =>
+              f.fgCode === fgUsage.fgCode &&
+              (f.weekId ? f.weekId === (activeWeek?.id || '') : f.month === selectedMonth)
+          );
+          if (freeze && freeze.status === 'FROZEN') {
+            const fgPlan = monthPlans.find((p) => p.fgCode === fgUsage.fgCode);
+            const target =
+              scopeMode === 'WEEK' && activeWeek
+                ? (fgPlan?.weeklyBreakdown[activeWeek.id] || 0)
+                : (fgPlan?.monthlyTarget || 0);
+            reservedStock += Math.round(target * fgUsage.usagePerFG);
+          }
+        });
+      }
+      const availableStock = totalPhysicalStock - reservedStock;
 
       // Compute Selected Scope Metrics
       let selectedScopeGrossReq = 0;
@@ -377,7 +438,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const selectedScopeDeficit = selectedScopeBalance < 0 ? Math.abs(selectedScopeBalance) : 0;
       const hasShortage = selectedScopeBalance < 0;
 
-      const monthEndingBalance = availableStock + monthTotalInward - monthTotalGrossReq;
+      const lastWeekId = monthWeeks[monthWeeks.length - 1]?.id;
+      const monthEndingBalance =
+        lastWeekId && weeklyClosingStock[lastWeekId] !== undefined
+          ? weeklyClosingStock[lastWeekId]
+          : availableStock + monthTotalInward - monthTotalGrossReq;
 
       rows.push({
         componentCode: comp.componentCode,
@@ -417,7 +482,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       if (!a.isCommonPart && b.isCommonPart) return 1;
       return a.componentCode.localeCompare(b.componentCode);
     });
-  }, [monthlyPlans, boms, vendorBuyers, stockList, vendorDeliverySchedules, selectedMonth, monthWeeks, scopeMode, activeWeek]);
+  }, [monthlyPlans, boms, vendorBuyers, stockList, vendorDeliverySchedules, selectedMonth, monthWeeks, scopeMode, activeWeek, openingStockDate, planFreezeList]);
 
   // Filtered Consolidated Rows
   const filteredRows = useMemo(() => {
@@ -428,20 +493,32 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       if (criticalityFilter === 'COMMON_ONLY' && !r.isCommonPart) return false;
       if (criticalityFilter === 'SCHEDULED_ONLY' && r.selectedScopeInward <= 0) return false;
 
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase();
-        const matchCode = r.componentCode.toLowerCase().includes(term);
-        const matchDesc = r.componentDescription.toLowerCase().includes(term);
-        const matchVendor = r.vendorName.toLowerCase().includes(term);
-        const matchBuyer = r.buyerName.toLowerCase().includes(term);
-        const matchFGs = r.usedInFGs.some(
+      const term = searchTerm.trim().toLowerCase();
+      const globalTerm = globalSearchTerm.trim().toLowerCase();
+
+      const matchesInternal =
+        !term ||
+        r.componentCode.toLowerCase().includes(term) ||
+        r.componentDescription.toLowerCase().includes(term) ||
+        r.vendorName.toLowerCase().includes(term) ||
+        r.buyerName.toLowerCase().includes(term) ||
+        r.usedInFGs.some(
           (fg) => fg.fgCode.toLowerCase().includes(term) || fg.fgDescription.toLowerCase().includes(term)
         );
-        return matchCode || matchDesc || matchVendor || matchBuyer || matchFGs;
-      }
-      return true;
+
+      const matchesGlobal =
+        !globalTerm ||
+        r.componentCode.toLowerCase().includes(globalTerm) ||
+        r.componentDescription.toLowerCase().includes(globalTerm) ||
+        r.vendorName.toLowerCase().includes(globalTerm) ||
+        r.buyerName.toLowerCase().includes(globalTerm) ||
+        r.usedInFGs.some(
+          (fg) => fg.fgCode.toLowerCase().includes(globalTerm) || fg.fgDescription.toLowerCase().includes(globalTerm)
+        );
+
+      return matchesInternal && matchesGlobal;
     });
-  }, [consolidatedRows, selectedBuyer, selectedCategory, criticalityFilter, searchTerm]);
+  }, [consolidatedRows, selectedBuyer, selectedCategory, criticalityFilter, searchTerm, globalSearchTerm]);
 
   // Summary Metrics
   const summaryMetrics = useMemo(() => {
@@ -553,8 +630,8 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const suggestedQty = r.hasShortage
         ? r.selectedScopeDeficit
         : r.selectedScopeGrossReq > 0
-          ? r.selectedScopeGrossReq
-          : 1000;
+        ? r.selectedScopeGrossReq
+        : 1000;
 
       return {
         PO_Number: `PO-${selectedMonth.replace('-', '')}-${(9000 + idx).toString()}`,
@@ -797,6 +874,15 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
         validationMessage = 'Promised quantity must be greater than 0';
       }
 
+      // MB52 Upload Baseline Date Validation:
+      // "even the buyer cannot add schedule after the upload date for previous date. he can add data for future date only.."
+      const minAllowedDate = getUploadDate(compCode);
+      if (compCode && deliveryDateStr < minAllowedDate) {
+        isValid = false;
+        validationStatus = 'ERROR';
+        validationMessage = `Invalid Delivery Date: ${deliveryDateStr} is before MB52 upload date (${minAllowedDate}) for ${compCode}. Buyer can only add schedules for future dates on or after upload date.`;
+      }
+
       parsed.push({
         rowIndex: idx + 1,
         poNumber,
@@ -955,6 +1041,12 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
 
   const handleOpenAddSingleModal = (comp?: ConsolidatedComponentRow, existingSchedule?: VendorDeliverySchedule) => {
     if (existingSchedule) {
+      if (isScheduleReadOnly(existingSchedule, stockList, openingStockDate)) {
+        alert(
+          `This delivery schedule is read-only because its delivery date (${existingSchedule.expectedDeliveryDate}) is prior to the MB52 upload baseline date (${getUploadDate(existingSchedule.componentCode)}). All data prior to the upload date is locked.`
+        );
+        return;
+      }
       setSingleScheduleForm({
         id: existingSchedule.id,
         poNumber: existingSchedule.poNumber,
@@ -972,9 +1064,9 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
         reasonForChange: 'Rescheduled arrival date and quantity for production requirements.'
       });
     } else if (comp) {
-      const defaultDate = scopeMode === 'WEEK' && activeWeek?.startDate
-        ? activeWeek.startDate
-        : `${selectedMonth}-10`;
+      const minDate = getUploadDate(comp.componentCode);
+      const targetWeekStartDate = scopeMode === 'WEEK' && activeWeek?.startDate ? activeWeek.startDate : `${selectedMonth}-10`;
+      const defaultDate = targetWeekStartDate >= minDate ? targetWeekStartDate : minDate;
 
       setSingleScheduleForm({
         poNumber: `PO-${selectedMonth.replace('-', '')}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -995,14 +1087,19 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       });
     } else {
       const firstComp = consolidatedRows[0];
+      const compCode = firstComp?.componentCode || '100201';
+      const minDate = getUploadDate(compCode);
+      const targetWeekStartDate = activeWeek?.startDate || `${selectedMonth}-10`;
+      const defaultDate = targetWeekStartDate >= minDate ? targetWeekStartDate : minDate;
+
       setSingleScheduleForm({
         poNumber: `PO-${selectedMonth.replace('-', '')}-${Math.floor(1000 + Math.random() * 9000)}`,
-        componentCode: firstComp?.componentCode || '100201',
+        componentCode: compCode,
         componentDescription: firstComp?.componentDescription || 'Component',
         vendorCode: firstComp?.vendorCode || 'V-1020',
         vendorName: firstComp?.vendorName || 'CastAlu Technologies',
         buyerName: firstComp?.buyerName || 'Rajesh Kumar',
-        expectedDeliveryDate: activeWeek?.startDate || `${selectedMonth}-10`,
+        expectedDeliveryDate: defaultDate,
         weekId: activeWeek?.id || 'w-1',
         promisedQty: 2000,
         carrierOrTracking: 'Direct Road Express',
@@ -1017,6 +1114,14 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   const handleSaveSingleSchedule = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const minAllowedDate = getUploadDate(singleScheduleForm.componentCode);
+    if (singleScheduleForm.expectedDeliveryDate < minAllowedDate) {
+      alert(
+        `Invalid Delivery Date: Expected delivery date (${singleScheduleForm.expectedDeliveryDate}) cannot be before the MB52 upload baseline date (${minAllowedDate}) for line item ${singleScheduleForm.componentCode}. Buyer can add data for future dates only.`
+      );
+      return;
+    }
+
     const now = new Date();
     const formattedTimestamp = `${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
@@ -1025,19 +1130,19 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       const updated = vendorDeliverySchedules.map((s) =>
         s.id === singleScheduleForm.id
           ? {
-            ...s,
-            poNumber: singleScheduleForm.poNumber,
-            componentCode: singleScheduleForm.componentCode,
-            vendorCode: singleScheduleForm.vendorCode,
-            vendorName: singleScheduleForm.vendorName,
-            buyerName: singleScheduleForm.buyerName,
-            expectedDeliveryDate: singleScheduleForm.expectedDeliveryDate,
-            weekId: singleScheduleForm.weekId,
-            promisedQty: Number(singleScheduleForm.promisedQty),
-            carrierOrTracking: singleScheduleForm.carrierOrTracking,
-            deliveryStatus: singleScheduleForm.deliveryStatus,
-            notes: singleScheduleForm.notes
-          }
+              ...s,
+              poNumber: singleScheduleForm.poNumber,
+              componentCode: singleScheduleForm.componentCode,
+              vendorCode: singleScheduleForm.vendorCode,
+              vendorName: singleScheduleForm.vendorName,
+              buyerName: singleScheduleForm.buyerName,
+              expectedDeliveryDate: singleScheduleForm.expectedDeliveryDate,
+              weekId: singleScheduleForm.weekId,
+              promisedQty: Number(singleScheduleForm.promisedQty),
+              carrierOrTracking: singleScheduleForm.carrierOrTracking,
+              deliveryStatus: singleScheduleForm.deliveryStatus,
+              notes: singleScheduleForm.notes
+            }
           : s
       );
 
@@ -1102,6 +1207,13 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   const handleDeleteSchedule = (scheduleId: string) => {
     const target = vendorDeliverySchedules.find((s) => s.id === scheduleId);
     if (!target) return;
+
+    if (isScheduleReadOnly(target, stockList, openingStockDate)) {
+      alert(
+        `Cannot delete schedule: delivery date (${target.expectedDeliveryDate}) is prior to the MB52 upload baseline date (${getUploadDate(target.componentCode)}). Historical schedules are locked as read-only.`
+      );
+      return;
+    }
 
     if (window.confirm(`Are you sure you want to cancel and remove PO #${target.poNumber || target.id} for component ${target.componentCode}?`)) {
       const now = new Date();
@@ -1190,12 +1302,13 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       {/* Toast Notification */}
       {notification && (
         <div
-          className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold shadow-md transition-all ${notification.type === 'success'
-            ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
-            : notification.type === 'error'
+          className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold shadow-md transition-all ${
+            notification.type === 'success'
+              ? 'bg-emerald-950/90 text-emerald-200 border-emerald-700'
+              : notification.type === 'error'
               ? 'bg-rose-950/90 text-rose-200 border-rose-700'
               : 'bg-blue-950/90 text-blue-200 border-blue-700'
-            }`}
+          }`}
         >
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -1220,9 +1333,13 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                 <h1 className="text-base font-bold tracking-tight text-white">
                   Vendor Delivery Schedule Updation & Consolidated RM Matrix
                 </h1>
-
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                  Supply / Buyer Mode
+                </span>
               </div>
-
+              <p className="text-xs text-slate-400">
+                Direct Excel template download, bulk spreadsheet schedule upload & consolidated multi-FG requirement management
+              </p>
             </div>
           </div>
 
@@ -1336,20 +1453,22 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setScopeMode('WEEK')}
-                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${scopeMode === 'WEEK'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-                  }`}
+                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+                  scopeMode === 'WEEK'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
                 Weekly Scope ({activeWeek?.weekLabel || 'Current Week'})
               </button>
               <button
                 type="button"
                 onClick={() => setScopeMode('MONTH')}
-                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${scopeMode === 'MONTH'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white'
-                  }`}
+                className={`px-3 py-1 rounded-md font-semibold text-xs transition-colors cursor-pointer ${
+                  scopeMode === 'MONTH'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
               >
                 Complete Month Overview ({selectedMonth})
               </button>
@@ -1381,12 +1500,16 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
               <MonthSelect
                 value={selectedMonth}
                 onChange={onSelectMonth}
-                className="bg-transparent border-none text-white text-xs font-mono font-bold focus:outline-none cursor-pointer"
+                className="bg-transparent font-bold text-white focus:outline-hidden cursor-pointer text-xs font-mono"
               />
+              {onToday && <TodayButton onClick={onToday} />}
             </div>
-            {onToday && <TodayButton onClick={onToday} />}
 
-
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Persona: </span>
+              <strong className="text-slate-200">Supply Planner / Buyer</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -1399,7 +1522,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             {summaryMetrics.totalComponents}{' '}
             <span className="text-xs text-slate-400 font-normal">items</span>
           </div>
-          {/* <div className="text-[10px] text-slate-500 mt-0.5">Across all Finished Goods</div> */}
+          <div className="text-[10px] text-slate-500 mt-0.5">Across all Finished Goods</div>
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-blue-200 shadow-xs bg-blue-50/20">
@@ -1411,7 +1534,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             {summaryMetrics.commonPartsCount}{' '}
             <span className="text-xs text-blue-700 font-normal">shared</span>
           </div>
-          {/* <div className="text-[10px] text-blue-600 mt-0.5">Shared in multiple FGs</div> */}
+          <div className="text-[10px] text-blue-600 mt-0.5">Shared in multiple FGs</div>
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
@@ -1421,7 +1544,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           <div className="text-xl font-bold text-slate-900 mt-1 font-mono">
             {summaryMetrics.totalGrossReq.toLocaleString()}
           </div>
-          {/* <div className="text-[10px] text-slate-500 mt-0.5">Production requirement</div> */}
+          <div className="text-[10px] text-slate-500 mt-0.5">Production requirement</div>
         </div>
 
         <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-xs bg-emerald-50/20">
@@ -1431,25 +1554,28 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           <div className="text-xl font-bold text-emerald-700 mt-1 font-mono">
             +{summaryMetrics.totalInwardPromised.toLocaleString()}
           </div>
-          {/* <div className="text-[10px] text-emerald-600 mt-0.5">Promised by vendors</div> */}
+          <div className="text-[10px] text-emerald-600 mt-0.5">Promised by vendors</div>
         </div>
 
         <div
-          className={`p-3 rounded-xl border shadow-xs ${summaryMetrics.shortagesCount > 0
-            ? 'bg-rose-50 border-rose-200'
-            : 'bg-emerald-50 border-emerald-200'
-            }`}
+          className={`p-3 rounded-xl border shadow-xs ${
+            summaryMetrics.shortagesCount > 0
+              ? 'bg-rose-50 border-rose-200'
+              : 'bg-emerald-50 border-emerald-200'
+          }`}
         >
           <div
-            className={`text-[11px] font-medium uppercase tracking-wider flex items-center gap-1 ${summaryMetrics.shortagesCount > 0 ? 'text-rose-800' : 'text-emerald-800'
-              }`}
+            className={`text-[11px] font-medium uppercase tracking-wider flex items-center gap-1 ${
+              summaryMetrics.shortagesCount > 0 ? 'text-rose-800' : 'text-emerald-800'
+            }`}
           >
             {summaryMetrics.shortagesCount > 0 && <AlertCircle className="w-3 h-3 text-rose-600" />}
             Deficit / Shortages
           </div>
           <div
-            className={`text-xl font-bold mt-1 font-mono ${summaryMetrics.shortagesCount > 0 ? 'text-rose-700' : 'text-emerald-700'
-              }`}
+            className={`text-xl font-bold mt-1 font-mono ${
+              summaryMetrics.shortagesCount > 0 ? 'text-rose-700' : 'text-emerald-700'
+            }`}
           >
             {summaryMetrics.shortagesCount}{' '}
             <span className="text-xs font-normal">
@@ -1481,10 +1607,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('supply_risk_heatmap')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'supply_risk_heatmap'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'supply_risk_heatmap'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100'
+              }`}
             >
               <Flame className={`w-3.5 h-3.5 ${activeTab === 'supply_risk_heatmap' ? 'text-white animate-pulse' : 'text-rose-600'}`} />
               <span>Supply Risk Heatmap</span>
@@ -1498,10 +1625,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('consolidated_matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'consolidated_matrix'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'consolidated_matrix'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Consolidated RM Requirements & Matrix</span>
@@ -1513,10 +1641,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('schedules_list')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === 'schedules_list'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'schedules_list'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
             >
               <Truck className="w-3.5 h-3.5" />
               <span>All Active PO Delivery Schedules</span>
@@ -1681,12 +1810,13 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                     return (
                       <tr
                         key={row.componentCode}
-                        className={`hover:bg-slate-50/80 transition-colors ${row.hasShortage
-                          ? 'bg-rose-50/30'
-                          : row.isCommonPart
+                        className={`hover:bg-slate-50/80 transition-colors ${
+                          row.hasShortage
+                            ? 'bg-rose-50/30'
+                            : row.isCommonPart
                             ? 'bg-blue-50/20'
                             : ''
-                          }`}
+                        }`}
                       >
                         {/* 1. Part Number, Description & Common Item Badge */}
                         <td className="py-2.5 px-3 align-middle">
@@ -1696,10 +1826,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                 {row.componentCode}
                               </span>
                               <span
-                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${row.category === 'RM'
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  : 'bg-teal-50 text-teal-700 border border-teal-200'
-                                  }`}
+                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                                  row.category === 'RM'
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                    : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                }`}
                               >
                                 {row.category}
                               </span>
@@ -1827,10 +1958,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                         {/* 7. Net Balance (Deficit / Surplus) */}
                         <td className="py-2.5 px-3 text-center align-middle font-mono text-xs">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded font-bold text-xs ${row.hasShortage
-                              ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              }`}
+                            className={`inline-block px-2 py-0.5 rounded font-bold text-xs ${
+                              row.hasShortage
+                                ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            }`}
                           >
                             {row.selectedScopeBalance > 0
                               ? `+${row.selectedScopeBalance.toLocaleString()}`
@@ -1856,10 +1988,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                       title: `Change History: ${row.componentCode}`
                                     })
                                   }
-                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${compLogsCount > 0
-                                    ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
-                                    }`}
+                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                                    compLogsCount > 0
+                                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                      : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
+                                  }`}
                                   title={`View revision and delivery change history for ${row.componentCode}`}
                                 >
                                   <History className="w-3 h-3 text-indigo-600" />
@@ -1936,8 +2069,14 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                 ) : (
                   vendorDeliverySchedules.map((s) => {
                     const matchedBOM = boms.find((b) => b.componentCode === s.componentCode);
+                    const isReadOnly = isScheduleReadOnly(s, stockList, openingStockDate);
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                      <tr
+                        key={s.id}
+                        className={`transition-colors ${
+                          isReadOnly ? 'bg-slate-50/70 text-slate-500' : 'hover:bg-slate-50'
+                        }`}
+                      >
                         <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
                           {s.poNumber || s.id}
                         </td>
@@ -1958,27 +2097,30 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                         </td>
                         <td className="py-2.5 px-3 font-mono font-semibold text-slate-900">
                           <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-slate-400" />
+                            {isReadOnly ? <Lock className="w-3 h-3 text-slate-400" /> : <Calendar className="w-3 h-3 text-slate-400" />}
                             <span>{s.expectedDeliveryDate}</span>
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700 text-xs">
+                        <td className={`py-2.5 px-3 text-right font-mono font-bold text-xs ${isReadOnly ? 'text-slate-400' : 'text-emerald-700'}`}>
                           +{s.promisedQty.toLocaleString()}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${s.deliveryStatus === 'CONFIRMED_ON_TRACK'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : s.deliveryStatus === 'IN_TRANSIT'
+                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              isReadOnly
+                                ? 'bg-slate-100 text-slate-600 border border-slate-300'
+                                : s.deliveryStatus === 'CONFIRMED_ON_TRACK'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : s.deliveryStatus === 'IN_TRANSIT'
                                 ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                 : s.deliveryStatus === 'PARTIAL_PROMISE'
-                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                                  : s.deliveryStatus === 'CANCELLED'
-                                    ? 'bg-slate-100 text-slate-500 border border-slate-200'
-                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
-                              }`}
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : s.deliveryStatus === 'CANCELLED'
+                                ? 'bg-slate-100 text-slate-500 border border-slate-200'
+                                : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}
                           >
-                            {s.deliveryStatus.replace(/_/g, ' ')}
+                            {isReadOnly ? 'LOCKED / READ-ONLY' : s.deliveryStatus.replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-slate-600 text-[11px]">
@@ -2004,10 +2146,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                                       title: `Change History: ${s.poNumber || s.id}`
                                     });
                                   }}
-                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${schedLogsCount > 0
-                                    ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                    : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
-                                    }`}
+                                  className={`px-2 py-1 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors ${
+                                    schedLogsCount > 0
+                                      ? 'bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                                      : 'bg-slate-100 border border-slate-200 text-slate-600 hover:bg-slate-200'
+                                  }`}
                                   title={`View timestamped change log for PO ${s.poNumber}`}
                                 >
                                   <History className="w-3 h-3 text-indigo-600" />
@@ -2021,25 +2164,37 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                               );
                             })()}
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const compRow = consolidatedRows.find((c) => c.componentCode === s.componentCode);
-                                handleOpenAddSingleModal(compRow, s);
-                              }}
-                              className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
-                              title="Edit schedule commitment"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSchedule(s.id)}
-                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
-                              title="Delete/cancel schedule"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {isReadOnly ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
+                                title={`Read-Only: Delivery date (${s.expectedDeliveryDate}) is prior to MB52 upload baseline (${getUploadDate(s.componentCode)}). Historical schedules cannot be edited or removed.`}
+                              >
+                                <Lock className="w-3 h-3 text-slate-400" />
+                                Locked
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const compRow = consolidatedRows.find((c) => c.componentCode === s.componentCode);
+                                    handleOpenAddSingleModal(compRow, s);
+                                  }}
+                                  className="p-1 rounded text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer transition-colors"
+                                  title="Edit schedule commitment"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSchedule(s.id)}
+                                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+                                  title="Delete/cancel schedule"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -2239,8 +2394,8 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                               r.validationStatus === 'ERROR'
                                 ? 'bg-rose-50/60'
                                 : r.validationStatus === 'WARNING'
-                                  ? 'bg-amber-50/40'
-                                  : 'hover:bg-slate-50'
+                                ? 'bg-amber-50/40'
+                                : 'hover:bg-slate-50'
                             }
                           >
                             <td className="py-2 px-2.5 font-mono text-slate-500">{r.rowIndex}</td>
@@ -2304,10 +2459,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                 type="button"
                 disabled={parsedRows.filter((r) => r.isValid).length === 0}
                 onClick={handleApplyUploadSchedules}
-                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer transition-colors ${parsedRows.filter((r) => r.isValid).length > 0
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
+                className={`px-5 py-2 rounded-lg text-xs font-bold shadow-sm flex items-center gap-2 cursor-pointer transition-colors ${
+                  parsedRows.filter((r) => r.isValid).length > 0
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>
@@ -2406,14 +2562,19 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Expected Delivery Date:</label>
+                  <label className="block font-bold text-slate-700 mb-1">Expected Delivery Date *</label>
                   <input
                     type="date"
+                    min={getUploadDate(singleScheduleForm.componentCode)}
                     value={singleScheduleForm.expectedDeliveryDate}
                     onChange={(e) => setSingleScheduleForm({ ...singleScheduleForm, expectedDeliveryDate: e.target.value })}
                     className="w-full p-2 border border-slate-300 rounded-lg font-mono font-bold"
                     required
                   />
+                  <div className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 mt-1 flex items-start gap-1">
+                    <Lock className="w-3 h-3 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <span>MB52 Baseline: <strong>{getUploadDate(singleScheduleForm.componentCode)}</strong>. Schedules can only be added for future dates on/after this date.</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Promised Inward Qty:</label>

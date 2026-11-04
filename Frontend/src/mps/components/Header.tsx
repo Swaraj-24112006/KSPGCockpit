@@ -8,7 +8,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Calendar,
-  Factory
+  Factory,
+  X
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -22,6 +23,8 @@ interface HeaderProps {
   criticalShortageCount: number;
   activeViewTitle?: string;
   onToday?: () => void;
+  globalSearchTerm: string;
+  setGlobalSearchTerm: (term: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,7 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
   onResetData,
   criticalShortageCount,
   activeViewTitle = 'Weekly MRP & Supply Operations',
-  onToday
+  onToday,
+  globalSearchTerm,
+  setGlobalSearchTerm
 }) => {
   const currentRoleDef = USER_ROLES.find((r) => r.id === currentRole) || USER_ROLES[0];
 
@@ -54,6 +59,29 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 px-3 py-1 rounded-lg border border-blue-500/30 bg-blue-950/40 text-blue-200 text-xs font-bold truncate">
             <Layers className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="truncate">{activeViewTitle}</span>
+          </div>
+        </div>
+
+        {/* Middle: Global Search */}
+        <div className="flex-1 max-w-lg mx-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search parts, descriptions or vendors (Stock, FG, RM, Vendor Schedule)..."
+              value={globalSearchTerm}
+              onChange={(e) => setGlobalSearchTerm(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-4 py-2 pr-9 rounded-lg focus:outline-none focus:border-blue-500 placeholder-slate-400"
+            />
+            {globalSearchTerm && (
+              <button
+                type="button"
+                onClick={() => setGlobalSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer p-0.5"
+                title="Clear search"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 

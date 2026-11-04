@@ -64,6 +64,7 @@ import { StockReportManager } from './components/MondayUpload/StockReportManager
 // Weekly MRP & Supply Views
 import { MondayReviewCockpit } from './components/WeeklyMRP/MondayReviewCockpit';
 import { ManagementProductionLossReport } from './components/Analytics/ManagementProductionLossReport';
+import { SupplyChainCriticalMaterialOnePager } from './components/Analytics/SupplyChainCriticalMaterialOnePager';
 import { PerformanceDashboard } from './components/Analytics/PerformanceDashboard';
 import { VendorScheduleManager } from './components/WeeklyMRP/VendorScheduleManager';
 import { WeeklyFGSupplyView } from './components/WeeklyMRP/WeeklyFGSupplyView';
@@ -111,6 +112,7 @@ export default function MpsModule({
   });
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthISO());
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
 
   // One-time clear of old dummy data
   if (typeof window !== 'undefined' && !localStorage.getItem('sap_cleared_dummy_data_v1')) {
@@ -431,6 +433,8 @@ export default function MpsModule({
 
   const getActiveViewTitle = () => {
     switch (activeSubView) {
+      case 'supply_chain_one_pager':
+        return 'Critical Material Shortages One-Pager (Weekly Supply Chain Stoppage Risk)';
       case 'monday_review_cockpit':
         return 'Monday Review & Seamless Production Cockpit';
       case 'management_loss_report':
@@ -464,13 +468,46 @@ export default function MpsModule({
 
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
-    if (role === 'management' && activeSubView !== 'management_loss_report' && activeSubView !== 'performance_dashboard') {
-      setActiveSubView('management_loss_report');
+    if (
+      role === 'management' &&
+      activeSubView !== 'management_loss_report' &&
+      activeSubView !== 'performance_dashboard' &&
+      activeSubView !== 'supply_chain_one_pager'
+    ) {
+      setActiveSubView('supply_chain_one_pager');
     }
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 text-slate-900 font-sans overflow-hidden">
+    <div className="mps-module-root flex h-screen bg-slate-100 text-slate-900 font-sans overflow-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        .mps-module-root {
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          letter-spacing: -0.01em;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+        .mps-module-root .font-mono,
+        .mps-module-root table td,
+        .mps-module-root table th {
+          font-variant-numeric: tabular-nums lining-nums;
+        }
+        .mps-module-root ::-webkit-scrollbar {
+          width: 7px;
+          height: 7px;
+        }
+        .mps-module-root ::-webkit-scrollbar-track {
+          background: #f1f5f9;
+        }
+        .mps-module-root ::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+        .mps-module-root ::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
       {/* 1. Collapsible Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}
@@ -534,11 +571,36 @@ export default function MpsModule({
           onResetData={handleResetData}
           criticalShortageCount={criticalShortagesCount}
           activeViewTitle={getActiveViewTitle()}
+          globalSearchTerm={globalSearchTerm}
+          setGlobalSearchTerm={setGlobalSearchTerm}
         />
 
         {/* Scrollable View Container */}
         <main className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-3.5 bg-slate-100">
           <div className="w-full space-y-3 max-w-[100vw]">
+            {activeSubView === 'supply_chain_one_pager' && (
+              <SupplyChainCriticalMaterialOnePager
+                selectedMonth={selectedMonth}
+                setSelectedMonth={handleSelectMonth}
+                weeks={weeksForUi}
+                monthlyPlans={monthlyPlans}
+                boms={boms}
+                vendorBuyers={vendorBuyers}
+                mb51List={mb51List}
+                stockList={stockList}
+                vendorDeliverySchedules={vendorDeliverySchedules}
+                onUpdateVendorDeliverySchedules={setVendorDeliverySchedules}
+                planFreezeList={planFreezeList}
+                openingStockDate={openingStockDate}
+                onNavigateToCockpit={(weekId, fgCode) => {
+                  setActiveSubView('monday_review_cockpit');
+                }}
+                onNavigateToVendorSchedule={(compCode) => {
+                  setActiveSubView('update_delivery_schedule');
+                }}
+              />
+            )}
+
             {activeSubView === 'monday_review_cockpit' && (
               <MondayReviewCockpit
                 monthlyPlans={monthlyPlans}
@@ -564,6 +626,7 @@ export default function MpsModule({
                 onSelectRole={setCurrentRole}
                 isSidebarCollapsed={isSidebarCollapsed}
                 onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                openingStockDate={openingStockDate}
               />
             )}
 
@@ -628,6 +691,9 @@ export default function MpsModule({
                 onToday={goToToday}
                 currentRole={currentRole}
                 onSelectRole={setCurrentRole}
+                openingStockDate={openingStockDate}
+                planFreezeList={planFreezeList}
+                globalSearchTerm={globalSearchTerm}
               />
             )}
 
@@ -645,6 +711,7 @@ export default function MpsModule({
                 onNavigateToDeliverySchedule={() => setActiveSubView('update_delivery_schedule')}
                 openingStockDate={openingStockDate}
                 onToday={goToToday}
+                globalSearchTerm={globalSearchTerm}
               />
             )}
 
@@ -658,6 +725,7 @@ export default function MpsModule({
                 onSelectMonth={handleSelectMonth}
                 openingStockDate={openingStockDate}
                 onToday={goToToday}
+                globalSearchTerm={globalSearchTerm}
               />
             )}
 
@@ -700,6 +768,7 @@ export default function MpsModule({
                 onUpdateStock={setStockList}
                 openingStockDate={openingStockDate}
                 onUpdateOpeningStockDate={setOpeningStockDate}
+                globalSearchTerm={globalSearchTerm}
               />
             )}
 
