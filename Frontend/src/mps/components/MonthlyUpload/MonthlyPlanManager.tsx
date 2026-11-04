@@ -17,6 +17,7 @@ import {
 import { MonthlyPlanItem, WeekDefinition, BOMItem } from '../../types';
 import { calculateProratedWeeklyBreakdown } from '../../data/sapInitialData';
 import { monthlyPlanService } from '../../services/monthlyPlanService';
+import { MonthSelect, TodayButton } from '../PeriodControls';
 
 interface MonthlyPlanManagerProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -25,6 +26,7 @@ interface MonthlyPlanManagerProps {
   boms: BOMItem[];
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
+  onToday?: () => void;
 }
 
 export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
@@ -33,7 +35,8 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
   weeks,
   boms,
   selectedMonth,
-  onSelectMonth
+  onSelectMonth,
+  onToday
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -395,12 +398,12 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
             <Calendar className="w-4 h-4 text-emerald-600" />
             Planning Month:
           </label>
-          <input
-            type="month"
+          <MonthSelect
             value={selectedMonth}
-            onChange={(e) => onSelectMonth(e.target.value)}
+            onChange={onSelectMonth}
             className="px-3.5 py-2 text-sm font-bold border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-mono"
           />
+          {onToday && <TodayButton onClick={onToday} />}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">

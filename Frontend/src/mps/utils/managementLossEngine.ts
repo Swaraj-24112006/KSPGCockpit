@@ -72,17 +72,8 @@ export function computeManagementProductionLossReport(
   let selectedWeek = monthWeeks.find((w) => w.id === selectedWeekId);
   if (!selectedWeek) {
     selectedWeek =
-      monthWeeks.find((w) => w.weekNo === 2) ||
-      monthWeeks[0] || {
-        id: 'w-default',
-        month: selectedMonth,
-        weekNo: 2,
-        weekLabel: 'Week 2 (08-14 Aug)',
-        startDate: `${selectedMonth}-08`,
-        endDate: `${selectedMonth}-14`,
-        daysCount: 7,
-        workingDays: 6
-      };
+      pickDefaultWeek(monthWeeks, selectedMonth) ??
+      buildStandardMonthWeeks(selectedMonth)[0];
   }
 
   // 2. Identify prior weeks in month

@@ -47,6 +47,7 @@ import {
 import { isDateInWeek } from '../../utils/weeklyMrpEngine';
 import { HistoryDrawer, HistoryDrawerFilter } from './HistoryDrawer';
 import { SupplyRiskHeatmap } from './SupplyRiskHeatmap';
+import { MonthSelect, TodayButton } from '../PeriodControls';
 
 interface VendorScheduleManagerProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -63,6 +64,9 @@ interface VendorScheduleManagerProps {
   onSelectMonth: (month: string) => void;
   currentRole: UserRole;
   onSelectRole: (role: UserRole) => void;
+  selectedWeekId?: string;
+  onSelectWeek?: (weekId: string) => void;
+  onToday?: () => void;
 }
 
 interface ConsolidatedComponentRow {
@@ -134,7 +138,10 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   selectedMonth,
   onSelectMonth,
   currentRole,
-  onSelectRole
+  onSelectRole,
+  selectedWeekId: selectedWeekIdProp,
+  onSelectWeek: onSelectWeekProp,
+  onToday
 }) => {
   // Navigation & View Mode
   const [activeTab, setActiveTab] = useState<'supply_risk_heatmap' | 'consolidated_matrix' | 'schedules_list'>('consolidated_matrix');
@@ -147,21 +154,24 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
       .sort((a, b) => a.weekNo - b.weekNo);
   }, [weeks, selectedMonth]);
 
-  const [selectedWeekId, setSelectedWeekId] = useState<string>(() => {
-    return monthWeeks[0]?.id || '';
-  });
+  const [localWeekId, setLocalWeekId] = useState<string>(() => monthWeeks[0]?.id || '');
+  const activeWeekId = selectedWeekIdProp || localWeekId;
+  const setActiveWeekId = (id: string) => {
+    if (onSelectWeekProp) onSelectWeekProp(id);
+    else setLocalWeekId(id);
+  };
 
   // Keep selectedWeekId valid when month changes
   React.useEffect(() => {
     if (monthWeeks.length > 0) {
-      const exists = monthWeeks.some((w) => w.id === selectedWeekId);
+      const exists = monthWeeks.some((w) => w.id === activeWeekId);
       if (!exists) {
-        setSelectedWeekId(monthWeeks[0].id);
+        setActiveWeekId(monthWeeks[0].id);
       }
     }
-  }, [monthWeeks, selectedWeekId]);
+  }, [monthWeeks, activeWeekId]);
 
-  const activeWeek = monthWeeks.find((w) => w.id === selectedWeekId) || monthWeeks[0];
+  const activeWeek = monthWeeks.find((w) => w.id === activeWeekId) || monthWeeks[0];
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -1350,8 +1360,8 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
               <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
                 <Calendar className="w-3.5 h-3.5 text-blue-400" />
                 <select
-                  value={selectedWeekId}
-                  onChange={(e) => setSelectedWeekId(e.target.value)}
+                  value={activeWeekId}
+                  onChange={(e) => setActiveWeekId(e.target.value)}
                   className="bg-transparent border-none text-white text-xs font-semibold focus:outline-none cursor-pointer"
                 >
                   {monthWeeks.map((w) => (
@@ -1368,13 +1378,13 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1">
               <span className="text-slate-400 font-medium">Month:</span>
-              <input
-                type="month"
+              <MonthSelect
                 value={selectedMonth}
-                onChange={(e) => onSelectMonth(e.target.value)}
+                onChange={onSelectMonth}
                 className="bg-transparent border-none text-white text-xs font-mono font-bold focus:outline-none cursor-pointer"
               />
             </div>
+            {onToday && <TodayButton onClick={onToday} />}
 
 
           </div>
@@ -1597,7 +1607,7 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
           monthlyPlans={monthlyPlans}
           weeks={weeks}
           selectedMonth={selectedMonth}
-          selectedWeekId={selectedWeekId}
+          selectedWeekId={activeWeekId}
           stockList={stockList}
           mb51List={mb51List}
           deliveryScheduleChangeLogs={deliveryScheduleChangeLogs}

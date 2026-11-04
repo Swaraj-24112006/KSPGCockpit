@@ -125,7 +125,7 @@ export const SupplyRiskHeatmap: React.FC<SupplyRiskHeatmapProps> = ({
   // Selected week context
   const selectedWeek = useMemo(() => {
     const monthWeeks = weeks.filter((w) => w.month === selectedMonth);
-    return monthWeeks.find((w) => w.id === selectedWeekId) || monthWeeks.find((w) => w.weekNo === 2) || monthWeeks[0];
+    return monthWeeks.find((w) => w.id === selectedWeekId) || pickDefaultWeek(monthWeeks, selectedMonth) || monthWeeks[0];
   }, [weeks, selectedMonth, selectedWeekId]);
 
   // Compute Risk Data per Vendor

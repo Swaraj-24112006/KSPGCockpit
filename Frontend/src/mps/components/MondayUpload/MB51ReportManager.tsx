@@ -26,6 +26,7 @@ import { MB51TransactionItem, MB51Classification, WeekDefinition, StockReportIte
 import { getWeekForTransaction } from '../../utils/weeklyMrpEngine';
 import { isMB51TxReadOnly, getLineItemMB52UploadDate } from '../../utils/mb52LockEngine';
 import { mb51Service } from '../../services/mb51Service';
+import { todayISO, currentMonthISO } from '../../utils/dateContext';
 
 interface MB51ReportManagerProps {
   mb51List: MB51TransactionItem[];
@@ -63,7 +64,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   // Form State
   const [formData, setFormData] = useState<Partial<MB51TransactionItem>>({
     materialDocument: '',
-    postingDate: new Date().toISOString().slice(0, 10),
+    postingDate: todayISO(),
     movementType: '101',
     partNumber: '',
     materialDescription: '',
@@ -212,7 +213,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
       return;
     }
 
-    const postingDate = formData.postingDate || new Date().toISOString().slice(0, 10);
+    const postingDate = formData.postingDate || todayISO();
     const minAllowedDate = getLineItemMB52UploadDate(
       formData.partNumber.trim(),
       stockList,
@@ -235,7 +236,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
     try {
       const createdItem = await mb51Service.createTransaction({
         materialDocument: formData.materialDocument.trim(),
-        postingDate: formData.postingDate || new Date().toISOString().slice(0, 10),
+        postingDate: formData.postingDate || todayISO(),
         movementType: mvt as '101' | '601',
         partNumber: formData.partNumber.trim(),
         materialDescription: formData.materialDescription?.trim() || 'Material Item',
@@ -259,7 +260,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
       const newItem: MB51TransactionItem = {
         id: `mb51-${Date.now()}`,
         materialDocument: formData.materialDocument.trim(),
-        postingDate: formData.postingDate || new Date().toISOString().slice(0, 10),
+        postingDate: formData.postingDate || todayISO(),
         movementType: mvt,
         partNumber: formData.partNumber.trim(),
         materialDescription: formData.materialDescription?.trim() || 'Material Item',
@@ -283,16 +284,16 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   const handleDownloadTemplate = () => {
     const csvContent =
       'Material Document,Posting Date,Movement Type,Part Number,Material Description,Quantity,UOM,Storage Location,Partner / Vendor / Line,PO / Order No\n' +
-      '5000210031,2026-08-05,101,7.06496.03.0,Vacuum Pump Panther 2.0L,1500,PC,FG01,Line A-PMP2,PRD-88201\n' +
-      '5000210032,2026-08-06,101,100201,Die-Cast Aluminum Housing,3000,PC,SL01,Endurance Technologies,PO-4500091211\n' +
-      '5000210033,2026-08-07,601,7.06496.03.0,Vacuum Pump Panther 2.0L,2600,PC,FG01,Tata Motors PV & EV,SO-9021102\n' +
-      '5000210034,2026-08-08,101,100202,Precision Rotor Assembly,2200,PC,SL01,Bosch India,PO-4500091244\n';
+      `5000210031,${todayISO()},101,7.06496.03.0,Vacuum Pump Panther 2.0L,1500,PC,FG01,Line A-PMP2,PRD-88201\n` +
+      `5000210032,${todayISO()},101,100201,Die-Cast Aluminum Housing,3000,PC,SL01,Endurance Technologies,PO-4500091211\n` +
+      `5000210033,${todayISO()},601,7.06496.03.0,Vacuum Pump Panther 2.0L,2600,PC,FG01,Tata Motors PV & EV,SO-9021102\n` +
+      `5000210034,${todayISO()},101,100202,Precision Rotor Assembly,2200,PC,SL01,Bosch India,PO-4500091244\n`;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `SAP_MB51_Template_${selectedMonth || new Date().toISOString().slice(0, 7)}.csv`);
+    link.setAttribute('download', `SAP_MB51_Template_${selectedMonth || currentMonthISO()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -361,7 +362,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
 
         if (parts.length >= 4) {
           const matDoc = parts[0];
-          const date = parts.length >= 2 ? parts[1] : new Date().toISOString().slice(0, 10);
+          const date = parts.length >= 2 ? parts[1] : todayISO();
           const mvt = parts.length >= 3 ? parts[2] : '101';
           const partNo = parts.length >= 4 ? parts[3] : '';
           const desc = parts.length >= 5 ? parts[4] : `Material ${partNo}`;
@@ -470,7 +471,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `SAP_MB51_Movement_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `SAP_MB51_Movement_Report_${todayISO()}.csv`;
     link.click();
   };
 
@@ -1166,7 +1167,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                   placeholder={
                     selectedFile
                       ? 'File selected above. Clear file to paste raw text manually.'
-                      : `MatDoc,PostingDate,Mvt,PartNumber,Description,Qty,UOM,SLOC,Partner\n5000210031,2026-08-05,101,7.06496.03.0,Vacuum Pump Panther,1500,PC,FG01,Line A-PMP2\n5000210032,2026-08-06,101,100201,Die-Cast Aluminum Housing,3000,PC,SL01,Endurance Tech\n5000210033,2026-08-07,601,7.06496.03.0,Vacuum Pump Panther,2600,PC,FG01,Tata Motors`
+                      : `MatDoc,PostingDate,Mvt,PartNumber,Description,Qty,UOM,SLOC,Partner\n5000210031,${todayISO()},101,7.06496.03.0,Vacuum Pump Panther,1500,PC,FG01,Line A-PMP2\n5000210032,${todayISO()},101,100201,Die-Cast Aluminum Housing,3000,PC,SL01,Endurance Tech\n5000210033,${todayISO()},601,7.06496.03.0,Vacuum Pump Panther,2600,PC,FG01,Tata Motors`
                   }
                   className={`w-full p-3 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono ${selectedFile ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
                     }`}

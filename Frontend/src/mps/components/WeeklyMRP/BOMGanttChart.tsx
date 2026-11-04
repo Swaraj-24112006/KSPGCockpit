@@ -92,7 +92,7 @@ export const BOMGanttChart: React.FC<BOMGanttChartProps> = ({
   const primarySched = component.deliverySchedules[0] || deliverySchedules.find(s => s.componentCode === component.componentCode);
   
   const [simulatedDate, setSimulatedDate] = useState<string>(
-    primarySched ? primarySched.expectedDeliveryDate : (week.startDate || '2026-08-08')
+    primarySched ? primarySched.expectedDeliveryDate : (week.startDate || todayISO())
   );
   const [simulatedQty, setSimulatedQty] = useState<number>(
     primarySched ? primarySched.promisedQty : Math.max(500, Math.abs(component.stockDeficit) || 1000)
@@ -168,7 +168,11 @@ export const BOMGanttChart: React.FC<BOMGanttChartProps> = ({
 
   const selectedDaySimulation = useMemo(() => {
     if (!selectedDate) {
-      const effectiveDay = days.find((d) => d.isEffectiveStockDate) || days.find((d) => !d.isFrozen) || days[0];
+      const effectiveDay =
+        days.find((d) => d.date === todayISO() && !d.isFrozen) ||
+        days.find((d) => d.isEffectiveStockDate) ||
+        days.find((d) => !d.isFrozen) ||
+        days[0];
       return effectiveDay || null;
     }
     return days.find((d) => d.date === selectedDate) || days[0] || null;
@@ -550,7 +554,7 @@ export const BOMGanttChart: React.FC<BOMGanttChartProps> = ({
             <button
               type="button"
               onClick={() => {
-                setSimulatedDate(primarySched ? primarySched.expectedDeliveryDate : (week.startDate || '2026-08-08'));
+                setSimulatedDate(primarySched ? primarySched.expectedDeliveryDate : (week.startDate || todayISO()));
                 setSimulatedQty(primarySched ? primarySched.promisedQty : 1000);
                 setIsSimulating(false);
               }}

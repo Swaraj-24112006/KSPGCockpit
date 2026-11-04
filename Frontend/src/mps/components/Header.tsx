@@ -1,4 +1,5 @@
 import React from 'react';
+import { TodayButton } from './PeriodControls';
 import { UserRole, USER_ROLES } from '../types';
 import {
   Menu,
@@ -20,6 +21,7 @@ interface HeaderProps {
   onResetData: () => void;
   criticalShortageCount: number;
   activeViewTitle?: string;
+  onToday?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,7 +33,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   onResetData,
   criticalShortageCount,
-  activeViewTitle = 'Weekly MRP & Supply Operations'
+  activeViewTitle = 'Weekly MRP & Supply Operations',
+  onToday
 }) => {
   const currentRoleDef = USER_ROLES.find((r) => r.id === currentRole) || USER_ROLES[0];
 
@@ -71,10 +74,13 @@ export const Header: React.FC<HeaderProps> = ({
             <input
               type="month"
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value) setSelectedMonth(e.target.value);
+              }}
               className="bg-transparent border-none text-white text-xs font-mono font-bold focus:outline-none cursor-pointer"
             />
           </div>
+          {onToday && <TodayButton onClick={onToday} />}
 
           {/* Role selector */}
           <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs">

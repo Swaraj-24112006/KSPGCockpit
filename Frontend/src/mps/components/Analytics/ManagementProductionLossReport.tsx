@@ -57,6 +57,8 @@ import {
   ImpactedFGProgram
 } from '../../types';
 import { computeManagementProductionLossReport } from '../../utils/managementLossEngine';
+import { MonthSelect, TodayButton } from '../PeriodControls';
+import { pickDefaultWeek } from '../../utils/dateContext';
 
 interface ManagementProductionLossReportProps {
   selectedMonth: string;
@@ -71,6 +73,9 @@ interface ManagementProductionLossReportProps {
   planFreezeList: FGPlanFreezeItem[];
   onNavigateToCockpit?: (weekId?: string, fgCode?: string) => void;
   onNavigateToVendorSchedule?: (compCode?: string) => void;
+  selectedWeekId?: string;
+  onSelectWeek?: (weekId: string) => void;
+  onToday?: () => void;
 }
 
 export const ManagementProductionLossReport: React.FC<ManagementProductionLossReportProps> = ({
@@ -85,7 +90,10 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
   vendorDeliverySchedules,
   planFreezeList,
   onNavigateToCockpit,
-  onNavigateToVendorSchedule
+  onNavigateToVendorSchedule,
+  selectedWeekId: selectedWeekIdProp,
+  onSelectWeek: onSelectWeekProp,
+  onToday
 }) => {
   // 1. Calendar week selection (default to Week 2 if available, else first week)
   const monthWeeks = useMemo(() => {
@@ -94,18 +102,23 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
       .sort((a, b) => a.weekNo - b.weekNo);
   }, [weeks, selectedMonth]);
 
-  const [selectedWeekId, setSelectedWeekId] = useState<string>(() => {
-    const w2 = monthWeeks.find((w) => w.weekNo === 2);
-    return w2 ? w2.id : monthWeeks[0]?.id || '';
+  const [localWeekId, setLocalWeekId] = useState<string>(() => {
+    const def = pickDefaultWeek(monthWeeks, selectedMonth);
+    return def ? def.id : monthWeeks[0]?.id || '';
   });
+  const activeWeekId = selectedWeekIdProp || localWeekId;
+  const setActiveWeekId = (id: string) => {
+    if (onSelectWeekProp) onSelectWeekProp(id);
+    else setLocalWeekId(id);
+  };
 
   // Ensure selectedWeekId updates if month changes
   React.useEffect(() => {
-    if (!monthWeeks.some((w) => w.id === selectedWeekId)) {
-      const w2 = monthWeeks.find((w) => w.weekNo === 2);
-      setSelectedWeekId(w2 ? w2.id : monthWeeks[0]?.id || '');
+    if (monthWeeks.length > 0 && !monthWeeks.some((w) => w.id === activeWeekId)) {
+      const def = pickDefaultWeek(monthWeeks, selectedMonth);
+      setActiveWeekId(def ? def.id : monthWeeks[0]?.id || '');
     }
-  }, [monthWeeks, selectedWeekId]);
+  }, [monthWeeks, selectedMonth, activeWeekId]);
 
   // 2. Executive Management Decision State (persisted in localStorage)
   const [savedDecisions, setSavedDecisions] = useState<
@@ -149,7 +162,7 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
   const reportData = useMemo(() => {
     return computeManagementProductionLossReport(
       selectedMonth,
-      selectedWeekId,
+      activeWeekId,
       monthlyPlans,
       weeks,
       boms,
@@ -162,7 +175,7 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
     );
   }, [
     selectedMonth,
-    selectedWeekId,
+    activeWeekId,
     monthlyPlans,
     weeks,
     boms,
@@ -409,14 +422,12 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
             <div className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 flex items-center gap-2 text-xs shadow-xs">
               <Calendar className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-slate-500 font-medium">Month:</span>
-              <select
+              <MonthSelect
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                onChange={setSelectedMonth}
                 className="bg-transparent text-slate-900 font-bold focus:outline-none cursor-pointer"
-              >
-                <option value="2026-08">Aug 2026</option>
-                <option value="2026-09">Sep 2026</option>
-              </select>
+              />
+              {onToday && <TodayButton onClick={onToday} />}
             </div>
 
             {/* Week Selector */}
@@ -424,8 +435,8 @@ export const ManagementProductionLossReport: React.FC<ManagementProductionLossRe
               <Clock className="w-3.5 h-3.5 text-amber-600" />
               <span className="text-slate-500 font-medium">Week:</span>
               <select
-                value={selectedWeekId}
-                onChange={(e) => setSelectedWeekId(e.target.value)}
+                value={activeWeekId}
+                onChange={(e) => setActiveWeekId(e.target.value)}
                 className="bg-transparent text-slate-900 font-bold focus:outline-none cursor-pointer"
               >
                 {monthWeeks.map((w) => (

@@ -1,5 +1,6 @@
 import { api } from './api';
 import { StockReportItem } from '../types';
+import { todayISO } from '../utils/dateContext';
 
 export interface BackendStockItem {
   id: number;
@@ -65,7 +66,7 @@ export function mapBackendStockToFrontend(item: BackendStockItem): StockReportIt
     uploadDate: item.uploadDate || item.upload_date || (item.created_at ? item.created_at.slice(0, 10) : undefined),
     isReadOnly: Boolean(item.isReadOnly ?? item.is_read_only ?? false),
     isPreviousUpload: Boolean(item.isPreviousUpload ?? item.is_previous_upload ?? false),
-    lastUpdated: item.lastUpdated || (item.updated_at ? item.updated_at.slice(0, 10) : new Date().toISOString().slice(0, 10))
+    lastUpdated: item.lastUpdated || (item.updated_at ? item.updated_at.slice(0, 10) : todayISO())
   };
 }
 

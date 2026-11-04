@@ -65,6 +65,7 @@ interface PerformanceDashboardProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   currentRole: UserRole;
+  onToday?: () => void;
   onNavigateToCockpit?: () => void;
   onNavigateToRMSupply?: () => void;
 }
@@ -96,6 +97,7 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
   selectedMonth,
   onSelectMonth,
   currentRole,
+  onToday,
   onNavigateToCockpit,
   onNavigateToRMSupply
 }) => {
@@ -367,7 +369,12 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
         status = 'DISCREPANCY';
       }
 
-      const auditDates = ['2026-08-07', '2026-08-08', '2026-08-09'];
+      const baseAuditDate = currentMonthWeeks[0]?.startDate || todayISO();
+      const auditDates = [0, 1, 2].map((offset) => {
+        const d = new Date(baseAuditDate + 'T00:00:00');
+        d.setDate(d.getDate() + offset);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      });
       const auditors = ['M. Shinde (QA / Stores)', 'K. Raman (Warehouse Audit)', 'S. Deshmukh (Inventory Control)'];
 
       return {
@@ -519,17 +526,12 @@ export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({
             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
               <Calendar className="w-3.5 h-3.5 text-slate-500" />
               <span className="text-slate-500 font-medium">Review Month:</span>
-              <select
+              <MonthSelect
                 value={selectedMonth}
-                onChange={(e) => onSelectMonth(e.target.value)}
+                onChange={onSelectMonth}
                 className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
-              >
-                {availableMonths.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+              />
+              {onToday && <TodayButton onClick={onToday} />}
             </div>
 
             <button

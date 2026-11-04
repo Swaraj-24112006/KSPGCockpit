@@ -25,13 +25,15 @@ interface WeekDefinitionManagerProps {
   onUpdateWeeks: (weeks: WeekDefinition[]) => void;
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
+  onToday?: () => void;
 }
 
 export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
   weeks,
   onUpdateWeeks,
   selectedMonth,
-  onSelectMonth
+  onSelectMonth,
+  onToday
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingWeek, setEditingWeek] = useState<WeekDefinition | null>(null);
@@ -223,7 +225,7 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
 
   // Generate for entire year (e.g. 2026)
   const handleGenerateFullYear = async () => {
-    const year = selectedMonth.split('-')[0] || '2026';
+    const year = selectedMonth.split('-')[0] || String(new Date().getFullYear());
     if (!window.confirm(`Auto-generate standard 4-week splits for all 12 months of year ${year}?`)) {
       return;
     }
@@ -365,12 +367,12 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
             <Calendar className="w-4 h-4 text-indigo-600" />
             Active Planning Month:
           </label>
-          <input
-            type="month"
+          <MonthSelect
             value={selectedMonth}
-            onChange={(e) => onSelectMonth(e.target.value)}
+            onChange={onSelectMonth}
             className="px-3.5 py-2 text-sm font-bold border border-slate-300 rounded-lg bg-slate-50 text-slate-900 focus:ring-2 focus:ring-indigo-500 font-mono"
           />
+          {onToday && <TodayButton onClick={onToday} />}
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">

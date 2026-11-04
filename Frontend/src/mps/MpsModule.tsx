@@ -5,7 +5,7 @@
  * Wraps the entire MPS App.tsx content with a Cockpit-compatible shell
  * that includes "← Back to Cockpit" navigation and user identity display.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, LogOut, Boxes } from 'lucide-react';
 import { AuthUser } from '../shared/utils/auth';
 
@@ -71,6 +71,7 @@ import { WeeklyRMSupplyView } from './components/WeeklyMRP/WeeklyRMSupplyView';
 import { AuditLogView } from './components/WeeklyMRP/AuditLogView';
 import { computeRMWeeklyRequirements } from './utils/weeklyMrpEngine';
 import { normalizeToISODate } from './utils/mb52LockEngine';
+import { todayISO, currentMonthISO, buildStandardMonthWeeks, pickDefaultWeek } from './utils/dateContext';
 
 // ─── Props contract from MODULE_INTEGRATION_SPEC.md ───────────────
 export interface MpsModuleProps {
@@ -109,7 +110,7 @@ export default function MpsModule({
     return (saved as UserRole) || 'demand_planner';
   });
 
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-08');
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthISO());
 
   // One-time clear of old dummy data
   if (typeof window !== 'undefined' && !localStorage.getItem('sap_cleared_dummy_data_v1')) {
@@ -158,7 +159,7 @@ export default function MpsModule({
   });
 
   const [openingStockDate, setOpeningStockDate] = useState<string>(() => {
-    return localStorage.getItem('sap_opening_stock_date') || '2026-10-04';
+    return localStorage.getItem('sap_opening_stock_date') || todayISO();
   });
 
   const [vendorDeliverySchedules, setVendorDeliverySchedules] = useState<VendorDeliverySchedule[]>(() => {
@@ -318,20 +319,86 @@ export default function MpsModule({
         if (Array.isArray(items)) {
           const normalized = items.map((item) => ({
             ...item,
-            stockDate: item.stockDate ? normalizeToISODate(item.stockDate) : item.stockDate,
+            stockDate: item.stockDate ? normalizeToISODate(item.stockDate) : (item.lastUpdated ? normalizeToISODate(item.lastUpdated) : item.stockDate),
             uploadDate: item.uploadDate ? normalizeToISODate(item.uploadDate) : item.uploadDate
           }));
           setStockList(normalized);
+
+          if (!localStorage.getItem('sap_opening_stock_date')) {
+            const activeWithDate = normalized
+              .filter((s) => !s.isPreviousUpload && s.stockDate)
+              .sort((a, b) => (b.stockDate || '').localeCompare(a.stockDate || ''));
+            if (activeWithDate.length > 0 && activeWithDate[0].stockDate) {
+              setOpeningStockDate(activeWithDate[0].stockDate);
+            }
+          }
         }
       })
       .catch(() => {});
   }, []);
 
+  // Weeks for the UI: dynamically computed standard 4-week split if month not in weeks
+  const weeksForUi = useMemo(() => {
+    const has = weeks.some((w) => w.month === selectedMonth);
+    return has ? weeks : [...weeks, ...buildStandardMonthWeeks(selectedMonth)];
+  }, [weeks, selectedMonth]);
+
+  // Persist generated weeks via backend call once per month
+  const generatedMonthsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const has = weeks.some((w) => w.month === selectedMonth);
+    if (!has && !generatedMonthsRef.current.has(selectedMonth)) {
+      generatedMonthsRef.current.add(selectedMonth);
+      weekService.autoGenerate({ month: selectedMonth, overwrite: false })
+        .then((createdWeeks) => {
+          if (Array.isArray(createdWeeks) && createdWeeks.length > 0) {
+            const frontendWeeks = createdWeeks.map(dtoToFrontend);
+            setWeeks((prev) => {
+              const existingIds = new Set(prev.map((w) => w.id));
+              const newWeeks = frontendWeeks.filter((w) => !existingIds.has(w.id));
+              return [...prev, ...newWeeks];
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [selectedMonth, weeks]);
+
+  // Shared selected week state across dashboards
+  const [selectedWeekId, setSelectedWeekId] = useState<string>('');
+  useEffect(() => {
+    const monthWeeks = weeksForUi.filter((w) => w.month === selectedMonth);
+    if (monthWeeks.length > 0) {
+      const exists = monthWeeks.some((w) => w.id === selectedWeekId);
+      if (!exists) {
+        const defWeek = pickDefaultWeek(monthWeeks, selectedMonth);
+        setSelectedWeekId(defWeek ? defWeek.id : monthWeeks[0].id);
+      }
+    }
+  }, [selectedMonth, weeksForUi, selectedWeekId]);
+
+  // Shared month change handler
+  const handleSelectMonth = (m: string) => {
+    if (!m) return;
+    setSelectedMonth(m);
+    const mWeeks = weeksForUi.filter((w) => w.month === m);
+    const wk = pickDefaultWeek(mWeeks.length > 0 ? mWeeks : buildStandardMonthWeeks(m), m);
+    setSelectedWeekId(wk?.id ?? '');
+  };
+
+  const goToToday = () => {
+    const curM = currentMonthISO();
+    setSelectedMonth(curM);
+    const mWeeks = weeksForUi.filter((w) => w.month === curM);
+    const wk = pickDefaultWeek(mWeeks.length > 0 ? mWeeks : buildStandardMonthWeeks(curM), curM);
+    setSelectedWeekId(wk?.id ?? '');
+  };
+
   // Compute Critical RM Shortages Count for Badges
   const rmSummaries = computeRMWeeklyRequirements(
     selectedMonth,
     monthlyPlans,
-    weeks,
+    weeksForUi,
     boms,
     vendorBuyers,
     mb51List,
@@ -460,7 +527,8 @@ export default function MpsModule({
           currentRole={currentRole}
           setCurrentRole={handleSelectRole}
           selectedMonth={selectedMonth}
-          setSelectedMonth={setSelectedMonth}
+          setSelectedMonth={handleSelectMonth}
+          onToday={goToToday}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onResetData={handleResetData}
@@ -474,7 +542,7 @@ export default function MpsModule({
             {activeSubView === 'monday_review_cockpit' && (
               <MondayReviewCockpit
                 monthlyPlans={monthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 boms={boms}
                 vendorBuyers={vendorBuyers}
                 mb51List={mb51List}
@@ -488,7 +556,10 @@ export default function MpsModule({
                 deliveryScheduleChangeLogs={deliveryScheduleChangeLogs}
                 onUpdateDeliveryScheduleChangeLogs={setDeliveryScheduleChangeLogs}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
+                selectedWeekId={selectedWeekId}
+                onSelectWeek={setSelectedWeekId}
+                onToday={goToToday}
                 currentRole={currentRole}
                 onSelectRole={setCurrentRole}
                 isSidebarCollapsed={isSidebarCollapsed}
@@ -499,8 +570,10 @@ export default function MpsModule({
             {activeSubView === 'management_loss_report' && (
               <ManagementProductionLossReport
                 selectedMonth={selectedMonth}
-                setSelectedMonth={setSelectedMonth}
-                weeks={weeks}
+                setSelectedMonth={handleSelectMonth}
+                selectedWeekId={selectedWeekId}
+                onSelectWeek={setSelectedWeekId}
+                weeks={weeksForUi}
                 monthlyPlans={monthlyPlans}
                 boms={boms}
                 vendorBuyers={vendorBuyers}
@@ -514,30 +587,32 @@ export default function MpsModule({
                 onNavigateToVendorSchedule={(compCode) => {
                   setActiveSubView('update_delivery_schedule');
                 }}
+                onToday={goToToday}
               />
             )}
 
             {activeSubView === 'performance_dashboard' && (
               <PerformanceDashboard
                 monthlyPlans={monthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 boms={boms}
                 vendorBuyers={vendorBuyers}
                 mb51List={mb51List}
                 stockList={stockList}
                 vendorDeliverySchedules={vendorDeliverySchedules}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
                 currentRole={currentRole}
                 onNavigateToCockpit={() => setActiveSubView('monday_review_cockpit')}
                 onNavigateToRMSupply={() => setActiveSubView('weekly_rm_matrix')}
+                onToday={goToToday}
               />
             )}
 
             {activeSubView === 'update_delivery_schedule' && (
               <VendorScheduleManager
                 monthlyPlans={monthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 boms={boms}
                 vendorBuyers={vendorBuyers}
                 mb51List={mb51List}
@@ -547,7 +622,10 @@ export default function MpsModule({
                 deliveryScheduleChangeLogs={deliveryScheduleChangeLogs}
                 onUpdateDeliveryScheduleChangeLogs={setDeliveryScheduleChangeLogs}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
+                selectedWeekId={selectedWeekId}
+                onSelectWeek={setSelectedWeekId}
+                onToday={goToToday}
                 currentRole={currentRole}
                 onSelectRole={setCurrentRole}
               />
@@ -556,37 +634,40 @@ export default function MpsModule({
             {activeSubView === 'weekly_rm_matrix' && (
               <WeeklyRMSupplyView
                 monthlyPlans={monthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 boms={boms}
                 vendorBuyers={vendorBuyers}
                 mb51List={mb51List}
                 stockList={stockList}
                 vendorDeliverySchedules={vendorDeliverySchedules}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
                 onNavigateToDeliverySchedule={() => setActiveSubView('update_delivery_schedule')}
                 openingStockDate={openingStockDate}
+                onToday={goToToday}
               />
             )}
 
             {activeSubView === 'weekly_fg_matrix' && (
               <WeeklyFGSupplyView
                 monthlyPlans={monthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 mb51List={mb51List}
                 stockList={stockList}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
                 openingStockDate={openingStockDate}
+                onToday={goToToday}
               />
             )}
 
             {activeSubView === 'monthly_define_weeks' && (
               <WeekDefinitionManager
-                weeks={weeks}
+                weeks={weeksForUi}
                 onUpdateWeeks={setWeeks}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
+                onToday={goToToday}
               />
             )}
 
@@ -594,10 +675,11 @@ export default function MpsModule({
               <MonthlyPlanManager
                 monthlyPlans={monthlyPlans}
                 onUpdateMonthlyPlans={setMonthlyPlans}
-                weeks={weeks}
+                weeks={weeksForUi}
                 boms={boms}
                 selectedMonth={selectedMonth}
-                onSelectMonth={setSelectedMonth}
+                onSelectMonth={handleSelectMonth}
+                onToday={goToToday}
               />
             )}
 
@@ -605,7 +687,7 @@ export default function MpsModule({
               <MB51ReportManager
                 mb51List={mb51List}
                 onUpdateMB51={setMb51List}
-                weeks={weeks}
+                weeks={weeksForUi}
                 selectedMonth={selectedMonth}
                 stockList={stockList}
                 openingStockDate={openingStockDate}

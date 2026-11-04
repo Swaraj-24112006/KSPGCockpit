@@ -9,6 +9,7 @@ import {
   StockReportItem
 } from '../types';
 import { normalizeToISODate } from './mb52LockEngine';
+import { todayISO } from './dateContext';
 
 /**
  * Generates an array of ISO dates (YYYY-MM-DD) between start and end date (inclusive)
@@ -144,8 +145,13 @@ export function simulateBOMComponentDailyTimeline(
   const effectiveStockDate = rawStockDate ? normalizeToISODate(rawStockDate) : undefined;
 
   // Target display date range for the selected week
-  const targetStartDate = week.startDate || '2026-08-01';
-  let targetEndDate = week.endDate || '2026-08-07';
+  const targetStartDate = week.startDate || todayISO();
+  let targetEndDate = week.endDate;
+  if (!targetEndDate) {
+    const s = new Date(targetStartDate + 'T00:00:00');
+    s.setDate(s.getDate() + 6);
+    targetEndDate = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
+  }
 
   if (options?.horizonDays && options.horizonDays > week.daysCount) {
     const s = new Date(targetStartDate + 'T00:00:00');

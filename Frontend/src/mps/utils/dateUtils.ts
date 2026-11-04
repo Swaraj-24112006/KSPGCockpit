@@ -1,24 +1,18 @@
 import { WeekDefinition } from '../types';
+import { todayISO, currentMonthISO } from './dateContext';
 
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time.
  */
 export function getCurrentISODate(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return todayISO();
 }
 
 /**
  * Returns the current month formatted as YYYY-MM in local time.
  */
 export function getCurrentMonth(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
+  return currentMonthISO();
 }
 
 /**

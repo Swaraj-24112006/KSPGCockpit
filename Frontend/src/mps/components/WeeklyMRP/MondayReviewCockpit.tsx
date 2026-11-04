@@ -93,6 +93,9 @@ interface MondayReviewCockpitProps {
   onUpdateDeliveryScheduleChangeLogs: (logs: VendorDeliveryScheduleChangeLog[]) => void;
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
+  selectedWeekId?: string;
+  onSelectWeek?: (weekId: string) => void;
+  onToday?: () => void;
   currentRole?: UserRole;
   onSelectRole?: (role: UserRole) => void;
   isSidebarCollapsed?: boolean;
@@ -116,6 +119,9 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   onUpdateDeliveryScheduleChangeLogs,
   selectedMonth,
   onSelectMonth,
+  selectedWeekId: selectedWeekIdProp,
+  onSelectWeek,
+  onToday,
   currentRole = 'supply_planner',
   onSelectRole,
   isSidebarCollapsed = true,
@@ -126,7 +132,12 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   const currentRoleDef = USER_ROLES.find((r) => r.id === currentRole) || USER_ROLES[1];
 
   // Top Filter States
-  const [selectedWeekId, setSelectedWeekId] = useState<string>('w-2026-08-02'); // Default Week 2
+  const [localSelectedWeekId, setLocalSelectedWeekId] = useState<string>('');
+  const selectedWeekId = selectedWeekIdProp || localSelectedWeekId;
+  const setSelectedWeekId = (id: string) => {
+    if (onSelectWeek) onSelectWeek(id);
+    setLocalSelectedWeekId(id);
+  };
   const [selectedMiniFactory, setSelectedMiniFactory] = useState<string>('ALL');
   const [criticalityFilter, setCriticalityFilter] = useState<
     'ALL' | 'CRITICAL_ONLY' | 'NEXT_WEEK_RISK' | 'FORWARD_HORIZON' | 'INADEQUATE_ONLY' | 'READY_ONLY' | 'FROZEN_ONLY' | 'ESCALATIONS_ONLY'
@@ -174,7 +185,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     resolutionNotes: '',
     agreedAction: '',
     assignedOwner: 'Rajesh Kumar (Buyer)',
-    targetResolutionDate: '2026-08-12',
+    targetResolutionDate: todayISO(),
     escalatedTo: ''
   });
 
@@ -203,8 +214,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     vendorCode: '',
     vendorName: '',
     buyerName: '',
-    expectedDeliveryDate: '2026-08-11',
-    weekId: 'w-2026-08-02',
+    expectedDeliveryDate: todayISO(),
+    weekId: '',
     promisedQty: 1000,
     carrierOrTracking: 'Direct Truck Delivery',
     deliveryStatus: 'CONFIRMED_ON_TRACK',
@@ -222,7 +233,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
     currentStatus: PlanFreezeStatus;
   } | null>(null);
   const [freezePlannerName, setFreezePlannerName] = useState('Vikram Mehta (Supply Planner)');
-  const [freezeNotes, setFreezeNotes] = useState('Plan frozen for Week 2 production. BOM stock reserved.');
+  const [freezeNotes, setFreezeNotes] = useState('Plan frozen for the selected week. BOM stock reserved.');
 
   // 4. Inline History Drawer & Change Audit State
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
@@ -359,8 +370,6 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
   // Mini-Factories List
   const miniFactories = ['ALL', 'Pumps_Division', 'Valves_Division', 'Oil_Systems', 'EGR_Division'];
 
-  // Months available
-  const availableMonths = ['2026-07', '2026-08', '2026-09'];
 
   // Helper date formatter
   const formatDateDisplay = (dateStr?: string) => {
@@ -498,7 +507,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
           ? `Supplier ${comp.vendorName} to expedite batch via express transit before Wednesday morning shift.`
           : 'Production line to sequence high-stock variants first while inward arrives.',
         assignedOwner: comp ? `${comp.buyerName} (Buyer)` : 'Vikram Mehta (Supply Planner)',
-        targetResolutionDate: `${selectedMonth}-12`,
+        targetResolutionDate: todayISO(),
         escalatedTo: ''
       });
     }
@@ -629,7 +638,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         vendorCode: comp.vendorCode,
         vendorName: comp.vendorName,
         buyerName: comp.buyerName,
-        expectedDeliveryDate: `${selectedMonth}-11`,
+        expectedDeliveryDate: todayISO(),
         weekId: selectedWeekId,
         promisedQty: Math.max(500, Math.abs(comp.stockDeficit) || 1000),
         carrierOrTracking: 'Direct Road Express',
@@ -675,7 +684,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         vendorCode: vendorBuyer?.vendorCode || 'V-1001',
         vendorName: vendorBuyer?.vendorName || 'Vendor',
         buyerName: vendorBuyer?.buyerName || 'Rajesh Kumar (Buyer)',
-        expectedDeliveryDate: `${selectedMonth}-11`,
+        expectedDeliveryDate: todayISO(),
         weekId: selectedWeekId,
         promisedQty: 1000,
         carrierOrTracking: 'Direct Road Express',
@@ -1049,7 +1058,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             priorityColor: 'rose' as const,
             metric: `${totalBacklogUnits.toLocaleString()} Backlog Units`,
             title: 'W1 Production Backlog Carryovers',
-            description: `${totalBacklogUnits.toLocaleString()} units unfulfilled from W1 (Panther: 108, FAM B: 56, Oil Pump: 1,400) require demand rebalancing into Week 2 gross targets.`,
+            description: `${totalBacklogUnits.toLocaleString()} units unfulfilled from prior weeks require demand rebalancing into Week ${cockpit.selectedWeek.weekNo} gross targets.`,
             actionLabel: 'Inspect Backlog Lines',
             actionDisabled: false,
             onAction: () => {
@@ -1075,8 +1084,8 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             priority: 'DEMAND TARGETS',
             priorityColor: 'blue' as const,
             metric: `${totalGrossTarget.toLocaleString()} Gross Target`,
-            title: 'Validate W2 Customer Gross Production Targets',
-            description: `Total Week 2 gross demand is ${totalGrossTarget.toLocaleString()} units across 3 OEM programs awaiting final customer order confirmation.`,
+            title: `Validate W${cockpit.selectedWeek.weekNo} Customer Gross Production Targets`,
+            description: `Total Week ${cockpit.selectedWeek.weekNo} gross demand is ${totalGrossTarget.toLocaleString()} units across ${cockpit.fgPlans.length} OEM programs awaiting final customer order confirmation.`,
             actionLabel: 'Export Demand Summary',
             actionDisabled: false,
             onAction: () => handleExportCSV(),
@@ -1222,26 +1231,30 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
             </div>
 
             {/* Week Selector Tabs */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
-              {cockpit.monthWeeks.map((w) => {
-                const isSelected = w.id === cockpit.selectedWeek.id;
-                return (
-                  <button
-                    key={w.id}
-                    onClick={() => setSelectedWeekId(w.id)}
-                    className={`px-2.5 py-1 rounded font-medium transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-slate-900 text-white shadow-xs font-bold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                    }`}
-                  >
-                    {w.weekLabel}
-                    {w.weekNo === 2 && (
-                      <span className="ml-1 text-[10px] opacity-80 font-normal">(Review)</span>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="flex items-center gap-1">
+              <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
+                {cockpit.monthWeeks.map((w) => {
+                  const isSelected = w.id === cockpit.selectedWeek.id;
+                  const isCur = !!findWeekForDate([w], todayISO());
+                  return (
+                    <button
+                      key={w.id}
+                      onClick={() => setSelectedWeekId(w.id)}
+                      className={`px-2.5 py-1 rounded font-medium transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-900 text-white shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      {w.weekLabel}
+                      {isCur && (
+                        <span className="ml-1 text-[10px] opacity-80 font-normal">(Current)</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {onToday && <TodayButton onClick={onToday} />}
             </div>
 
             {/* Review Horizon Selector */}
@@ -1257,7 +1270,7 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
                 <option value="NEXT_WEEK_AT_RISK">
                   ⚡ Next Week Radar ({cockpit.nextWeekCriticalFGsCount} Deficits)
                 </option>
-                <option value="ALL_WEEKS">Full Month (W1-W4)</option>
+                <option value="ALL_WEEKS">Full Month (W1-W${cockpit.monthWeeks.length})</option>
               </select>
             </div>
 

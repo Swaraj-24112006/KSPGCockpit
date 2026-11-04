@@ -21,6 +21,7 @@ import {
   StockReportItem
 } from '../../types';
 import { computeFGWeeklyCoverage } from '../../utils/weeklyMrpEngine';
+import { MonthSelect, TodayButton } from '../PeriodControls';
 
 interface WeeklyFGSupplyViewProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -31,6 +32,7 @@ interface WeeklyFGSupplyViewProps {
   onSelectMonth: (month: string) => void;
   openingStockDate?: string;
   globalSearchTerm?: string;
+  onToday?: () => void;
 }
 
 export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
@@ -41,7 +43,8 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
   selectedMonth,
   onSelectMonth,
   openingStockDate,
-  globalSearchTerm = ''
+  globalSearchTerm = '',
+  onToday
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFG, setSelectedFG] = useState<string>('ALL');
@@ -178,12 +181,12 @@ export const WeeklyFGSupplyView: React.FC<WeeklyFGSupplyViewProps> = ({
             <Calendar className="w-4 h-4 text-blue-600" />
             Planning Month:
           </label>
-          <input
-            type="month"
+          <MonthSelect
             value={selectedMonth}
-            onChange={(e) => onSelectMonth(e.target.value)}
+            onChange={onSelectMonth}
             className="px-3.5 py-2 text-sm font-bold border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 font-mono"
           />
+          {onToday && <TodayButton onClick={onToday} />}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">

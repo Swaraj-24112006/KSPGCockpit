@@ -28,6 +28,7 @@ import {
   RMWeeklyRequirementSummary
 } from '../../types';
 import { computeRMWeeklyRequirements } from '../../utils/weeklyMrpEngine';
+import { MonthSelect, TodayButton } from '../PeriodControls';
 
 interface WeeklyRMSupplyViewProps {
   monthlyPlans: MonthlyPlanItem[];
@@ -200,12 +201,12 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
             <Calendar className="w-4 h-4 text-amber-600" />
             Planning Month:
           </label>
-          <input
-            type="month"
+          <MonthSelect
             value={selectedMonth}
-            onChange={(e) => onSelectMonth(e.target.value)}
+            onChange={onSelectMonth}
             className="px-3.5 py-2 text-sm font-bold border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 font-mono"
           />
+          {onToday && <TodayButton onClick={onToday} />}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">

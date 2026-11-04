@@ -1,3 +1,4 @@
+import { pickDefaultWeek, buildStandardMonthWeeks } from './dateContext';
 import {
   BOMItem,
   VendorBuyerItem,
@@ -59,18 +60,7 @@ export function computeMondayReviewCockpit(
   // Default to Week 2 if available (as requested by user scenario), else first week or fallback
   let selectedWeek = monthWeeks.find((w) => w.id === selectedWeekId);
   if (!selectedWeek) {
-    selectedWeek =
-      monthWeeks.find((w) => w.weekNo === 2) ||
-      monthWeeks[0] || {
-        id: 'w-default',
-        month: selectedMonth,
-        weekNo: 2,
-        weekLabel: 'Week 2',
-        startDate: `${selectedMonth}-08`,
-        endDate: `${selectedMonth}-14`,
-        daysCount: 7,
-        workingDays: 6
-      };
+    selectedWeek = pickDefaultWeek(monthWeeks, selectedMonth) ?? buildStandardMonthWeeks(selectedMonth)[0];
   }
 
   // 2. Identify all prior weeks in the current month

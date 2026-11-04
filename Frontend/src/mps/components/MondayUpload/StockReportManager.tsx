@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { StockReportItem } from '../../types';
 import { stockService } from '../../services/stockService';
+import { todayISO } from '../../utils/dateContext';
 import {
   isStockRecordReadOnly,
   isDateBeforeMB52Upload,
@@ -39,7 +40,7 @@ interface StockReportManagerProps {
 export const StockReportManager: React.FC<StockReportManagerProps> = ({
   stockList,
   onUpdateStock,
-  openingStockDate = new Date().toISOString().slice(0, 10),
+  openingStockDate = todayISO(),
   onUpdateOpeningStockDate
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,7 +60,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
 
   // Upload date defaulting to openingStockDate or today
   const [uploadStockDate, setUploadStockDate] = useState<string>(
-    openingStockDate || new Date().toISOString().slice(0, 10)
+    openingStockDate || todayISO()
   );
 
   const [formData, setFormData] = useState<Partial<StockReportItem>>({
@@ -73,7 +74,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
     uom: 'PC',
     safetyStock: 500,
     plant: '1001',
-    stockDate: openingStockDate || new Date().toISOString().slice(0, 10)
+    stockDate: openingStockDate || todayISO()
   });
 
   const [csvInput, setCsvInput] = useState('');
@@ -209,7 +210,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         uom: 'PC',
         safetyStock: 500,
         plant: '1001',
-        stockDate: openingStockDate || new Date().toISOString().slice(0, 10)
+        stockDate: openingStockDate || todayISO()
       });
     }
     setIsAddModalOpen(true);
@@ -228,7 +229,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
     );
 
     const recordDate =
-      formData.stockDate || openingStockDate || new Date().toISOString().slice(0, 10);
+      formData.stockDate || openingStockDate || todayISO();
 
     setIsSubmitting(true);
     try {
@@ -340,7 +341,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `SAP_MB52_Stock_Template_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `SAP_MB52_Stock_Template_${todayISO()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -498,7 +499,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Stock_Report_MB52_${openingStockDate || new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `Stock_Report_MB52_${openingStockDate || todayISO()}.csv`;
     link.click();
   };
 
@@ -535,7 +536,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
-              setUploadStockDate(openingStockDate || new Date().toISOString().slice(0, 10));
+              setUploadStockDate(openingStockDate || todayISO());
               setIsUploadModalOpen(true);
             }}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors shadow-sm"

@@ -1,5 +1,6 @@
 import { StockReportItem, MB51TransactionItem, VendorDeliverySchedule, WeekDefinition } from '../types';
 import { getCurrentISODate } from './dateUtils';
+import { todayISO } from './dateContext';
 
 /**
  * Normalizes any date string (YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY, timestamps) into standard ISO YYYY-MM-DD.
@@ -59,7 +60,7 @@ export function getEffectiveStockSnapshot(
   targetWeek?: WeekDefinition,
   fallbackDate?: string
 ): ResolvedStockSnapshot {
-  const normFallback = normalizeToISODate(fallbackDate) || getCurrentISODate();
+  const normFallback = normalizeToISODate(fallbackDate) || targetWeek?.startDate || todayISO();
   if (!partNumber || stockList.length === 0) {
     return {
       effectiveDate: normFallback,
