@@ -179,6 +179,7 @@ class UserModuleRole(models.Model):
         ('production', 'Production & Shop Floor'),
         ('management', 'Plant Management'),
         ('operator', 'Checklist Operator / Verification'),
+        ('none', 'No Access Required'),
     ]
     MINI_FACTORY_CHOICES = [
         ('MF1', 'Mini-Factory 1 (MF1)'),
