@@ -72,6 +72,19 @@ export default defineConfig(() => {
           secure: false,
           cookieDomainRewrite: 'localhost',
         },
+        // Proxy Safety Backend API (Port 8004 or custom target)
+        '/api/safety': {
+          target: process.env.VITE_SAFETY_API_TARGET || 'http://127.0.0.1:8004',
+          changeOrigin: true,
+          secure: false,
+          cookieDomainRewrite: 'localhost',
+        },
+        '/api/safetyincidents': {
+          target: process.env.VITE_SAFETY_API_TARGET || 'http://127.0.0.1:8004',
+          changeOrigin: true,
+          secure: false,
+          cookieDomainRewrite: 'localhost',
+        },
         // Proxy local Express mock routes (fivesaudits, etc.)
         '/api': {
           target: 'http://localhost:3000',

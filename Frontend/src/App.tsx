@@ -1467,6 +1467,9 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
                 onUpdateIncident={handleUpdateSafetyIncident}
                 initialAction={initialSafetyAction}
                 onClearInitialAction={() => setInitialSafetyAction(null)}
+                persona={persona}
+                setPersona={handleSetPersona}
+                onNavigateToModule={(mod) => setActiveModule(mod as any)}
               />
             )}
 

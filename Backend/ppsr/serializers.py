@@ -304,6 +304,60 @@ class PpsrReportDetailSerializer(serializers.ModelSerializer):
                 if camel in normalized and snake not in normalized:
                     normalized[snake] = normalized[camel]
 
+            # Clean sketch_photo: handle base64 data URLs, existing URLs, and empty strings
+            sp = normalized.get('sketch_photo') if normalized.get('sketch_photo') is not None else normalized.get('sketchPhoto')
+            if sp is not None:
+                if isinstance(sp, str):
+                    sp_str = sp.strip()
+                    if sp_str.startswith('data:image/'):
+                        try:
+                            import base64
+                            from django.core.files.base import ContentFile
+                            from uuid import uuid4
+                            header, base64_data = sp_str.split(';base64,', 1)
+                            ext = 'png' if 'png' in header else ('webp' if 'webp' in header else 'jpg')
+                            file_data = base64.b64decode(base64_data)
+                            normalized['sketch_photo'] = ContentFile(file_data, name=f"sketch_{uuid4().hex[:8]}.{ext}")
+                        except Exception:
+                            normalized.pop('sketch_photo', None)
+                    elif sp_str.startswith('http') or sp_str.startswith('/media') or sp_str.startswith('ppsr/'):
+                        # Keep existing file on model; don't let DRF fail validating string as file
+                        normalized.pop('sketch_photo', None)
+                    elif sp_str == '':
+                        # Cleared or omitted photo
+                        normalized.pop('sketch_photo', None)
+                normalized.pop('sketchPhoto', None)
+
+            # Normalize cause_localization_approach choices ('fishbone', 'psq', 'both')
+            cla = normalized.get('cause_localization_approach') or normalized.get('causeLocalizationApproach')
+            if cla:
+                cla_str = str(cla).strip().lower()
+                if cla_str in ('fishbone', 'psq', 'both'):
+                    normalized['cause_localization_approach'] = cla_str
+                else:
+                    normalized['cause_localization_approach'] = 'both'
+
+            # Normalize repeat_case ('yes' or 'no')
+            rc = normalized.get('repeat_case') if normalized.get('repeat_case') is not None else normalized.get('repeatCase')
+            if rc is not None:
+                if str(rc).strip().lower() in ('yes', 'true', '1'):
+                    normalized['repeat_case'] = 'yes'
+                else:
+                    normalized['repeat_case'] = 'no'
+
+            # Normalize status
+            st = normalized.get('status')
+            if st and isinstance(st, str):
+                st_map = {
+                    'draft': 'Draft',
+                    'open': 'Open',
+                    'in-progress': 'In-Progress',
+                    'in progress': 'In-Progress',
+                    'closed': 'Closed',
+                    'archived': 'Archived',
+                }
+                normalized['status'] = st_map.get(st.strip().lower(), st)
+
             # Only apply defaults for non-Draft submissions
             is_draft = normalized.get('status') == 'Draft'
             lead_owner = normalized.get('lead_owner') or normalized.get('leadOwner') or ('' if is_draft else 'Initiator')

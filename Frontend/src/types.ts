@@ -503,6 +503,15 @@ export interface SafetyIncident {
   createdAt: string;
 }
 
+export type {
+  SafetyObservation,
+  NearMissReport,
+  AccidentWitness,
+  AccidentIshikawaCauses,
+  AccidentCorrectiveAction,
+  AccidentReport
+} from './safety/types';
+
 export interface PpsrReport {
   id: string;
   ppsrNo: string;
@@ -675,7 +684,7 @@ export interface PpsrMeetingLog {
   createdAt: string;
 }
 
-export type UserPersona = 'operator' | 'committee' | 'manager';
+export type UserPersona = 'operator' | 'coordinator' | 'doctor' | 'committee' | 'manager';
 
 // ─── Kaizen Live Analytics Types ───────────────────────────────────────────────
 

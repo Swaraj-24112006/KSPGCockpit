@@ -1,0 +1,7 @@
+{
+  "name": "Safety Desk Portal",
+  "description": "EHS Safety Desk Zero Harm Management Portal",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

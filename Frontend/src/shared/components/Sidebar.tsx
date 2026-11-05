@@ -12,6 +12,7 @@ import {
   X,
   PlusCircle,
   FileText,
+  Save,
   CheckCircle,
   ClipboardList,
   Sliders,
@@ -32,7 +33,11 @@ import {
   Layers,
   Plus,
   Calendar,
-  Tv
+  Tv,
+  Eye,
+  AlertTriangle,
+  Stethoscope,
+  Clock
 } from 'lucide-react';
 import { UserPersona } from '../../types';
 import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab } from '../utils/rbac';
@@ -78,7 +83,9 @@ export default function Sidebar({
   persona,
   setPersona,
   openRedflagsCount,
+  draftsCount = 0,
   userRole = 'initiator',
+  kaizenRole,
   ppsrRole,
   setActivePpsrTab,
   setInitialRedFlagAction,
@@ -89,6 +96,7 @@ export default function Sidebar({
   setIsMobileOpen,
   isSidebarHidden = false
 }: SidebarProps) {
+  const effectiveKaizenRole: RoleCategory = kaizenRole || userRole || 'initiator';
   const effectivePpsrRole: RoleCategory = ppsrRole || userRole || 'initiator';
   // Desktop auto-hide: collapsed (icon rail) by default, opens on hover, closes on mouse leave.
   // The pin button sets isCollapsed to false to keep the sidebar permanently open.
@@ -367,38 +375,66 @@ export default function Sidebar({
                 <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
                   <button
                     onClick={() => selectSubTab('safety', 'dashboard')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 hover:bg-slate-900/30"
                   >
-                    <BarChart3 className="w-3 h-3 shrink-0 text-amber-400" />
-                    <span>1. Dashboard (Zero Harm Streak)</span>
+                    <BarChart3 className="w-3 h-3 shrink-0 text-emerald-400" />
+                    <span>1. 📊 Zero Harm Dashboard</span>
                   </button>
                   <button
-                    onClick={() => selectSubTab('safety', 'form', 'report-hazard')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    onClick={() => selectSubTab('safety', 'observations')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400 hover:text-amber-200 hover:bg-slate-900/30"
                   >
-                    <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
-                    <span>2. Raise Safety Incident Form</span>
+                    <Eye className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>2. 👁️ Safety Observations</span>
                   </button>
                   <button
-                    onClick={() => selectSubTab('safety', 'tracker')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    onClick={() => selectSubTab('safety', 'raise-observation', 'raise-observation')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1 rounded-lg text-left text-[10px] font-medium text-amber-300/80 hover:text-amber-100 hover:bg-slate-900/30 pl-5"
                   >
-                    <ClipboardList className="w-3 h-3 shrink-0" />
-                    <span>3. Master Tracker (EHS Register)</span>
+                    <PlusCircle className="w-2.5 h-2.5 shrink-0 text-amber-400" />
+                    <span>✍️ Raise Observation</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'nearmiss')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-orange-400 hover:text-orange-200 hover:bg-slate-900/30"
+                  >
+                    <AlertTriangle className="w-3 h-3 shrink-0 text-orange-400" />
+                    <span>3. ⚠️ Near Miss Register</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'raise-nearmiss', 'raise-nearmiss')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1 rounded-lg text-left text-[10px] font-medium text-orange-300/80 hover:text-orange-100 hover:bg-slate-900/30 pl-5"
+                  >
+                    <PlusCircle className="w-2.5 h-2.5 shrink-0 text-orange-400" />
+                    <span>✍️ Raise Near Miss</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'accidents')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-rose-400 hover:text-rose-200 hover:bg-slate-900/30"
+                  >
+                    <Stethoscope className="w-3 h-3 shrink-0 text-rose-400" />
+                    <span>4. 🚑 Accident Reports</span>
                   </button>
                   <button
                     onClick={() => selectSubTab('safety', 'presentation', 'presentation')}
                     className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
                   >
                     <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
-                    <span>4. Presentation Mode</span>
+                    <span>5. 🖨️ Presentation &amp; Print</span>
                   </button>
                   <button
-                    onClick={() => selectSubTab('safety', 'other', 'investigation')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                    onClick={() => selectSubTab('safety', 'timeline', 'timeline')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400 hover:text-amber-200 hover:bg-slate-900/30"
                   >
-                    <CheckSquare className="w-3 h-3 shrink-0 text-amber-400" />
-                    <span>5. Other: Hazard CAPA &amp; Closure</span>
+                    <Clock className="w-3 h-3 shrink-0 text-amber-400" />
+                    <span>6. ⏱️ Incident Timeline</span>
+                  </button>
+                  <button
+                    onClick={() => selectSubTab('safety', 'risk-matrix', 'risk-matrix')}
+                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-blue-400 hover:text-blue-300 hover:bg-slate-900/30"
+                  >
+                    <Layers className="w-3 h-3 shrink-0 text-blue-400" />
+                    <span>7. 🎯 Risk Assessment Matrix</span>
                   </button>
                 </div>
               )}
@@ -561,7 +597,12 @@ export default function Sidebar({
                   }`}
               >
                 <div className="flex items-center space-x-3">
-                  <Lightbulb className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <div className="relative">
+                    <Lightbulb className="w-4 h-4 shrink-0 text-emerald-400" />
+                    {draftsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />
+                    )}
+                  </div>
                   {isExpanded && <span className="truncate">5. 💡 Kaizen Tracker</span>}
                 </div>
                 {isExpanded && (
@@ -583,24 +624,56 @@ export default function Sidebar({
                 <div className="pl-7 pr-1 py-1 space-y-1 border-l-2 border-slate-900 ml-5 animate-fade-in">
                   <button
                     onClick={() => selectSubTab('kaizen', 'dashboard')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'kaizen' && activeTab === 'dashboard'
+                        ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                    }`}
                   >
                     <Gauge className="w-3 h-3 shrink-0 text-emerald-400" />
                     <span>1. Dashboard (Overview &amp; ROI)</span>
                   </button>
-                  {canAccessTab(userRole, 'kaizen', 'form') && (
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'form') && (
                     <button
                       onClick={() => selectSubTab('kaizen', 'form')}
-                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                      className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                        activeModule === 'kaizen' && activeTab === 'form'
+                          ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                      }`}
                     >
                       <PlusCircle className="w-3 h-3 shrink-0 text-emerald-400" />
                       <span>2. Raise Kaizen Sheet Form</span>
                     </button>
                   )}
-                  {canAccessTab(userRole, 'kaizen', 'list') && (
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'drafts') && (
+                    <button
+                      onClick={() => selectSubTab('kaizen', 'drafts')}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                        activeModule === 'kaizen' && activeTab === 'drafts'
+                          ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Save className="w-3 h-3 shrink-0 text-amber-400" />
+                        <span className="truncate">Save Draft / My Drafts</span>
+                      </div>
+                      {typeof draftsCount === 'number' && draftsCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                          {draftsCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'list') && (
                     <button
                       onClick={() => selectSubTab('kaizen', 'list')}
-                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-900/30"
+                      className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                        activeModule === 'kaizen' && activeTab === 'list'
+                          ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                      }`}
                     >
                       <ClipboardList className="w-3 h-3 shrink-0" />
                       <span>3. Master Tracker (Spreadsheet)</span>
@@ -608,24 +681,36 @@ export default function Sidebar({
                   )}
                   <button
                     onClick={() => selectSubTab('kaizen', 'presentation')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30"
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'kaizen' && activeTab === 'presentation'
+                        ? 'bg-indigo-500/20 text-indigo-300 font-bold'
+                        : 'text-indigo-400 hover:text-indigo-300 hover:bg-slate-900/30'
+                    }`}
                   >
                     <Tv className="w-3 h-3 shrink-0 text-indigo-400" />
                     <span>4. Presentation Mode</span>
                   </button>
-                  {canAccessTab(userRole, 'kaizen', 'committee') && (
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'committee') && (
                     <button
                       onClick={() => selectSubTab('kaizen', 'committee')}
-                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                      className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                        activeModule === 'kaizen' && activeTab === 'committee'
+                          ? 'bg-emerald-500/20 text-emerald-300 font-bold'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                      }`}
                     >
                       <UserCheck className="w-3 h-3 shrink-0" />
                       <span>5. Other: Committee Review</span>
                     </button>
                   )}
-                  {canAccessTab(userRole, 'kaizen', 'impact-tracker') && (
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'impact-tracker') && (
                     <button
                       onClick={() => selectSubTab('kaizen', 'impact-tracker')}
-                      className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                      className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                        activeModule === 'kaizen' && activeTab === 'impact-tracker'
+                          ? 'bg-amber-500/20 text-amber-300 font-bold'
+                          : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                      }`}
                     >
                       <CheckSquare className="w-3 h-3 shrink-0 text-amber-400" />
                       <span>5. Other: Impact Point Tracker</span>
@@ -633,19 +718,27 @@ export default function Sidebar({
                   )}
                   <button
                     onClick={() => selectSubTab('kaizen', 'gamification')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'kaizen' && activeTab === 'gamification'
+                        ? 'bg-amber-500/20 text-amber-300 font-bold'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                    }`}
                   >
                     <Crown className="w-3 h-3 shrink-0 text-amber-400" />
                     <span>5. Other: Gamification &amp; Culture</span>
                   </button>
                   <button
                     onClick={() => selectSubTab('kaizen', 'process-flowchart')}
-                    className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-slate-500 hover:text-slate-300 hover:bg-slate-900/30"
+                    className={`w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold transition ${
+                      activeModule === 'kaizen' && activeTab === 'process-flowchart'
+                        ? 'bg-indigo-500/20 text-indigo-300 font-bold'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/30'
+                    }`}
                   >
                     <Workflow className="w-3 h-3 shrink-0 text-indigo-400" />
                     <span>5. Other: Flowchart &amp; Standards</span>
                   </button>
-                  {canAccessTab(userRole, 'kaizen', 'cft-awards') && (
+                  {canAccessTab(effectiveKaizenRole, 'kaizen', 'cft-awards') && (
                     <button
                       onClick={() => selectSubTab('cft-awards', '')}
                       className="w-full flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-left text-[11px] font-semibold text-amber-400/80 hover:text-amber-300 hover:bg-slate-900/30"
