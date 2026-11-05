@@ -13,7 +13,7 @@
  *   - 'admin'       : Super Administrator — full access to everything.
  */
 
-export type RoleCategory = 'initiator' | 'coordinator' | 'committee' | 'admin' | 'superadmin';
+export type RoleCategory = 'initiator' | 'coordinator' | 'committee' | 'admin' | 'superadmin' | 'none';
 
 export type AppModule = 
   | 'global-dashboard' 
@@ -514,3 +514,62 @@ export function getUserChecklistRole(user: AuthUser | null | undefined): Checkli
 }
 
 
+
+/**
+ * Check if the user has authorization to access a given module.
+ * Returns false if the user has 'none' (No Access) or is not assigned to the module.
+ * SuperAdmin always returns true.
+ */
+export function hasModuleAccess(
+  user: AuthUser | null | undefined,
+  moduleCode: string
+): boolean {
+  if (!user) return false;
+  if (user.is_superadmin || user.role_category === 'superadmin' || (user as any).isSuperadmin) {
+    return true;
+  }
+  if (moduleCode === 'mps') {
+    return getUserMpsRole(user) !== 'none';
+  }
+  if (moduleCode === 'checklist') {
+    return getUserChecklistRole(user) !== 'none';
+  }
+  if (moduleCode === 'cft-awards') {
+    const kaizenRole = getUserModuleRole(user, 'kaizen');
+    return kaizenRole === 'coordinator' || kaizenRole === 'admin' || kaizenRole === 'superadmin';
+  }
+  const role = getUserModuleRole(user, moduleCode);
+  return role !== 'none';
+}
+
+/**
+ * Human-readable friendly display name for modules.
+ */
+export function getModuleFriendlyName(moduleCode: string): string {
+  switch (moduleCode) {
+    case 'kaizen':
+      return 'Kaizen Continuous Improvement';
+    case 'ppsr':
+      return 'PPSR Root Cause Problem Solving';
+    case 'fives':
+      return '5S Workplace Audit & Standards';
+    case 'safety':
+      return 'Safety Incident Tracker';
+    case 'redflag':
+      return 'Red Flag Quality Alert System';
+    case 'safety_desk':
+      return 'Safety & Red Flag Desk';
+    case 'mps':
+      return 'MPS Supply Chain & Inventory';
+    case 'checklist':
+      return 'Checklist Daily Work Management';
+    case 'cft-awards':
+      return 'CFT Monthly Best Awards';
+    case 'sfc':
+      return 'Shop Floor Control (SFC)';
+    case 'dwm':
+      return 'Daily Work Management (DWM)';
+    default:
+      return moduleCode.toUpperCase();
+  }
+}

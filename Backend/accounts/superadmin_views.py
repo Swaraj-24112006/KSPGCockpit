@@ -579,10 +579,16 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                 user.role = role_obj
 
             if ppsr_role is not None:
-                if ppsr_role == 'none':
-                    # Revoke PPSR access
-                    UserModuleRole.objects.filter(user=user, module_code='ppsr').delete()
-                elif ppsr_role in valid_module_roles:
+                if ppsr_role == 'none' or ppsr_role in valid_module_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='ppsr',
+                        defaults={
+                            'role_name': ppsr_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+                elif False:
                     UserModuleRole.objects.update_or_create(
                         user=user, module_code='ppsr',
                         defaults={
@@ -593,10 +599,16 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     )
 
             if mps_role is not None:
-                if mps_role == 'none':
-                    # Revoke MPS access
-                    UserModuleRole.objects.filter(user=user, module_code='mps').delete()
-                elif mps_role in valid_mps_roles:
+                if mps_role == 'none' or mps_role in valid_mps_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='mps',
+                        defaults={
+                            'role_name': mps_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+                elif False:
                     UserModuleRole.objects.update_or_create(
                         user=user, module_code='mps',
                         defaults={
@@ -607,10 +619,16 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
                     )
 
             if checklist_role is not None:
-                if checklist_role == 'none':
-                    # Revoke Checklist access
-                    UserModuleRole.objects.filter(user=user, module_code='checklist').delete()
-                elif checklist_role in valid_checklist_roles:
+                if checklist_role == 'none' or checklist_role in valid_checklist_roles:
+                    UserModuleRole.objects.update_or_create(
+                        user=user, module_code='checklist',
+                        defaults={
+                            'role_name': checklist_role,
+                            'mini_factory': user.mini_factory,
+                            'assigned_by': request.user,
+                        }
+                    )
+                elif False:
                     UserModuleRole.objects.update_or_create(
                         user=user, module_code='checklist',
                         defaults={
@@ -820,25 +838,33 @@ class SuperAdminUserViewSet(viewsets.ModelViewSet):
         old_mf = existing_role.mini_factory if existing_role else user.mini_factory
 
         with transaction.atomic():
-            if role_name == 'none':
-                # Revoke access for this module
-                UserModuleRole.objects.filter(user=user, module_code=module_code).delete()
+            obj, created = UserModuleRole.objects.update_or_create(
+                user=user,
+                module_code=module_code,
+                defaults={
+                    'role_name': role_name,
+                    'mini_factory': mini_factory,
+                    'assigned_by': request.user,
+                }
+            )
 
-                # If revoking kaizen, reset primary role to initiator
-                if module_code == 'kaizen':
+            # If assigning/revoking kaizen role
+            if module_code == 'kaizen':
+                if role_name == 'none':
                     role_obj, _ = Role.objects.get_or_create(name='initiator')
                     user.role = role_obj
                     user.save(update_fields=['role'])
-            else:
-                obj, created = UserModuleRole.objects.update_or_create(
-                    user=user,
-                    module_code=module_code,
-                    defaults={
-                        'role_name': role_name,
-                        'mini_factory': mini_factory,
-                        'assigned_by': request.user,
+                else:
+                    db_role_map = {
+                        'initiator': 'initiator',
+                        'committee': 'reviewer',
+                        'coordinator': 'kaizen_lead',
+                        'admin': 'admin',
                     }
-                )
+                    if role_name in db_role_map:
+                        role_obj, _ = Role.objects.get_or_create(name=db_role_map[role_name])
+                        user.role = role_obj
+                        user.save(update_fields=['role'])
 
                 # Sync primary user role if changing Kaizen module role
                 if module_code == 'kaizen':
