@@ -43,6 +43,7 @@ interface WeeklyRMSupplyViewProps {
   globalSearchTerm?: string;
   vendorDeliverySchedules?: any[];
   onNavigateToDeliverySchedule?: () => void;
+  onToday?: () => void;
 }
 
 export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
@@ -55,7 +56,10 @@ export const WeeklyRMSupplyView: React.FC<WeeklyRMSupplyViewProps> = ({
   selectedMonth,
   onSelectMonth,
   openingStockDate,
-  globalSearchTerm = ''
+  globalSearchTerm = '',
+  vendorDeliverySchedules,
+  onNavigateToDeliverySchedule,
+  onToday
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [buyerFilter, setBuyerFilter] = useState<string>('ALL');

@@ -162,11 +162,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 id="sidebar-btn-supply-chain-one-pager"
                 onClick={() => onSelectSubView('supply_chain_one_pager')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  activeSubView === 'supply_chain_one_pager'
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeSubView === 'supply_chain_one_pager'
                     ? 'bg-rose-700 text-white font-bold shadow-md ring-1 ring-rose-400'
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
+                  }`}
                 title="Critical Material Shortages Report (Current Week)"
               >
                 <div className="flex items-center gap-2.5 truncate">
@@ -508,7 +507,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title="Reset to initial SAP dataset"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          {!isCollapsed && <span>Reset Demo Data</span>}
+          {!isCollapsed && <span>Reset  Data</span>}
         </button>
       </div>
     </aside>
