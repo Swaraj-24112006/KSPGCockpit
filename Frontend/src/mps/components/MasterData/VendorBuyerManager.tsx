@@ -686,27 +686,32 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
             >
               <div>
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-700 font-mono font-bold flex items-center justify-center text-xs border border-amber-200">
-                      {item.vendor_code}
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    <div
+                      className="min-h-[2.25rem] min-w-[2.25rem] px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-mono font-bold flex items-center justify-center text-xs border border-amber-200 shrink-0 whitespace-nowrap max-w-[140px] truncate shadow-xs"
+                      title={item.vendor_code}
+                    >
+                      <span className="truncate">{item.vendor_code}</span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-slate-900 text-sm">{item.vendor_name}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-slate-900 text-sm truncate" title={item.vendor_name}>
+                          {item.vendor_name}
+                        </h3>
                         {!item.is_active && (
-                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
                             Inactive
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-500 flex items-center gap-2">
-                        <span>{item.city || 'Domestic Supplier'}</span>
-                        {item.gst_no && <span className="font-mono text-[11px] text-slate-400">• GST: {item.gst_no}</span>}
+                      <div className="text-xs text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                        <span className="truncate max-w-[150px]">{item.city || 'Domestic Supplier'}</span>
+                        {item.gst_no && <span className="font-mono text-[11px] text-slate-400 shrink-0">• GST: {item.gst_no}</span>}
                       </div>
                     </div>
                   </div>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded font-semibold ${item.category === 'PM'
+                    className={`text-xs px-2 py-0.5 rounded font-semibold shrink-0 ml-1 ${item.category === 'PM'
                       ? 'bg-purple-50 text-purple-700 border border-purple-200'
                       : 'bg-blue-50 text-blue-700 border border-blue-200'
                       }`}
@@ -817,14 +822,14 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 border border-slate-200 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Users className="w-5 h-5 text-amber-600" />
-                {editingItem ? `Edit Vendor: ${editingItem.vendor_code}` : 'Add Vendor & Buyer Relationship'}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4 gap-3">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 min-w-0">
+                <Users className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="truncate">{editingItem ? `Edit Vendor: ${editingItem.vendor_code}` : 'Add Vendor & Buyer Relationship'}</span>
               </h2>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>

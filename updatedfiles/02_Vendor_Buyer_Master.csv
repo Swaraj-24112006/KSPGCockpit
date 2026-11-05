@@ -1,0 +1,52 @@
+Vendor Code,Vendor Name,Buyer Name,Buyer Email,Buyer Phone,Category,Lead Time Days,City,GST No,Supplied Component Codes
+14000157,Test1,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"7.05373.01.0, 7.05373.02.0, 7.09078.10.0"
+14000211,Test2,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.88677.20.0
+14000302,Test3,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.11401.00.0, 3.18645.00.0"
+14000495,Test4,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.64460.06.0
+14000500,Test5,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.17271.00.0, 3.18022.00.0, 3.20041.00.0, 3.67890.00.0, 3.70489.02.0"
+14000503,Test6,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.44099.03.0, 3.50168.01.0"
+14000509,Test7,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.05033.01.0
+14000510,Test8,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.70661.00.0
+14000533,Test9,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.13557.01.0, 3.48599.01.0"
+14000550,Test10,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.13560.01.0
+14000561,Test11,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.27496.00.0, 3.43771.00.0"
+14000842,Test12,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.42058.00.0, 3.43066.00.0, 3.49187.00.0, 3.69521.00.0, 3.69522.00.0, 3.88061.00.0"
+14001052,Test13,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.17021.00.0
+14001115,Test14,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.26122.00.0, 3.44654.00.0"
+14001160,Test15,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.43064.02.0, 3.44485.00.0, 3.44486.02.0, 3.95040.00.0"
+14001297,Test16,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.13337.01.0
+14001346,Test17,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.59343.00.0
+14001740,Test18,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.11529.01.0, 3.28182.01.0, 3.31739.00.0, 3.70514.07.0, 3.70711.01.0"
+14001781,Test19,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.81101.00.0, 3.81102.00.0"
+14002516,Test20,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.36794.00.0, 3.92123.00.0"
+14002610,Test21,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.48862.00.0, 3.50597.00.0"
+14002635,Test22,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.44582.00.0
+14002690,Test23,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.44142.02.0, 3.81846.00.0, 3.81966.00.0"
+14002750,Test24,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.87333.00.0
+14002896,Test25,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.68355.01.0, 3.87109.00.0"
+14002976,Test26,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"2.70449.01.0, 2.70450.00.0, 3.51266.01.0, 3.69510.02.0"
+14003060,Test27,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.28011.00.0
+14003075,Test28,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.34916.00.0, 3.43737.01.0"
+14003076,Test29,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.61995.01.0
+14003293,Test30,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.29585.00.0
+14003486,Test31,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.95036.01.0
+14003515,Test32,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.69518.00.0
+14003530,Test33,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.69701.01.0
+14003546,Test34,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.63295.02.0, 3.63567.02.0, 3.69511.01.0, 3.69512.00.0, 3.88034.00.0, 3.88231.00.0, 3.94822.00.0"
+14003745,Test35,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.43060.02.0, 3.68323.05.0, 3.73631.00.0, 3.90377.00.0"
+14003748,Test36,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.11336.00.0
+14003793,Test37,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.68360.03.0
+14004136,Test38,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.46045.04.0
+14004210,Test39,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.59395.01.0
+14004323,Test40,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.60397.00.0
+14004410,Test41,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.68324.05.0
+14004560,Test42,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.49068.00.0
+14004765,Test43,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.88678.20.0
+14004927,Test44,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.11346.00.0
+14004990,Test45,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.20870.02.0
+14005090,Test46,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.45468.01.0, 3.45541.02.0, 3.46727.02.0"
+14005146,Test47,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,"3.31741.00.0, 3.43061.01.0, 3.50122.04.0, 3.70514.06.0"
+14005155,Test48,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.43355.02.0
+14005170,Test49,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.17408.03.0
+14005175,Test50,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.21875.06.0
+14005310,Test51,Sandip Gorde,sandip.gorde@in.rheinmetall.com,,RM,7,,,3.44108.00.0
