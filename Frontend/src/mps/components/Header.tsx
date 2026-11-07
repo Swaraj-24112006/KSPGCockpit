@@ -14,7 +14,7 @@ import {
 
 interface HeaderProps {
   currentRole: UserRole;
-  setCurrentRole: (role: UserRole) => void;
+  setCurrentRole?: (role: UserRole) => void;
   selectedMonth: string;
   setSelectedMonth: (month: string) => void;
   isSidebarCollapsed: boolean;
@@ -110,20 +110,13 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           {onToday && <TodayButton onClick={onToday} />}
 
-          {/* Role selector */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs">
+          {/* Active Role Indicator (Read-only) */}
+          <div
+            className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-lg text-xs"
+            title={`Assigned Operating Role: ${currentRoleDef.label}`}
+          >
             <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-            <select
-              value={currentRole}
-              onChange={(e) => setCurrentRole(e.target.value as UserRole)}
-              className="bg-transparent border-none text-white text-xs font-semibold focus:outline-none cursor-pointer"
-            >
-              {USER_ROLES.map((role) => (
-                <option key={role.id} value={role.id} className="bg-slate-900 text-white">
-                  {role.label}
-                </option>
-              ))}
-            </select>
+            <span className="text-white text-xs font-semibold">{currentRoleDef.label}</span>
           </div>
         </div>
       </div>

@@ -108,7 +108,7 @@ class CustomUser(AbstractUser):
         """Raw DB role name (e.g. 'initiator', 'kaizen_lead', 'superadmin')."""
         if self.is_superadmin:
             return 'superadmin'
-        return self.role.name if self.role else 'initiator'
+        return self.role.name if self.role else ''
 
     @property
     def role_category(self) -> str:
@@ -116,9 +116,11 @@ class CustomUser(AbstractUser):
         Normalised RBAC category: 'superadmin' | 'admin' | 'coordinator' | 'committee' | 'initiator'.
         """
         if not self.is_authenticated:
-            return 'initiator'
+            return ''
         if self.is_superadmin:
             return 'superadmin'
+        if not self.role:
+            return ''
         from core.rbac import get_role_category
         return get_role_category(self)
 

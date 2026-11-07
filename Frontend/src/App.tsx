@@ -14,7 +14,8 @@ import CftAwardsModule from './cft/CftAwardsModule';
 import { Kaizen, UserPersona, RedFlag, FiveSAudit, SafetyIncident, PpsrReport, PpsrMeetingLog, OpenImpactAction, KaizenImpactAssessment } from './types';
 import { Eye, X, Award, Lightbulb, Check, FileText, CheckCircle, HelpCircle, Printer, LayoutDashboard, Flag, Sparkles, ShieldAlert, Compass, Menu, Loader2, BarChart3 } from 'lucide-react';
 import { formatIndianRupees } from './utils';
-import { RoleCategory, KaizenSubTab, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge, getUserModuleRole } from './shared/utils/rbac';
+import AccessDeniedModal from './shared/components/AccessDeniedModal';
+import { RoleCategory, KaizenSubTab, PpsrSubTab, canAccessTab, canAccessPpsrTab, getRoleBadge, getUserModuleRole, hasModuleAccess, getModuleFriendlyName } from './shared/utils/rbac';
 import { downloadElementAsPdf } from './shared/utils/pdfExporter';
 import { triggerAnalyticsInvalidation } from './api/analytics';
 
@@ -40,6 +41,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
   // Kaizen internal tab state
   const [activeTab, setActiveTab] = useState<KaizenSubTab>('dashboard');
 
+  const [deniedModal, setDeniedModal] = useState<{ moduleName: string } | null>(null);
+
   // Dynamic module-specific role resolution
   const effectiveUser = loggedInUser || getUser();
   const kaizenRole: RoleCategory = getUserModuleRole(effectiveUser, 'kaizen');
@@ -64,6 +67,14 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
       setActivePpsrTab(ppsrRole === 'committee' ? 'meeting' : 'initiate');
     }
   }, [ppsrRole, activePpsrTab]);
+
+  // Auto-guard activeModule on role change or initial load
+  useEffect(() => {
+    if (activeModule !== 'global-dashboard' && effectiveUser && !hasModuleAccess(effectiveUser, activeModule)) {
+      setDeniedModal({ moduleName: getModuleFriendlyName(activeModule) });
+      setActiveModule('global-dashboard');
+    }
+  }, [activeModule, effectiveUser]);
 
   // Mobile drawer state
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -1177,14 +1188,19 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
     }
 
     return (
-      <SfcDashboard
-        currentUser={effectiveUser}
-        kaizens={kaizens}
-        redFlags={redFlags}
-        fiveSAudits={fiveSAudits}
-        safetyIncidents={safetyIncidents}
-        ppsrReports={ppsrReports}
-        onNavigateToModule={(mod, subAction) => {
+      <>
+        <SfcDashboard
+          currentUser={effectiveUser}
+          kaizens={kaizens}
+          redFlags={redFlags}
+          fiveSAudits={fiveSAudits}
+          safetyIncidents={safetyIncidents}
+          ppsrReports={ppsrReports}
+          onNavigateToModule={(mod, subAction) => {
+          if (!hasModuleAccess(effectiveUser, mod)) {
+            setDeniedModal({ moduleName: getModuleFriendlyName(mod) });
+            return;
+          }
           setActiveModule(mod);
           if (mod === 'kaizen') {
             if (subAction) {
@@ -1217,6 +1233,12 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         onLogout={handleLogout}
         onNavigateToSuperadmin={onNavigateToSuperadmin}
       />
+      <AccessDeniedModal
+        isOpen={Boolean(deniedModal)}
+        moduleName={deniedModal?.moduleName || ''}
+        onClose={() => setDeniedModal(null)}
+      />
+    </>
     );
   }
 
@@ -1232,6 +1254,8 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         persona={persona}
         setPersona={handleSetPersona}
         openRedflagsCount={openRedflagsCount}
+        currentUser={effectiveUser}
+        onAccessDenied={(modName) => setDeniedModal({ moduleName: modName })}
         draftsCount={drafts.length}
         userRole={userRole}
         kaizenRole={kaizenRole}
@@ -1411,105 +1435,159 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
 
             {/* 2. Kaizen Continuous Improvement Module */}
             {activeModule === 'kaizen' && (
-              <KaizenModule
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                kaizens={kaizens}
-                drafts={drafts}
-                editingDraft={editingDraft}
-                setEditingDraft={setEditingDraft}
-                ppsrReports={ppsrReports}
-                impactActions={impactActions}
-                userRole={kaizenRole}
-                onAddKaizen={handleAddKaizen}
-                onSaveDraft={handleSaveDraft}
-                onSubmitKaizen={handleSubmitKaizen}
-                onDeleteDraft={handleDeleteDraft}
-                onUpdateKaizen={handleUpdateKaizen}
-                onAddImpactAction={handleAddImpactAction}
-                onUpdateImpactAction={handleUpdateImpactAction}
-                onDeleteImpactAction={handleDeleteImpactAction}
-                onUpdatePpsrReport={handleUpdatePpsrReport}
-                onSelectKaizen={setInspectKaizen}
-                handleSetPersona={handleSetPersona}
-              />
+              hasModuleAccess(effectiveUser, 'kaizen') ? (
+                <KaizenModule
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  kaizens={kaizens}
+                  drafts={drafts}
+                  editingDraft={editingDraft}
+                  setEditingDraft={setEditingDraft}
+                  ppsrReports={ppsrReports}
+                  impactActions={impactActions}
+                  userRole={kaizenRole}
+                  onAddKaizen={handleAddKaizen}
+                  onSaveDraft={handleSaveDraft}
+                  onSubmitKaizen={handleSubmitKaizen}
+                  onDeleteDraft={handleDeleteDraft}
+                  onUpdateKaizen={handleUpdateKaizen}
+                  onAddImpactAction={handleAddImpactAction}
+                  onUpdateImpactAction={handleUpdateImpactAction}
+                  onDeleteImpactAction={handleDeleteImpactAction}
+                  onUpdatePpsrReport={handleUpdatePpsrReport}
+                  onSelectKaizen={setInspectKaizen}
+                  handleSetPersona={handleSetPersona}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('kaizen')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
             {/* 3. Red Flag Quality Portal Module */}
             {activeModule === 'redflag' && (
-              <RedFlagModule
-                redFlags={redFlags}
-                onAddRedFlag={handleAddRedFlag}
-                onUpdateRedFlag={handleUpdateRedFlag}
-                onFlagListChanged={setRedFlags}
-                onNavigateToModule={(mod) => setActiveModule(mod as any)}
-                currentPersona={persona}
-                initialAction={initialRedFlagAction}
-                onClearInitialAction={() => setInitialRedFlagAction(null)}
-              />
+              hasModuleAccess(effectiveUser, 'redflag') ? (
+                <RedFlagModule
+                  redFlags={redFlags}
+                  onAddRedFlag={handleAddRedFlag}
+                  onUpdateRedFlag={handleUpdateRedFlag}
+                  onFlagListChanged={setRedFlags}
+                  onNavigateToModule={(mod) => setActiveModule(mod as any)}
+                  currentPersona={persona}
+                  initialAction={initialRedFlagAction}
+                  onClearInitialAction={() => setInitialRedFlagAction(null)}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('redflag')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
             {/* 4. 5S Audit System Module */}
             {activeModule === 'fives' && (
-              <FiveSModule
-                audits={fiveSAudits}
-                onAddAudit={handleAddFiveSAudit}
-                initialAction={initialFiveSAction}
-                onClearInitialAction={() => setInitialFiveSAction(null)}
-              />
+              hasModuleAccess(effectiveUser, 'fives') ? (
+                <FiveSModule
+                  audits={fiveSAudits}
+                  onAddAudit={handleAddFiveSAudit}
+                  initialAction={initialFiveSAction}
+                  onClearInitialAction={() => setInitialFiveSAction(null)}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('fives')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
             {/* 5. Safety Tracker Module */}
             {activeModule === 'safety' && (
-              <SafetyModule
-                incidents={safetyIncidents}
-                onAddIncident={handleAddSafetyIncident}
-                onUpdateIncident={handleUpdateSafetyIncident}
-                initialAction={initialSafetyAction}
-                onClearInitialAction={() => setInitialSafetyAction(null)}
-                persona={persona}
-                setPersona={handleSetPersona}
-                onNavigateToModule={(mod) => setActiveModule(mod as any)}
-              />
+              hasModuleAccess(effectiveUser, 'safety') ? (
+                <SafetyModule
+                  incidents={safetyIncidents}
+                  onAddIncident={handleAddSafetyIncident}
+                  onUpdateIncident={handleUpdateSafetyIncident}
+                  initialAction={initialSafetyAction}
+                  onClearInitialAction={() => setInitialSafetyAction(null)}
+                  persona={persona}
+                  setPersona={handleSetPersona}
+                  onNavigateToModule={(mod) => setActiveModule(mod as any)}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('safety')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
             {/* 6. PPSR Root Cause Problem Solver Module */}
             {activeModule === 'ppsr' && (
-              <PpsrModule
-                reports={ppsrReports}
-                kaizens={kaizens}
-                userRole={ppsrRole}
-                activePpsrTab={activePpsrTab}
-                setActivePpsrTab={setActivePpsrTab}
-                onAddReport={handleAddPpsrReport}
-                onUpdateReport={handleUpdatePpsrReport}
-                onUpdateKaizen={handleUpdateKaizen}
-                initialAction={initialPpsrAction}
-                onClearInitialAction={() => setInitialPpsrAction(null)}
-                onInspectReport={(report) => setInspectPpsr(report)}
-                meetings={ppsrMeetings}
-                onAddMeeting={handleAddPpsrMeeting}
-                drafts={ppsrDrafts}
-                onSaveDraft={handleSavePpsrDraft}
-                onUpdateDraft={handleUpdatePpsrDraft}
-                onDeleteDraft={handleDeletePpsrDraft}
-              />
+              hasModuleAccess(effectiveUser, 'ppsr') ? (
+                <PpsrModule
+                  reports={ppsrReports}
+                  kaizens={kaizens}
+                  userRole={ppsrRole}
+                  activePpsrTab={activePpsrTab}
+                  setActivePpsrTab={setActivePpsrTab}
+                  onAddReport={handleAddPpsrReport}
+                  onUpdateReport={handleUpdatePpsrReport}
+                  onUpdateKaizen={handleUpdateKaizen}
+                  initialAction={initialPpsrAction}
+                  onClearInitialAction={() => setInitialPpsrAction(null)}
+                  onInspectReport={(report) => setInspectPpsr(report)}
+                  meetings={ppsrMeetings}
+                  onAddMeeting={handleAddPpsrMeeting}
+                  drafts={ppsrDrafts}
+                  onSaveDraft={handleSavePpsrDraft}
+                  onUpdateDraft={handleUpdatePpsrDraft}
+                  onDeleteDraft={handleDeletePpsrDraft}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('ppsr')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
             {/* 7. CFT Monthly Best Awards Module (Super Admin & Kaizen Coordinator only) */}
             {activeModule === 'cft-awards' && (
-              <CftAwardsModule
-                kaizens={kaizens}
-                ppsrReports={ppsrReports}
-                userRole={kaizenRole}
-                onUpdateKaizen={handleUpdateKaizen}
-                onUpdatePpsrReport={handleUpdatePpsrReport}
-                onNavigateHome={() => setActiveModule('global-dashboard')}
-                onNavigateKaizen={() => {
-                  setActiveModule('kaizen');
-                  setActiveTab('dashboard');
-                }}
-              />
+              hasModuleAccess(effectiveUser, 'cft-awards') ? (
+                <CftAwardsModule
+                  kaizens={kaizens}
+                  ppsrReports={ppsrReports}
+                  userRole={kaizenRole}
+                  onUpdateKaizen={handleUpdateKaizen}
+                  onUpdatePpsrReport={handleUpdatePpsrReport}
+                  onNavigateHome={() => setActiveModule('global-dashboard')}
+                  onNavigateKaizen={() => {
+                    setActiveModule('kaizen');
+                    setActiveTab('dashboard');
+                  }}
+                />
+              ) : (
+                <AccessDeniedModal
+                  isOpen={true}
+                  moduleName={getModuleFriendlyName('cft-awards')}
+                  onClose={() => setActiveModule('global-dashboard')}
+                  onBackToDashboard={() => setActiveModule('global-dashboard')}
+                />
+              )
             )}
 
           </div>
@@ -1854,6 +1932,12 @@ export default function App({ loggedInUser, onLogout, onBackToLanding, onNavigat
         </div>
       )}
 
+      {/* Access Denied Modal */}
+      <AccessDeniedModal
+        isOpen={Boolean(deniedModal)}
+        moduleName={deniedModal?.moduleName || ''}
+        onClose={() => setDeniedModal(null)}
+      />
       </div>
     </div>
   );

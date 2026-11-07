@@ -52,7 +52,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   currentRole: UserRole;
-  onSelectRole: (role: UserRole) => void;
+  onSelectRole?: (role: UserRole) => void;
   activeSubView: SubViewTab;
   onSelectSubView: (tab: SubViewTab) => void;
   criticalShortagesCount: number;
@@ -115,24 +115,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      {/* 2. Persona Role Switcher */}
+      {/* 2. Persona Role Display (Read-only) */}
       {!isCollapsed && (
         <div className="p-3 border-b border-slate-800/80 bg-slate-900/40">
           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
             <span>Operating Persona</span>
             <ShieldCheck className="w-3 h-3 text-blue-400" />
           </div>
-          <select
-            value={currentRole}
-            onChange={(e) => onSelectRole(e.target.value as UserRole)}
-            className="w-full bg-slate-900 border border-slate-700 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-          >
-            {USER_ROLES.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-full bg-slate-900/80 border border-slate-700 text-xs text-blue-200 font-semibold rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+            <span>{currentRoleDef.label}</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-400 border border-blue-800/60">
+              Assigned
+            </span>
+          </div>
           <div className="text-[10px] text-slate-400 mt-1 line-clamp-1">
             {currentRoleDef.description}
           </div>

@@ -35,6 +35,7 @@ interface MB51ReportManagerProps {
   selectedMonth: string;
   stockList?: StockReportItem[];
   openingStockDate?: string;
+  canUpload?: boolean;
 }
 
 export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
@@ -43,7 +44,8 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
   weeks,
   selectedMonth,
   stockList = [],
-  openingStockDate
+  openingStockDate,
+  canUpload = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState<
@@ -477,6 +479,14 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* RBAC Read-Only Alert Banner */}
+      {!canUpload && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading SAP MB51 movement reports and adding/deleting transactions are restricted to Supply Planners, Demand Planners, and Administrators. All transactions remain fully visible.</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -485,20 +495,19 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Monday Upload: SAP MB51 Movement Report</h1>
-            {/* <p className="text-sm text-slate-500">
-              Parses 101 FG Production Receipts (prefix 7), 101 RM/PM Inward Receipts (non-7), and 601 FG Dispatches
-            </p> */}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <Upload className="w-4 h-4 text-blue-600" />
-            Upload MB51 CSV / Excel
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-800 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <Upload className="w-4 h-4 text-blue-600" />
+              Upload MB51 CSV / Excel
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
@@ -506,13 +515,15 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
             <Download className="w-4 h-4 text-slate-500" />
             Export CSV
           </button>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Material Doc
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Material Doc
+            </button>
+          )}
         </div>
       </div>
 
@@ -588,7 +599,7 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
       </div>
 
       {/* Bulk Delete / Selection Bar */}
-      {selectedIds.size > 0 && (
+      {canUpload && selectedIds.size > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-blue-50 border border-blue-300 p-3.5 rounded-xl text-sm shadow-sm animate-in fade-in">
           <div className="flex items-center gap-2.5 text-blue-900 font-semibold">
             <CheckCircle2 className="w-5 h-5 text-blue-600" />
@@ -868,7 +879,9 @@ export const MB51ReportManager: React.FC<MB51ReportManagerProps> = ({
                         {tx.vendorOrCustomer || '-'}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {isReadOnly ? (
+                        {!canUpload ? (
+                          <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                        ) : isReadOnly ? (
                           <span
                             className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
                             title={`Read-Only: Posting date (${tx.postingDate}) is before MB52 baseline. Cannot delete.`}

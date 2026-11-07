@@ -36,6 +36,7 @@ interface StockReportManagerProps {
   openingStockDate?: string;
   onUpdateOpeningStockDate?: (date: string) => void;
   globalSearchTerm?: string;
+  canUpload?: boolean;
 }
 
 export const StockReportManager: React.FC<StockReportManagerProps> = ({
@@ -43,7 +44,8 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
   onUpdateStock,
   openingStockDate = todayISO(),
   onUpdateOpeningStockDate,
-  globalSearchTerm = ''
+  globalSearchTerm = '',
+  canUpload = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'FG' | 'RM' | 'PM'>('ALL');
@@ -512,6 +514,14 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* RBAC Read-Only Alert Banner */}
+      {!canUpload && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading SAP MB52 stock balances and modifying inventory items are restricted to Supply Planners, Demand Planners, and Administrators. All stock balances remain fully visible.</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -525,13 +535,17 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-teal-50 text-teal-800 border border-teal-200 rounded-lg text-xs font-semibold">
                 <Calendar className="w-3.5 h-3.5 text-teal-600" />
                 <span>Opening Stock As Of:</span>
-                <input
-                  type="date"
-                  value={openingStockDate}
-                  onChange={(e) => onUpdateOpeningStockDate?.(e.target.value)}
-                  className="bg-white border border-teal-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-teal-900 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                  title="Click to change baseline opening stock date for all calculations"
-                />
+                {canUpload ? (
+                  <input
+                    type="date"
+                    value={openingStockDate}
+                    onChange={(e) => onUpdateOpeningStockDate?.(e.target.value)}
+                    className="bg-white border border-teal-300 rounded px-1.5 py-0.5 text-xs font-mono font-bold text-teal-900 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
+                    title="Click to change baseline opening stock date for all calculations"
+                  />
+                ) : (
+                  <span className="font-mono font-bold text-teal-900">{openingStockDate}</span>
+                )}
               </div>
             </div>
             <p className="text-sm text-slate-500 mt-0.5">
@@ -541,16 +555,18 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => {
-              setUploadStockDate(openingStockDate || todayISO());
-              setIsUploadModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors shadow-sm"
-          >
-            <Upload className="w-4 h-4 text-teal-600" />
-            Upload Stock CSV / Excel
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => {
+                setUploadStockDate(openingStockDate || todayISO());
+                setIsUploadModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-teal-800 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition-colors shadow-sm"
+            >
+              <Upload className="w-4 h-4 text-teal-600" />
+              Upload Stock CSV / Excel
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
@@ -558,13 +574,15 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
             <Download className="w-4 h-4 text-slate-500" />
             Export CSV
           </button>
-          <button
-            onClick={() => handleOpenAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Stock Item
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => handleOpenAddModal()}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Stock Item
+            </button>
+          )}
         </div>
       </div>
 
@@ -630,7 +648,7 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
       </div>
 
       {/* Bulk Delete / Selection Bar */}
-      {selectedIds.size > 0 && (
+      {canUpload && selectedIds.size > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-teal-50 border border-teal-300 p-3.5 rounded-xl text-sm shadow-sm animate-in fade-in">
           <div className="flex items-center gap-2.5 text-teal-900 font-semibold">
             <CheckCircle2 className="w-5 h-5 text-teal-600" />
@@ -898,7 +916,9 @@ export const StockReportManager: React.FC<StockReportManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isReadOnly ? (
+                          {!canUpload ? (
+                            <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                          ) : isReadOnly ? (
                             <span
                               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
                               title={`Read-Only: Upload date (${stock.stockDate || openingStockDate}) is prior to active baseline. Data before upload is locked.`}

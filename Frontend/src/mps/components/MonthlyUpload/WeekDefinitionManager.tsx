@@ -14,7 +14,8 @@ import {
   Layers,
   Loader2,
   RefreshCw,
-  XCircle
+  XCircle,
+  Info
 } from 'lucide-react';
 import { WeekDefinition } from '../../types';
 import weekService, { dtoToFrontend } from '../../services/weekService';
@@ -27,6 +28,7 @@ interface WeekDefinitionManagerProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   onToday?: () => void;
+  canManage?: boolean;
 }
 
 export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
@@ -34,7 +36,8 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
   onUpdateWeeks,
   selectedMonth,
   onSelectMonth,
-  onToday
+  onToday,
+  canManage = true,
 }) => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingWeek, setEditingWeek] = useState<WeekDefinition | null>(null);
@@ -311,6 +314,14 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
         </div>
       )}
 
+      {/* RBAC Read-Only Alert Banner */}
+      {!canManage && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Configuring week calendars and auto-generating week buckets are restricted to Demand Planners and Administrators. Defined weeks remain fully visible for planning.</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -319,9 +330,6 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Define Week Calendar (Week No.)</h1>
-            {/* <p className="text-sm text-slate-500">
-              Define monthly week date boundaries & days count to accurately prorate and consolidate monthly FG plans
-            </p> */}
           </div>
         </div>
 
@@ -335,15 +343,17 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
             Refresh
           </button>
-          <button
-            onClick={handleGenerateFullYear}
-            disabled={loading}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
-            title="Generate standard week buckets for all 12 months"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-600" />
-            Define Full Year
-          </button>
+          {canManage && (
+            <button
+              onClick={handleGenerateFullYear}
+              disabled={loading}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              title="Generate standard week buckets for all 12 months"
+            >
+              <Sparkles className="w-4 h-4 text-indigo-600" />
+              Define Full Year
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
@@ -351,13 +361,15 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
             <Download className="w-4 h-4 text-slate-500" />
             Export CSV
           </button>
-          <button
-            onClick={() => handleOpenAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Custom Week
-          </button>
+          {canManage && (
+            <button
+              onClick={() => handleOpenAddModal()}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Custom Week
+            </button>
+          )}
         </div>
       </div>
 
@@ -376,15 +388,17 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
           {onToday && <TodayButton onClick={onToday} />}
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-          <button
-            onClick={handleGeneratePromptStandard}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors"
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-600" />
-            Auto-Apply Month Pattern (01-09 W1, 10-16 W2, 17-23 W3, 24-31 W4)
-          </button>
-        </div>
+        {canManage && (
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            <button
+              onClick={handleGeneratePromptStandard}
+              className="flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+              Auto-Apply Month Pattern (01-09 W1, 10-16 W2, 17-23 W3, 24-31 W4)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Week Definition Cards & Stats */}
@@ -515,20 +529,26 @@ export const WeekDefinitionManager: React.FC<WeekDefinitionManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenAddModal(week)}
-                            className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                            title="Edit Week"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteWeek(week.id)}
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Delete Week"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!canManage ? (
+                            <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleOpenAddModal(week)}
+                                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                title="Edit Week"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteWeek(week.id)}
+                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Delete Week"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

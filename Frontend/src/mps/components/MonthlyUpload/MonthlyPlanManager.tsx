@@ -27,6 +27,7 @@ interface MonthlyPlanManagerProps {
   selectedMonth: string;
   onSelectMonth: (month: string) => void;
   onToday?: () => void;
+  canUpload?: boolean;
 }
 
 export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
@@ -36,7 +37,8 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
   boms,
   selectedMonth,
   onSelectMonth,
-  onToday
+  onToday,
+  canUpload = true
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -344,6 +346,14 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* RBAC Read-Only Alert Banner */}
+      {!canUpload && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading monthly plans, recalculating prorated weeks, and adding/editing plan records are restricted to Demand Planners and Administrators. All production plans remain fully visible.</span>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -352,28 +362,29 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Upload Monthly Plan & Weekly Distribution</h1>
-            {/* <p className="text-sm text-slate-500">
-              Uploads monthly customer FG plan and auto-divides quantities based on the number of days in each defined week
-            </p> */}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleRecalculateAllProrated}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
-            title="Recalculate weekly breakdown based on active week definitions"
-          >
-            <RefreshCw className="w-4 h-4 text-slate-500" />
-            Recalculate Weeks
-          </button>
-          <button
-            onClick={() => setIsUploadModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
-          >
-            <Upload className="w-4 h-4 text-emerald-600" />
-            Upload Plan CSV / Excel
-          </button>
+          {canUpload && (
+            <button
+              onClick={handleRecalculateAllProrated}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
+              title="Recalculate weekly breakdown based on active week definitions"
+            >
+              <RefreshCw className="w-4 h-4 text-slate-500" />
+              Recalculate Weeks
+            </button>
+          )}
+          {canUpload && (
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+            >
+              <Upload className="w-4 h-4 text-emerald-600" />
+              Upload Plan CSV / Excel
+            </button>
+          )}
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
@@ -381,13 +392,15 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
             <Download className="w-4 h-4 text-slate-500" />
             Export CSV
           </button>
-          <button
-            onClick={() => handleOpenAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add FG Plan
-          </button>
+          {canUpload && (
+            <button
+              onClick={() => handleOpenAddModal()}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add FG Plan
+            </button>
+          )}
         </div>
       </div>
 
@@ -537,22 +550,26 @@ export const MonthlyPlanManager: React.FC<MonthlyPlanManagerProps> = ({
                       {plan.uom}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenAddModal(plan)}
-                          className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
-                          title="Edit plan"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeletePlan(plan.id)}
-                          className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Delete plan"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      {canUpload ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenAddModal(plan)}
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                            title="Edit plan"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlan(plan.id)}
+                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete plan"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                      )}
                     </td>
                   </tr>
                 ))

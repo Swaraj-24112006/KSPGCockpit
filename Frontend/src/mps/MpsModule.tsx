@@ -8,6 +8,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, LogOut, Boxes } from 'lucide-react';
 import { AuthUser } from '../shared/utils/auth';
+import AccessDeniedModal from '../shared/components/AccessDeniedModal';
+import { hasModuleAccess, getUserMpsRole } from '../shared/utils/rbac';
 
 // MPS internal types & data
 import {
@@ -88,6 +90,17 @@ export default function MpsModule({
   onLogout,
   onNavigateToSuperadmin,
 }: MpsModuleProps) {
+  const mpsRole = getUserMpsRole(currentUser);
+  if (!hasModuleAccess(currentUser, 'mps') || mpsRole === 'none') {
+    return (
+      <AccessDeniedModal
+        isOpen={true}
+        moduleName="MPS Supply Chain & Inventory"
+        onClose={onBackToLanding}
+        onBackToDashboard={onBackToLanding}
+      />
+    );
+  }
   // Navigation State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sap_sidebar_collapsed');
@@ -113,6 +126,16 @@ export default function MpsModule({
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthISO());
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+
+  // Synchronize currentRole if currentUser changes
+  useEffect(() => {
+    const rolesList = currentUser?.module_roles || (currentUser as any)?.moduleRoles || [];
+    const assignedMps = Array.isArray(rolesList) ? rolesList.find((r: any) => r.module_code === 'mps' || r.moduleCode === 'mps') : null;
+    const mpsRoleName = assignedMps ? (assignedMps.role_name || assignedMps.roleName) : null;
+    if (mpsRoleName && ['demand_planner', 'supply_planner', 'production', 'management'].includes(mpsRoleName)) {
+      setCurrentRole(mpsRoleName as UserRole);
+    }
+  }, [currentUser]);
 
   // One-time clear of old dummy data
   if (typeof window !== 'undefined' && !localStorage.getItem('sap_cleared_dummy_data_v1')) {
@@ -468,15 +491,23 @@ export default function MpsModule({
 
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
-    if (
-      role === 'management' &&
-      activeSubView !== 'management_loss_report' &&
-      activeSubView !== 'performance_dashboard' &&
-      activeSubView !== 'supply_chain_one_pager'
-    ) {
-      setActiveSubView('supply_chain_one_pager');
-    }
   };
+
+  // Operational RBAC Permissions
+  const isSuperAdminOrAdmin = Boolean(
+    currentUser?.is_superadmin ||
+    currentUser?.role_name === 'superadmin' ||
+    currentUser?.role_name === 'admin' ||
+    (currentUser as any)?.roleCategory === 'admin'
+  );
+
+  const canManageMonthlyPlan = isSuperAdminOrAdmin || currentRole === 'demand_planner';
+  const canManageWeekDefinitions = isSuperAdminOrAdmin || currentRole === 'demand_planner';
+  const canManageMB51 = isSuperAdminOrAdmin || currentRole === 'demand_planner' || currentRole === 'supply_planner';
+  const canManageStock = isSuperAdminOrAdmin || currentRole === 'demand_planner' || currentRole === 'supply_planner';
+  const canManageVendorSchedule = isSuperAdminOrAdmin || currentRole === 'supply_planner';
+  const canManageBOM = isSuperAdminOrAdmin || currentRole === 'demand_planner' || currentRole === 'supply_planner';
+  const canManageVendorBuyer = isSuperAdminOrAdmin || currentRole === 'supply_planner';
 
   return (
     <div className="mps-module-root flex h-screen bg-slate-100 text-slate-900 font-sans overflow-hidden">
@@ -694,6 +725,7 @@ export default function MpsModule({
                 openingStockDate={openingStockDate}
                 planFreezeList={planFreezeList}
                 globalSearchTerm={globalSearchTerm}
+                canManage={canManageVendorSchedule}
               />
             )}
 
@@ -736,6 +768,7 @@ export default function MpsModule({
                 selectedMonth={selectedMonth}
                 onSelectMonth={handleSelectMonth}
                 onToday={goToToday}
+                canManage={canManageWeekDefinitions}
               />
             )}
 
@@ -748,6 +781,7 @@ export default function MpsModule({
                 selectedMonth={selectedMonth}
                 onSelectMonth={handleSelectMonth}
                 onToday={goToToday}
+                canUpload={canManageMonthlyPlan}
               />
             )}
 
@@ -759,6 +793,7 @@ export default function MpsModule({
                 selectedMonth={selectedMonth}
                 stockList={stockList}
                 openingStockDate={openingStockDate}
+                canUpload={canManageMB51}
               />
             )}
 
@@ -769,6 +804,7 @@ export default function MpsModule({
                 openingStockDate={openingStockDate}
                 onUpdateOpeningStockDate={setOpeningStockDate}
                 globalSearchTerm={globalSearchTerm}
+                canUpload={canManageStock}
               />
             )}
 
@@ -776,6 +812,7 @@ export default function MpsModule({
               <BOMMasterManager
                 boms={boms}
                 onUpdateBoms={setBoms}
+                canManage={canManageBOM}
               />
             )}
 
@@ -795,6 +832,7 @@ export default function MpsModule({
               <VendorBuyerManager
                 vendorBuyers={vendorBuyers}
                 onUpdateVendorBuyers={setVendorBuyers}
+                canManage={canManageVendorBuyer}
               />
             )}
 

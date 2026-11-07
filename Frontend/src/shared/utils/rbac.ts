@@ -162,7 +162,7 @@ export function getUserModuleRole(
   user: AuthUser | null | undefined,
   moduleCode: string
 ): RoleCategory {
-  if (!user) return 'initiator';
+  if (!user) return 'none' as RoleCategory;
   if (
     user.is_superadmin ||
     user.role_category === 'superadmin' ||
@@ -172,24 +172,35 @@ export function getUserModuleRole(
     return 'superadmin';
   }
 
-  // Normalise module code (e.g. 'cft-awards' maps to 'kaizen')
-  const targetCode = moduleCode === 'cft-awards' ? 'kaizen' : moduleCode;
+  // Normalise module code (e.g. 'cft-awards' maps to 'kaizen', 'safety'/'redflag' map to 'safety_desk')
+  let targetCode = moduleCode;
+  if (moduleCode === 'cft-awards') targetCode = 'kaizen';
+  if (moduleCode === 'safety' || moduleCode === 'redflag') targetCode = 'safety_desk';
 
   const rolesList: any[] = user.module_roles || (user as any).moduleRoles || [];
-  if (Array.isArray(rolesList)) {
-    const found = rolesList.find(
-      (r: any) => (r.module_code === targetCode || r.moduleCode === targetCode)
-    );
+  if (Array.isArray(rolesList) && rolesList.length > 0) {
+    const found = rolesList.find((r: any) => {
+      const code = (r.module_code || r.moduleCode || '').toLowerCase();
+      if (code === targetCode) return true;
+      if (code === 'safety_desk' && (moduleCode === 'safety' || moduleCode === 'redflag')) return true;
+      if (code === 'kaizen' && moduleCode === 'cft-awards') return true;
+      return false;
+    });
     if (found) {
       const rName = found.role_name || found.roleName;
       if (rName) {
         return rName as RoleCategory;
       }
     }
+    // Explicit module_roles list configured on user, but no role for this module -> No Access
+    return 'none' as RoleCategory;
   }
 
-  // Fallback to least privilege
-  return 'initiator';
+  // Fallback for legacy users with no module_roles array:
+  if (targetCode === 'kaizen') {
+    return user.role_category || 'initiator';
+  }
+  return 'none' as RoleCategory;
 }
 
 /**
@@ -500,17 +511,20 @@ export function getUserChecklistRole(user: AuthUser | null | undefined): Checkli
     return 'superadmin';
   }
   const rolesList: any[] = user.module_roles || (user as any).moduleRoles || [];
-  if (Array.isArray(rolesList)) {
+  if (Array.isArray(rolesList) && rolesList.length > 0) {
     const found = rolesList.find((r: any) => r.module_code === 'checklist' || r.moduleCode === 'checklist');
     if (found) {
-      return (found.role_name || found.roleName) as ChecklistRole;
+      const rName = found.role_name || found.roleName;
+      return (rName || 'none') as ChecklistRole | 'none';
     }
+    // Explicit module_roles list configured on user, but no role for checklist -> No Access
+    return 'none';
   }
-  // Fallback: If user's primary category is coordinator or admin, coordinator; else if initiator, operator
+  // Fallback for legacy users with no module_roles array:
   if (user.role_category === 'coordinator' || user.role_category === 'admin') {
     return 'coordinator';
   }
-  return 'operator';
+  return 'none';
 }
 
 
@@ -559,6 +573,8 @@ export function getModuleFriendlyName(moduleCode: string): string {
       return 'Red Flag Quality Alert System';
     case 'safety_desk':
       return 'Safety & Red Flag Desk';
+    case 'tpm':
+      return 'TPM Total Productive Maintenance';
     case 'mps':
       return 'MPS Supply Chain & Inventory';
     case 'checklist':

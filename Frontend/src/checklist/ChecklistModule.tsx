@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, LogOut, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { AuthUser } from '../shared/utils/auth';
-import { getUserChecklistRole, getChecklistRoleBadge } from '../shared/utils/rbac';
+import { getUserChecklistRole, getChecklistRoleBadge, hasModuleAccess } from '../shared/utils/rbac';
+import AccessDeniedModal from '../shared/components/AccessDeniedModal';
 import { Minifactory, Station } from './types';
 import { INITIAL_MINIFACTORIES } from './data/initialData';
 import { Navbar } from './components/Navbar';
@@ -30,6 +31,16 @@ export default function ChecklistModule({
 }: ChecklistModuleProps) {
   // Determine user's checklist role & restrictions
   const checklistRole = getUserChecklistRole(currentUser);
+  if (!hasModuleAccess(currentUser, 'checklist') || checklistRole === 'none') {
+    return (
+      <AccessDeniedModal
+        isOpen={true}
+        moduleName="Checklist Daily Work Management"
+        onClose={onBackToLanding}
+        onBackToDashboard={onBackToLanding}
+      />
+    );
+  }
   const roleBadge = getChecklistRoleBadge(checklistRole);
   // Operators are restricted exclusively to 'operator' (Fill Checklist) view unless they are superadmin
   const isOperator = checklistRole === 'operator' && !currentUser?.is_superadmin;

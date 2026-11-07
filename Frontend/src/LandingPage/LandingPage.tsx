@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthUser, logout as authLogout } from '../shared/utils/auth';
-import { getRoleBadge, RoleCategory } from '../shared/utils/rbac';
+import { getRoleBadge, RoleCategory, hasModuleAccess } from '../shared/utils/rbac';
+import AccessDeniedModal from '../shared/components/AccessDeniedModal';
 import {
   BarChart3,
   Boxes,
@@ -44,6 +45,45 @@ export default function LandingPage({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [deniedModal, setDeniedModal] = useState<{ moduleName: string } | null>(null);
+
+  const handleLaunchSFC = () => {
+    if (isSuperadmin) {
+      onLaunchSFC();
+      return;
+    }
+    const hasAnySfc =
+      hasModuleAccess(currentUser, 'kaizen') ||
+      hasModuleAccess(currentUser, 'ppsr') ||
+      hasModuleAccess(currentUser, 'fives') ||
+      hasModuleAccess(currentUser, 'redflag') ||
+      hasModuleAccess(currentUser, 'safety');
+    if (!hasAnySfc) {
+      setDeniedModal({ moduleName: 'Shop Floor Control (SFC)' });
+      return;
+    }
+    onLaunchSFC();
+  };
+
+  const handleLaunchMPS = () => {
+    if (!hasModuleAccess(currentUser, 'mps')) {
+      setDeniedModal({ moduleName: 'MPS Supply Chain & Inventory' });
+      return;
+    }
+    onLaunchMPS();
+  };
+
+  const handleLaunchDWM = () => {
+    if (isSuperadmin) {
+      onLaunchDWM();
+      return;
+    }
+    if (!hasModuleAccess(currentUser, 'checklist')) {
+      setDeniedModal({ moduleName: 'Daily Work Management (DWM) — Checklist' });
+      return;
+    }
+    onLaunchDWM();
+  };
 
   const userRole: RoleCategory = currentUser?.role_category || 'initiator';
   const roleBadge = getRoleBadge(userRole);
@@ -95,7 +135,7 @@ export default function LandingPage({
         {/* Center Nav Links */}
         <nav className="hidden md:flex items-center gap-8 font-mono text-xs font-semibold">
           <button
-            onClick={onLaunchSFC}
+            onClick={handleLaunchSFC}
             className="text-[#F2F2F2] font-bold border-b-2 border-[#4C7FFF] pb-1 hover:text-[#4C7FFF] transition-all cursor-pointer flex items-center gap-1.5"
           >
             <BarChart3 className="w-3.5 h-3.5 text-[#4C7FFF]" />
@@ -103,7 +143,7 @@ export default function LandingPage({
           </button>
           <button
             id="nav-dwm-btn"
-            onClick={onLaunchDWM}
+            onClick={handleLaunchDWM}
             className="text-[#F2F2F2]/70 hover:text-emerald-400 transition-colors cursor-pointer flex items-center gap-1.5"
             title="Daily Work Management Suite"
           >
@@ -111,7 +151,7 @@ export default function LandingPage({
             <span>DWM Suite (5 Apps)</span>
           </button>
           <button
-            onClick={onLaunchMPS}
+            onClick={handleLaunchMPS}
             className="text-[#F2F2F2]/60 hover:text-[#F2F2F2] transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <Boxes className="w-3.5 h-3.5 text-amber-400" />
@@ -250,7 +290,7 @@ export default function LandingPage({
 
             <button
               id="launch-sfc-btn"
-              onClick={onLaunchSFC}
+              onClick={handleLaunchSFC}
               className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-[#4C7FFF] to-[#366CEC] hover:from-[#366CEC] hover:to-[#0652d2] active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-[#4C7FFF]/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
             >
               <span>EXPLORE SFC APPS (5)</span>
@@ -307,7 +347,7 @@ export default function LandingPage({
 
             <button
               id="launch-dwm-btn"
-              onClick={onLaunchDWM}
+              onClick={handleLaunchDWM}
               className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-emerald-500/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
             >
               <span>EXPLORE DWM APPS (5)</span>
@@ -364,7 +404,7 @@ export default function LandingPage({
 
             <button
               id="launch-mps-btn"
-              onClick={onLaunchMPS}
+              onClick={handleLaunchMPS}
               className="w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-[0.99] text-[#F2F2F2] shadow-lg shadow-amber-500/30 flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20"
             >
               <span>LAUNCH SEQUENCE</span>
@@ -480,6 +520,12 @@ export default function LandingPage({
           <span className="hover:text-[#F2F2F2] transition-colors cursor-pointer">SECURITY PROTOCOL</span>
         </div>
       </footer>
+      {/* Access Denied Modal */}
+      <AccessDeniedModal
+        isOpen={Boolean(deniedModal)}
+        moduleName={deniedModal?.moduleName || ''}
+        onClose={() => setDeniedModal(null)}
+      />
     </div>
   );
 }

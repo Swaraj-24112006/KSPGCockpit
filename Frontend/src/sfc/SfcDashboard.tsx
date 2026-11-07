@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthUser, logout as authLogout } from '../shared/utils/auth';
-import { getRoleBadge, RoleCategory } from '../shared/utils/rbac';
+import { getRoleBadge, RoleCategory, hasModuleAccess } from '../shared/utils/rbac';
+import AccessDeniedModal from '../shared/components/AccessDeniedModal';
 import { Kaizen, RedFlag, FiveSAudit, SafetyIncident, PpsrReport } from '../types';
 import { formatIndianRupeesCompact } from '../utils';
 import {
@@ -86,6 +87,15 @@ export default function SfcDashboard({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'kaizen' | 'ppsr' | 'fives' | 'redflag' | 'safety'>('all');
+  const [deniedModal, setDeniedModal] = useState<{ moduleName: string } | null>(null);
+
+  const handleLaunchApp = (appId: 'kaizen' | 'ppsr' | 'fives' | 'redflag' | 'safety' | 'cft-awards', appName: string) => {
+    if (!hasModuleAccess(currentUser, appId)) {
+      setDeniedModal({ moduleName: appName });
+      return;
+    }
+    onNavigateToModule(appId);
+  };
 
   const userRole: RoleCategory = currentUser?.role_category || 'initiator';
   const roleBadge = getRoleBadge(userRole);
@@ -569,7 +579,7 @@ export default function SfcDashboard({
                 {/* Launch Button */}
                 <button
                   id={`launch-${app.id}-btn`}
-                  onClick={() => onNavigateToModule(app.id)}
+                  onClick={() => handleLaunchApp(app.id, app.name)}
                   className={`w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-gradient-to-r ${app.theme.gradient} ${app.theme.gradientHover} active:scale-[0.99] text-[#F2F2F2] shadow-lg ${app.theme.btnShadow} flex justify-center items-center gap-2 transition-all transform group-hover:translate-x-0.5 cursor-pointer border border-[#F2F2F2]/20`}
                 >
                   <span>{app.launchLabel}</span>
@@ -604,7 +614,7 @@ export default function SfcDashboard({
 
             <button
               type="button"
-              onClick={() => onNavigateToModule('cft-awards')}
+              onClick={() => handleLaunchApp('cft-awards', 'Monthly CFT Excellence Awards')}
               className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-[0.99] text-[#F2F2F2] font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2 border border-[#F2F2F2]/20 shrink-0 cursor-pointer"
             >
               <Vote className="w-4 h-4" />
@@ -742,6 +752,12 @@ export default function SfcDashboard({
           <span className="hover:text-[#F2F2F2] transition-colors cursor-pointer">SECURITY PROTOCOL</span>
         </div>
       </footer>
+      {/* Access Denied Modal */}
+      <AccessDeniedModal
+        isOpen={Boolean(deniedModal)}
+        moduleName={deniedModal?.moduleName || ''}
+        onClose={() => setDeniedModal(null)}
+      />
     </div>
   );
 }

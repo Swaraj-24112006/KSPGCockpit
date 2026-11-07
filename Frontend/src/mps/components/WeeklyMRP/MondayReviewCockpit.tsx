@@ -1357,76 +1357,16 @@ export const MondayReviewCockpit: React.FC<MondayReviewCockpitProps> = ({
         {/* ROW 2: RBAC Role & Notification Radar Banner */}
         <div className="space-y-2.5 border-t border-slate-100 pt-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            {/* RBAC Role Indicator Pill with Interactive Switcher Dropdown */}
-            <div className="relative">
+            {/* RBAC Role Indicator Pill (Read-only) */}
+            <div>
               <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border bg-slate-50 text-slate-800 border-slate-200 shadow-2xs"
+                title={`Assigned Operating Role: ${currentRoleDef.label}`}
               >
                 <Info className="w-4 h-4 text-blue-600" />
                 <span className="font-medium text-xs text-slate-500">Role:</span>
                 <span className="font-bold text-slate-900">{currentRoleDef.label}</span>
-                {onSelectRole && (
-                  <button
-                    onClick={() => setIsRoleMenuOpen(!isRoleMenuOpen)}
-                    className="text-xs underline text-blue-600 hover:text-blue-800 ml-1 font-semibold cursor-pointer"
-                    title="Switch active user role"
-                  >
-                    (Switch)
-                  </button>
-                )}
               </div>
-
-              {/* Role Switcher Popover Dropdown */}
-              {isRoleMenuOpen && (
-                <div className="absolute left-0 top-full mt-1.5 w-80 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-40 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <div className="px-2.5 py-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
-                    <span>Select User Role</span>
-                    <button
-                      onClick={() => setIsRoleMenuOpen(false)}
-                      className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {USER_ROLES.map((r) => {
-                    const isCurrent = r.id === currentRole;
-                    return (
-                      <button
-                        key={r.id}
-                        onClick={() => {
-                          if (onSelectRole) onSelectRole(r.id);
-                          setIsRoleMenuOpen(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-start gap-2.5 cursor-pointer ${
-                          isCurrent
-                            ? 'bg-blue-50 text-blue-900 border border-blue-200 font-bold'
-                            : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className="mt-0.5">
-                          {r.id === 'management' && <ShieldCheck className="w-4 h-4 text-purple-600" />}
-                          {r.id === 'demand_planner' && <Layers className="w-4 h-4 text-blue-600" />}
-                          {r.id === 'supply_planner' && <Truck className="w-4 h-4 text-amber-600" />}
-                          {r.id === 'production' && <Factory className="w-4 h-4 text-emerald-600" />}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-semibold flex items-center justify-between">
-                            <span>{r.label}</span>
-                            {isCurrent && (
-                              <span className="px-2 py-0.5 rounded text-xs bg-blue-600 text-white font-mono">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-slate-500 font-normal leading-tight mt-0.5">
-                            {r.description}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </div>
 
             {/* Notification Toggle & Attention Summary Chip */}

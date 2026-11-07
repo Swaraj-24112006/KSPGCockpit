@@ -78,6 +78,7 @@ interface VendorScheduleManagerProps {
   selectedWeekId?: string;
   onSelectWeek?: (weekId: string) => void;
   onToday?: () => void;
+  canManage?: boolean;
 }
 
 interface ConsolidatedComponentRow {
@@ -155,8 +156,11 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
   globalSearchTerm = '',
   selectedWeekId: selectedWeekIdProp,
   onSelectWeek: onSelectWeekProp,
-  onToday
+  onToday,
+  canManage
 }) => {
+  const effectiveCanManage = canManage !== undefined ? canManage : (currentRole === 'supply_planner');
+
   const getUploadDate = (compCode: string) => {
     return getLineItemMB52UploadDate(compCode, stockList, openingStockDate);
   };
@@ -1320,6 +1324,14 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
         </div>
       )}
 
+      {/* RBAC Read-Only Alert Banner */}
+      {!effectiveCanManage && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading delivery schedule spreadsheets, creating PO entries, and modifying vendor commitments are restricted to Supply Planners / Buyers and Administrators. All supplier schedules and requirements remain fully visible.</span>
+        </div>
+      )}
+
       {/* TOP HEADER CONTROLS & SCOPE TOOLBAR */}
       <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 shadow-md">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -1410,27 +1422,31 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
             </button>
 
             {/* Direct Upload Excel Button */}
-            <button
-              type="button"
-              onClick={() => setIsUploadModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-sm cursor-pointer transition-colors"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Upload Excel / CSV Schedule</span>
-            </button>
+            {effectiveCanManage && (
+              <button
+                type="button"
+                onClick={() => setIsUploadModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg shadow-sm cursor-pointer transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload Excel / CSV Schedule</span>
+              </button>
+            )}
 
             {/* Add Single Commitment Button */}
-            <button
-              type="button"
-              onClick={() => handleOpenAddSingleModal()}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-sm cursor-pointer transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Manual PO Entry</span>
-            </button>
+            {effectiveCanManage && (
+              <button
+                type="button"
+                onClick={() => handleOpenAddSingleModal()}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-sm cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Manual PO Entry</span>
+              </button>
+            )}
 
             {/* Auto-Fill Commitments */}
-            {summaryMetrics.shortagesCount > 0 && (
+            {effectiveCanManage && summaryMetrics.shortagesCount > 0 && (
               <button
                 type="button"
                 onClick={handleAutoFillAllDeficits}
@@ -2006,15 +2022,17 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                               );
                             })()}
 
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAddSingleModal(row)}
-                              className="px-2 py-1 rounded text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs cursor-pointer flex items-center gap-1 transition-colors"
-                              title="Add delivery schedule for this component"
-                            >
-                              <Plus className="w-3 h-3" />
-                              <span>+ Schedule</span>
-                            </button>
+                            {effectiveCanManage && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAddSingleModal(row)}
+                                className="px-2 py-1 rounded text-[11px] font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs cursor-pointer flex items-center gap-1 transition-colors"
+                                title="Add delivery schedule for this component"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>+ Schedule</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -2164,7 +2182,9 @@ export const VendorScheduleManager: React.FC<VendorScheduleManagerProps> = ({
                               );
                             })()}
 
-                            {isReadOnly ? (
+                            {!effectiveCanManage ? (
+                              <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                            ) : isReadOnly ? (
                               <span
                                 className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 border border-slate-200 rounded text-[11px] text-slate-400 font-medium"
                                 title={`Read-Only: Delivery date (${s.expectedDeliveryDate}) is prior to MB52 upload baseline (${getUploadDate(s.componentCode)}). Historical schedules cannot be edited or removed.`}

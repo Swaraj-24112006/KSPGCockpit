@@ -17,7 +17,8 @@ import {
   XCircle,
   X,
   Package,
-  Sparkles
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { BOMItem } from '../../types';
 import bomService, {
@@ -34,6 +35,7 @@ interface BOMMasterManagerProps {
   boms: BOMItem[];
   onUpdateBOMs?: (boms: BOMItem[]) => void;
   onUpdateBoms?: (boms: BOMItem[]) => void;
+  canManage?: boolean;
 }
 
 /** Convert backend DTO to the frontend BOMItem shape used by other components */
@@ -54,6 +56,7 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
   boms,
   onUpdateBOMs,
   onUpdateBoms,
+  canManage = true,
 }) => {
   const syncBoms = onUpdateBOMs || onUpdateBoms;
 
@@ -467,6 +470,14 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* RBAC Read-Only Alert Banner */}
+      {!canManage && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading BOM files and modifying bill-of-materials definitions are restricted to Planners and Administrators. All BOM configurations remain fully visible.</span>
+        </div>
+      )}
+
       {/* Toast Messages */}
       {successMsg && (
         <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-800 animate-in fade-in slide-in-from-top-2">
@@ -491,9 +502,6 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900">BOM Master (Bill of Materials)</h1>
-              {/* <p className="text-sm text-slate-500">
-                Maintains multi-level relationship between Finished Goods (part prefix 7) and RM/PM components
-              </p> */}
             </div>
           </div>
         </div>
@@ -515,26 +523,30 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
             <Download className="w-4 h-4 text-slate-500" />
             Export CSV
           </button>
-          <button
-            id="upload-bom-csv"
-            onClick={() => {
-              setUploadFile(null);
-              setUploadResult(null);
-              setIsUploadModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
-          >
-            <UploadCloud className="w-4 h-4 text-blue-600" />
-            Upload CSV
-          </button>
-          <button
-            id="add-bom-btn"
-            onClick={() => handleOpenAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add BOM Item
-          </button>
+          {canManage && (
+            <button
+              id="upload-bom-csv"
+              onClick={() => {
+                setUploadFile(null);
+                setUploadResult(null);
+                setIsUploadModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
+            >
+              <UploadCloud className="w-4 h-4 text-blue-600" />
+              Upload CSV
+            </button>
+          )}
+          {canManage && (
+            <button
+              id="add-bom-btn"
+              onClick={() => handleOpenAddModal()}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add BOM Item
+            </button>
+          )}
         </div>
       </div>
 
@@ -678,24 +690,30 @@ export const BOMMasterManager: React.FC<BOMMasterManagerProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => {
-                              const dto = apiData.find(d => String(d.id) === bom.id);
-                              if (dto) handleOpenAddModal(dto);
-                            }}
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            title="Edit BOM item"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBOM(Number(bom.id))}
-                            disabled={saving}
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                            title="Delete BOM item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!canManage ? (
+                            <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const dto = apiData.find(d => String(d.id) === bom.id);
+                                  if (dto) handleOpenAddModal(dto);
+                                }}
+                                className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title="Edit BOM item"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteBOM(Number(bom.id))}
+                                disabled={saving}
+                                className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                                title="Delete BOM item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

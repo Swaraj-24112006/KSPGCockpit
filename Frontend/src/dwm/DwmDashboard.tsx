@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthUser, logout as authLogout } from '../shared/utils/auth';
-import { getRoleBadge, RoleCategory } from '../shared/utils/rbac';
+import { getRoleBadge, RoleCategory, hasModuleAccess } from '../shared/utils/rbac';
+import AccessDeniedModal from '../shared/components/AccessDeniedModal';
 import {
   ShieldCheck,
   ClipboardCheck,
@@ -78,6 +79,7 @@ export default function DwmDashboard({
   const [showHelp, setShowHelp] = useState(false);
   const [selectedAppModal, setSelectedAppModal] = useState<DwmAppDef | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'execution' | 'quality' | 'production'>('all');
+  const [deniedModal, setDeniedModal] = useState<{ moduleName: string } | null>(null);
 
   const userRole: RoleCategory = currentUser?.role_category || 'initiator';
   const roleBadge = getRoleBadge(userRole);
@@ -273,7 +275,11 @@ export default function DwmDashboard({
     : dwmApps.filter((app) => app.category === activeFilter);
 
   const handleAppLaunch = (app: DwmAppDef) => {
-    if (app.isCurrentProject) {
+    if (app.isCurrentProject || app.id === 'checklist') {
+      if (!hasModuleAccess(currentUser, 'checklist')) {
+        setDeniedModal({ moduleName: 'Checklist Verification' });
+        return;
+      }
       onLaunchChecklist();
     } else {
       setSelectedAppModal(app);
@@ -741,6 +747,12 @@ export default function DwmDashboard({
           <span className="hover:text-[#F2F2F2] transition-colors cursor-pointer">SECURITY PROTOCOL</span>
         </div>
       </footer>
+      {/* Access Denied Modal */}
+      <AccessDeniedModal
+        isOpen={Boolean(deniedModal)}
+        moduleName={deniedModal?.moduleName || ''}
+        onClose={() => setDeniedModal(null)}
+      />
     </div>
   );
 }

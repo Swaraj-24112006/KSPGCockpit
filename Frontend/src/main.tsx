@@ -8,6 +8,8 @@ import ChecklistModule from './checklist/ChecklistModule.tsx';
 import DwmDashboard from './dwm/DwmDashboard.tsx';
 import MpsModule from './mps/MpsModule.tsx';
 import { isAuthenticated, AuthUser, getUser, saveUser } from './shared/utils/auth.ts';
+import { hasModuleAccess } from './shared/utils/rbac.ts';
+import AccessDeniedModal from './shared/components/AccessDeniedModal.tsx';
 import './index.css';
 
 function Root() {
@@ -82,9 +84,20 @@ function Root() {
     }
 
     if (currentView === 'dwm') {
+      const isSuperadmin = Boolean(currentUser?.is_superadmin || currentUser?.role_category === 'superadmin');
+      if (!isSuperadmin && !hasModuleAccess(currentUser, 'checklist')) {
+        return (
+          <AccessDeniedModal
+            isOpen={true}
+            moduleName="Daily Work Management (DWM)"
+            onClose={() => setCurrentView('landing')}
+            onBackToDashboard={() => setCurrentView('landing')}
+          />
+        );
+      }
       return (
-          <DwmDashboard
-        currentUser={currentUser}
+        <DwmDashboard
+          currentUser={currentUser}
           onBackToLanding={() => setCurrentView('landing')}
           onLaunchChecklist={() => setCurrentView('checklist')}
           onLogout={handleSessionEnd}
@@ -94,6 +107,16 @@ function Root() {
     }
 
     if (currentView === 'checklist') {
+      if (!hasModuleAccess(currentUser, 'checklist')) {
+        return (
+          <AccessDeniedModal
+            isOpen={true}
+            moduleName="Daily Work Management (Checklist)"
+            onClose={() => setCurrentView('landing')}
+            onBackToDashboard={() => setCurrentView('landing')}
+          />
+        );
+      }
       return (
         <ChecklistModule
           currentUser={currentUser}
@@ -105,6 +128,16 @@ function Root() {
     }
 
     if (currentView === 'mps') {
+      if (!hasModuleAccess(currentUser, 'mps')) {
+        return (
+          <AccessDeniedModal
+            isOpen={true}
+            moduleName="Weekly MRP & Supply Operations (MPS)"
+            onClose={() => setCurrentView('landing')}
+            onBackToDashboard={() => setCurrentView('landing')}
+          />
+        );
+      }
       return (
         <MpsModule
           currentUser={currentUser}

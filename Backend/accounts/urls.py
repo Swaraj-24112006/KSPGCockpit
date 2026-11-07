@@ -23,6 +23,7 @@ from .superadmin_views import (
     SuperAdminSummaryView,
     SuperAdminUserViewSet,
     SuperAdminAuditLogListView,
+    SuperAdminRbacMetadataView,
 )
 
 router = DefaultRouter()
@@ -61,6 +62,7 @@ urlpatterns = [
     # Dedicated SuperAdmin Management Endpoints
     path('superadmin/summary/', SuperAdminSummaryView.as_view(), name='superadmin-summary'),
     path('superadmin/audit-logs/', SuperAdminAuditLogListView.as_view(), name='superadmin-audit-logs'),
+    path('superadmin/rbac-metadata/', SuperAdminRbacMetadataView.as_view(), name='superadmin-rbac-metadata'),
     path('superadmin/users/<int:pk>/toggle-status/', SuperAdminUserViewSet.as_view({'post': 'toggle_status'}), name='superadmin-user-toggle-status'),
     path('superadmin/users/<int:pk>/change-mini-factory/', SuperAdminUserViewSet.as_view({'post': 'change_mini_factory'}), name='superadmin-user-change-mf'),
     path('superadmin/users/<int:pk>/reset-temp-password/', SuperAdminUserViewSet.as_view({'post': 'reset_temp_password'}), name='superadmin-user-reset-temp-pwd'),

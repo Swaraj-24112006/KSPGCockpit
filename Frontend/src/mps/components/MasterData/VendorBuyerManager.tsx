@@ -21,7 +21,8 @@ import {
   X,
   FileSpreadsheet,
   UploadCloud,
-  CheckCircle2
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import { VendorBuyerItem } from '../../types';
 import vendorBuyerService, {
@@ -36,6 +37,7 @@ import { ApiError } from '../../services/api';
 interface VendorBuyerManagerProps {
   vendorBuyers: VendorBuyerItem[];
   onUpdateVendorBuyers: (items: VendorBuyerItem[]) => void;
+  canManage?: boolean;
 }
 
 /** Convert backend DTO to the frontend VendorBuyerItem shape */
@@ -58,6 +60,7 @@ function dtoToFrontend(dto: VendorBuyerDTO): VendorBuyerItem {
 export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
   vendorBuyers,
   onUpdateVendorBuyers,
+  canManage = true,
 }) => {
   // --- API State ---
   const [apiData, setApiData] = useState<VendorBuyerDTO[]>([]);
@@ -508,6 +511,14 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
         </div>
       )}
 
+      {/* RBAC Read-Only Alert Banner */}
+      {!canManage && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-900 rounded-xl text-xs font-medium shadow-xs">
+          <Info className="w-4 h-4 text-blue-600 shrink-0" />
+          <span><strong>Read-Only View:</strong> Uploading vendor relationship spreadsheets and creating/modifying vendor-buyer records are restricted to Supply Planners / Buyers and Administrators. All vendor profiles and mappings remain fully visible.</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
@@ -516,9 +527,6 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Vendor & Buyer Relationship Master</h1>
-            {/* <p className="text-sm text-slate-500">
-              Maps suppliers, assigned supply planners, procurement lead times, and supplied part codes
-            </p> */}
           </div>
         </div>
 
@@ -542,26 +550,30 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
             Export CSV
           </button>
 
-          <button
-            id="upload-vendor-csv"
-            onClick={() => {
-              setUploadFile(null);
-              setUploadResult(null);
-              setIsUploadModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm"
-          >
-            <UploadCloud className="w-4 h-4 text-amber-600" />
-            Upload CSV
-          </button>
+          {canManage && (
+            <button
+              id="upload-vendor-csv"
+              onClick={() => {
+                setUploadFile(null);
+                setUploadResult(null);
+                setIsUploadModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-3.5 py-2 text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors shadow-sm"
+            >
+              <UploadCloud className="w-4 h-4 text-amber-600" />
+              Upload CSV
+            </button>
+          )}
 
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700 shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Relationship
-          </button>
+          {canManage && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700 shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Relationship
+            </button>
+          )}
         </div>
       </div>
 
@@ -769,20 +781,26 @@ export const VendorBuyerManager: React.FC<VendorBuyerManagerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleOpenModal(item)}
-                    className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                    title="Edit Vendor & Buyer"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item)}
-                    className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete Vendor"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!canManage ? (
+                    <span className="text-xs text-slate-400 font-mono italic">Read-only</span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleOpenModal(item)}
+                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Edit Vendor & Buyer"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item)}
+                        className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Vendor"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

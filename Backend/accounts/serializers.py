@@ -83,19 +83,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'username', 'date_joined', 'last_login', 'last_activity', 'is_superadmin']
 
     def get_full_name(self, obj):
-        return obj.get_full_name() or obj.username
+        return obj.get_full_name() or obj.username or ''
 
     def get_role_category(self, obj) -> str:
         """
         Returns the normalised RBAC category string for the frontend.
         One of: 'superadmin' | 'admin' | 'coordinator' | 'committee' | 'initiator'
         """
-        return obj.role_category
+        return obj.role_category or ''
 
 
 class UserListSerializer(serializers.ModelSerializer):
     """Compact serializer for user listings with module-specific roles and mini-factory."""
-    role_name = serializers.CharField(source='role.get_name_display', read_only=True, default='Initiator')
+    role_name = serializers.CharField(source='role.get_name_display', read_only=True, default='')
     full_name = serializers.SerializerMethodField()
     role_category = serializers.SerializerMethodField()
     module_roles = UserModuleRoleSerializer(many=True, read_only=True)
@@ -112,10 +112,89 @@ class UserListSerializer(serializers.ModelSerializer):
         ]
 
     def get_full_name(self, obj):
-        return obj.get_full_name() or obj.username
+        return obj.get_full_name() or obj.username or ''
 
     def get_role_category(self, obj) -> str:
-        return obj.role_category
+        return obj.role_category or ''
+
+
+class SuperAdminUserSerializer(serializers.ModelSerializer):
+    """
+    Unified serializer for all SuperAdmin user operations:
+    list, retrieve, create, partial_update, toggle_status, change_mini_factory, assign_module_role.
+    Guarantees consistent shape matching Frontend's UserRow contract.
+    """
+    role_name = serializers.SerializerMethodField()
+    role_category = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    role_detail = RoleSerializer(source='role', read_only=True)
+    module_roles = UserModuleRoleSerializer(many=True, read_only=True)
+    is_superadmin = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'id',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'full_name',
+            'employee_id',
+            'phone',
+            'department',
+            'designation',
+            'plant',
+            'area',
+            'mini_factory',
+            'role',
+            'role_detail',
+            'role_name',
+            'role_category',
+            'is_superadmin',
+            'is_active_employee',
+            'must_change_password',
+            'module_roles',
+            'last_login',
+            'date_joined',
+            'last_activity',
+        ]
+        read_only_fields = [
+            'id',
+            'username',
+            'date_joined',
+            'last_login',
+            'last_activity',
+            'is_superadmin',
+            'role_name',
+            'role_category',
+            'full_name',
+        ]
+
+    def get_full_name(self, obj) -> str:
+        return obj.get_full_name() or obj.username or ''
+
+    def get_role_category(self, obj) -> str:
+        return obj.role_category or ''
+
+    def get_role_name(self, obj) -> str:
+        if obj.is_superadmin:
+            return 'Super Administrator'
+        if obj.role:
+            return obj.role.get_name_display() if hasattr(obj.role, 'get_name_display') else obj.role.name
+        return ''
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        string_fields = [
+            'first_name', 'last_name', 'email', 'phone', 'department',
+            'designation', 'plant', 'area', 'mini_factory',
+            'role_name', 'role_category'
+        ]
+        for field in string_fields:
+            if ret.get(field) is None:
+                ret[field] = ''
+        return ret
 
 
 class PasswordChangeSerializer(serializers.Serializer):

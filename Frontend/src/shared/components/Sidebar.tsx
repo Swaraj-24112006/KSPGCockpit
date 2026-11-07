@@ -40,7 +40,8 @@ import {
   Clock
 } from 'lucide-react';
 import { UserPersona } from '../../types';
-import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab } from '../utils/rbac';
+import { RoleCategory, PpsrSubTab, canAccessTab, canAccessPpsrTab, hasModuleAccess, getModuleFriendlyName } from '../utils/rbac';
+import { AuthUser } from '../utils/auth';
 
 interface SidebarProps {
   activeModule: string;
@@ -65,6 +66,8 @@ interface SidebarProps {
   isSidebarHidden?: boolean;
 
   // RBAC / PPSR props (used for redirection + role-based menu visibility)
+  currentUser?: AuthUser | null;
+  onAccessDenied?: (moduleName: string) => void;
   draftsCount?: number;
   userRole?: RoleCategory;
   kaizenRole?: RoleCategory;
@@ -83,6 +86,8 @@ export default function Sidebar({
   persona,
   setPersona,
   openRedflagsCount,
+  currentUser,
+  onAccessDenied,
   draftsCount = 0,
   userRole = 'initiator',
   kaizenRole,
@@ -121,6 +126,10 @@ export default function Sidebar({
   };
 
   const selectModule = (moduleKey: any) => {
+    if (moduleKey !== 'global-dashboard' && currentUser && !hasModuleAccess(currentUser, moduleKey)) {
+      onAccessDenied?.(getModuleFriendlyName(moduleKey));
+      return;
+    }
     setActiveModule(moduleKey);
     if (moduleKey === 'ppsr' && setActivePpsrTab) {
       setActivePpsrTab(effectivePpsrRole === 'committee' ? 'meeting' : 'initiate');
@@ -130,6 +139,10 @@ export default function Sidebar({
   };
 
   const selectSubTab = (moduleKey: any, subTab: string, actionVal?: string) => {
+    if (moduleKey !== 'global-dashboard' && currentUser && !hasModuleAccess(currentUser, moduleKey)) {
+      onAccessDenied?.(getModuleFriendlyName(moduleKey));
+      return;
+    }
     setActiveModule(moduleKey);
     if (moduleKey === 'kaizen') {
       setActiveTab(subTab as any);
